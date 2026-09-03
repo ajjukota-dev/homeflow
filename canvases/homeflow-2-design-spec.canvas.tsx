@@ -22,6 +22,7 @@ import {
   useHostTheme,
 } from "cursor/canvas";
 
+/** HomeFlow 2.0 Full Design Spec v8 — interactive reading canvas. */
 type View =
   | "story"
   | "grasp"

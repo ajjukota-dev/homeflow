@@ -2,6 +2,8 @@
 
 Post-sales operating system for Pranava’s villa and apartment projects.
 
+**Taking this repo over?** Read [`HANDOFF.md`](HANDOFF.md) first — what the business is, what is demo vs production, Google login, and AWS CDK work remaining.
+
 After a family books a unit, HomeFlow is the system that collects money, generates papers, tracks that exact home’s construction, handles customer changes (kitchen, flooring), registers the sale, hands over keys, and supports the home after move-in.
 
 This is **not** the office-leasing / FMWork product in `pranavaPortal`. Same company, different product.
@@ -10,7 +12,9 @@ This is **not** the office-leasing / FMWork product in `pranavaPortal`. Same com
 
 | Path | What it is |
 |---|---|
+| [HANDOFF.md](HANDOFF.md) | Handoff: built vs remaining, seeded demo data, Google login, productionise |
 | [docs/CONTEXT.md](docs/CONTEXT.md) | Plain-English product story and how the flow works |
+| [docs/HOMEFLOW-OS.md](docs/HOMEFLOW-OS.md) | Full structured OS spec from the canvas — twins, villa flow, modules, gates, build contracts |
 | [docs/Pranava_HomeFlow_2.0_Full_Design_Spec_v8.pdf](docs/Pranava_HomeFlow_2.0_Full_Design_Spec_v8.pdf) | Full design spec v8 (source of truth) |
 | [canvases/homeflow-2-design-spec.canvas.tsx](canvases/homeflow-2-design-spec.canvas.tsx) | Interactive canvas of the full spec — keywords, journey, modules, gates, Emergent build rules |
 

@@ -1,0 +1,23 @@
+{
+  "name": "@homeflow/infra",
+  "private": true,
+  "version": "0.0.0",
+  "bin": { "homeflow": "bin/homeflow.ts" },
+  "scripts": {
+    "synth": "cdk synth",
+    "diff": "cdk diff",
+    "deploy": "cdk deploy --all",
+    "bootstrap": "cdk bootstrap",
+    "destroy": "cdk destroy --all"
+  },
+  "devDependencies": {
+    "@types/node": "^22.5.0",
+    "aws-cdk": "^2.160.0",
+    "constructs": "^10.3.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.4"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.160.0"
+  }
+}

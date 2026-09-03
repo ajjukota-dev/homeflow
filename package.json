@@ -1,0 +1,16 @@
+{
+  "name": "homeflow",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Pranava HomeFlow — post-sales OS for residential real estate. Monorepo: apps/ (frontend), services/ (backend), infra/ (AWS CDK), docs/spec (build contract).",
+  "scripts": {
+    "test": "npm --prefix services/api test && npm --prefix apps/workspace test",
+    "test:api": "npm --prefix services/api test",
+    "test:web": "npm --prefix apps/workspace test",
+    "test:e2e": "npm --prefix apps/workspace run e2e",
+    "build": "npm --prefix apps/workspace run build",
+    "synth": "npm --prefix infra run synth",
+    "dev:web": "npm --prefix apps/workspace run dev",
+    "dev:api": "npm --prefix services/api start"
+  }
+}

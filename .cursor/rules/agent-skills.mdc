@@ -1,0 +1,15 @@
+---
+description: Route HomeFlow work through agent-skills (spec, then TDD)
+alwaysApply: true
+---
+
+# HomeFlow + agent skills
+
+Product source of truth: `docs/CONTEXT.md` and `canvases/homeflow-2-design-spec.canvas.tsx`. Do not invent a second product. Do not start a chatbot, scores, or East-Crest-only branches.
+
+Skills live at `~/.cursor/skills/<name>/SKILL.md`. Read the matching skill and follow it. Do not paste skill bodies into rules.
+
+- Starting a module or the domain model has no implementation spec yet → `spec-driven-development`. Spec one module, not a rewrite of the 48-page design PDF.
+- Implementing or changing behavior → `test-driven-development` (failing test first), plus `incremental-implementation`.
+- UI → also `frontend-ui-engineering`. API → also `api-and-interface-design`.
+- Bug → `debugging-and-error-recovery`. Before merge → `code-review-and-quality`.

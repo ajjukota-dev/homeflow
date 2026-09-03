@@ -6,3 +6,7 @@ node_modules/
 dist/
 .next/
 *.pem
+test-results/
+playwright-report/
+blob-report/
+

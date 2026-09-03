@@ -1,6 +1,6 @@
 # HomeFlow — context for agents and humans
 
-Source: `Pranava_HomeFlow_2.0_Full_Design_Spec_v8.pdf` (48 pages, 35 sections + 2 appendices). Interactive reading copy: `canvases/homeflow-2-design-spec.canvas.tsx`.
+Source: `Pranava_HomeFlow_2.0_Full_Design_Spec_v8.pdf` (48 pages, 35 sections + 2 appendices). Interactive reading copy: `canvases/homeflow-2-design-spec.canvas.tsx`. Full structured markdown: `docs/HOMEFLOW-OS.md`.
 
 ## What Pranava is doing
 
