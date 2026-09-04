@@ -120,11 +120,12 @@ describe("Post-handover", () => {
     expect(after.length).toBeGreaterThan(history.length);
   });
 
-  // post-handover/spec.md §2.2 defines CheckinRecord.satisfaction_score but not its range;
-  // 1-5 assumed (CSAT convention), validated on capture — see PR body for confirmation needed
+  // post-handover/spec.md §2.2 defines satisfaction_score but not its range; 1-5 assumed (CSAT), see PR body
   it("rejects an out-of-range or non-numeric satisfaction score and writes nothing", async () => {
     for (const bad of [0, 6, 99, Number.NaN]) {
-      await expect(captureCheckin("ci_v113_30", bad)).rejects.toThrow("validation_failed");
+      const err = (await captureCheckin("ci_v113_30", bad).catch((e) => e)) as Error & { errors?: { code: string; field: string; message: string }[] };
+      expect(err.message).toBe("validation_failed");
+      expect(err.errors?.[0]).toEqual({ code: "validation", field: "satisfaction_score", message: "must be an integer from 1 to 5" });
     }
     const unchanged = await db.query<{ status: string; satisfaction_score: number | null }>(
       `SELECT status, satisfaction_score FROM checkin_record WHERE id = $1`,
