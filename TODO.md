@@ -22,11 +22,13 @@ A customer opens My Pranava Home and understands their journey. An employee open
 |---|---|---|
 | Language / runtime | TypeScript, Node 20, Express handlers already framework-free | 27/73 already here with tests; one language for API, both UIs and shared types |
 | Database | PostgreSQL. Locally PGlite **persisted to disk** (one constructor arg), in prod any managed Postgres. Same SQL, one `db` port, versioned migrations | Removes the Docker-Postgres step entirely; PGlite in-memory stays for tests |
-| Auth | Google sign-in via OpenID Connect (`openid-client`) + our own httpOnly session cookie; users, roles, Project Team Assignments in Postgres | Rambabu asked for Google login (HANDOFF §4.1). Cognito adds an AWS-account dependency we don't have and the PDF doesn't ask for it. Staff self-signup off; customers via booking-bound invite |
+| Auth | **Self-hosted email/password now** (argon2id hashes, server-side sessions in Postgres, httpOnly cookie, invite + reset by email); **Google sign-in added later** as a second method via OpenID Connect once Pranava provides an OAuth client (their Google Workspace). No Cognito. Staff self-signup off; customers via booking-bound invite | Decided 2026-09-05 05:00: Emergent's Google login ran through Emergent's own broker (`auth.emergentagent.com`) — nothing reusable; the client demo is today, so email/password with seeded demo users ships first and is not throwaway |
+| Email | Gmail SMTP (Amarsh's account, app password in `services/api/.env.local`) for invites, resets, digests during build; switch to Pranava's mailbox/domain at handover (client question) | ~500 mails/day cap is fine for dev/demo; SES needs a verified domain we don't have yet |
+| AI text tasks | OpenAI API (Amarsh's key in `.env.local`) behind one `llm` port; rules first, LLM only where rules can't (p18 §10) | Amarsh's choice 2026-09-05; the port lets the provider change without touching features |
 | Authorization | Role × module × action matrix as **data** (p26 §21 "Role/permission matrix and field-level sensitivity") + project scoping by Project Team Assignment; enforced in one middleware; field masking for financial/PII per p23 §17 | Matrix is Policy Studio config, not code |
 | Files / evidence | Object-storage port: local-disk adapter now, S3-compatible adapter by env | p16 §8.8 mandatory photographs/tests/certificates |
 | Documents (PDF output) | HTML template → PDF via headless Chromium (Playwright is already a dev dependency) | p38 §32 governed generation; no WeasyPrint/Python |
-| Deploy | One container (API + both SPAs as static) + managed Postgres + object storage. First target: AWS (App Runner or ECS Fargate + RDS Postgres + S3) once Pranava's account/budget exists; runs identically on any container host | Replaces the Lambda/Aurora/CDK path, which needed API bundling, an authorizer and CloudFront before anything worked (≈$107/mo idle). Existing `infra/` is deleted or rewritten for this shape |
+| Deploy | One container (API + both SPAs as static) → **AWS App Runner + RDS Postgres (db.t4g.micro, single-AZ while building) + S3**, in Amarsh's account `975050032697`, `ap-south-1`, IaC as a small CDK app or plain scripts; runs identically on any container host. Target ₹3–5k/month, measured in S3 | Replaces the Lambda/Aurora/CDK path (API bundling, authorizer, CloudFront before anything worked; ≈$107/mo idle). Existing `infra/` is deleted. Demo today is shown **from AWS** with a prod-ready claim: HTTPS, real login, persistent DB, backups on, health check, logs |
 | UI | React + Vite + Tailwind tokens (design-language already in place), two SPAs, shared `packages/ui` only when a third consumer appears | Keep what exists; no extraction for its own sake |
 | Tests / CI | Vitest + Playwright as now; GitHub Actions: typecheck, unit, Playwright (`--workers=1` until per-test DB), coverage report | Already measured baseline 79.6% API lines |
 | Explicitly not built (p32 §27) | Chatbot, unexplained scores, a second chat stream, manual progress %, chart-heavy dashboards, AI auto-send, duplicated accounting masters, project-specific code branches | Client's own list |
@@ -166,7 +168,21 @@ Agents build; Amarsh and Vivek review. Person-split is for **review ownership on
 | **4** | P1 (3–6 months) | **O** portal (all areas, login) · **P** control tower/cash-flow/KPIs/exceptions · **R** 360s · **M** communications · **N** post-handover completion | §26 all 30 bullets pass end to end |
 | **5** | P1–P2 | **S** intelligence, document intelligence, copilots; profitability analytics; vendor learning | — |
 
-Review load: waves 1–3 land 3–5 PRs each. If that's too much to read, the lever is fewer lanes per wave, not smaller intermediates.
+### 5a. The autonomous run (starts on Amarsh's "go"; nothing below is started before that)
+
+Ground rules: Sonnet agents, `isolation: "worktree"`, one branch + PR per lane, each agent gets exactly one `docs/specs/*.md` file plus `docs/specs/00-conventions.md`; agent must not touch files outside its spec's "Files" list; Claude (main thread) reviews the diff against the spec's acceptance list, runs the full suite on the merged result, merges (squash), deploys `main` to the App Runner URL, updates `TODO.md`. Max 4 agents concurrently. Never kill processes by name. Never `git stash`.
+
+| Step | Lanes in parallel | Exit criterion |
+|---|---|---|
+| R0 spikes | S1 → S3 · S2(+S7) · S5+S4 · S6+S8 | Demo URL live over HTTPS with login; 100 API + 52 UI tests green on Postgres; cost measured |
+| R1 demo hardening (same day) | seeded demo users per role · demo data for 3 products · smoke Playwright against the URL | Amarsh can log in as each role and walk Sales → CRM → Collections → QA → Handover → Portal on the URL |
+| R2 wave 1 | A (remaining: roles/permission matrix, project scoping, event log) · B · F | §26 audit/trace bullets, p37 §31.5 t1/t2/t9, p47 §34.7 all ten |
+| R3 wave 2 | C · G · L · K · E | p35 §30.5, p44 §33.6, commitments gate hard, My Day ranks real actions |
+| R4 wave 3 | H · I · J · D · Q tabs | p37 §31.5, p41 §32.11, §26 customisation + document bullets |
+| R5 wave 4 | O · P · R · M · N | §26 all bullets end to end |
+| R6 wave 5 | S | rule-based scores with drivers; OpenAI text tasks behind the port |
+
+After every merged lane: deploy, screenshot, one-paragraph note in §9 "Record". If a lane fails its acceptance twice, stop the lane and write the blocker in §9 instead of retrying a third time.
 
 ## 6. What was cut from the previous list, and why
 
@@ -199,27 +215,35 @@ Kept from the old list because the bugs are in surviving code: V1 error middlewa
 
 Defaults accepted by silence (2026-09-05): staff-entered receipts/loans/SRO slots (no bank/government/lender integration); portal Payments view-only, no gateway; document execution recorded by uploaded signed scan, no e-sign vendor; in-app + SES email are live channels, WhatsApp/SMS/calls logged not sent; English only; responsive web with phone camera upload, no native app; Emergent-extracted values as editable seed defaults; roles exactly PDF §13.
 
-§3 update — auth provider: with an AWS account in hand, **Cognito user pool** (Google as federated IdP + email/password, custom login page calling the Cognito API, API verifies the JWT) replaces the self-hosted OIDC+sessions choice. Reason: password storage, reset flows and Google federation come for free and the security surface is smaller; cost ₹0 under 50k users. Local dev points at a `dev` pool.
+12. **Google sign-in deferred** (05:00): Emergent's Google login is Emergent's broker, not reusable. Email/password ships now; Google needs an OAuth client from Pranava → §8.
+13. **Gmail SMTP now, client mailbox later** → §8.
+14. **Demo today is shown from AWS** with a prod-ready claim → the run starts with deploy + login (§5a).
+15. **Parallelise** the autonomous run with Sonnet agents in worktrees, one PR per lane; Claude merges (worktrees removed before `gh pr merge --delete-branch` — see §9 lesson).
+16. **Specs:** one file per feature in `docs/specs/` (§10). `docs/spec/` (legacy, vibecoded) is deleted once `docs/specs/` covers it.
 
-### 7a. Spikes to run before wave 1 (each ends in a committed, working proof)
+(Earlier Cognito note withdrawn — superseded by 12.)
 
-| # | Spike | Proves |
-|---|---|---|
-| S1 | Existing 30-table schema + tests on real Postgres (RDS) via one `db` port; PGlite-on-disk locally; SQL migration runner | PGlite ↔ Postgres SQL parity, migration path |
-| S2 | Cognito pool (Google IdP + email/password) + custom login page + JWT middleware + invite flow | Auth end to end, both methods, no hosted-UI look |
-| S3 | One Dockerfile (API serves both SPAs) → App Runner + RDS + S3, deployed by script; measure monthly cost | Deploy shape, cost |
-| S4 | HTML → PDF with Chromium inside the container (₹, Indian names, A4) | Document Factory renderer |
-| S5 | Evidence upload: presigned S3 PUT + local-disk adapter; photo from phone camera at 375px | Files port |
-| S6 | Per-test database so Playwright runs in parallel | CI speed, no shared-DB flakiness |
-| S7 | Email via SES (sandbox, verified senders) for invite / reset / daily digest | Notification channel |
-| S8 | (only if approved) one Claude API call classifying a communication into a commitment | Intelligence layer feasibility/cost |
+### 7a. Spikes (each ends in a committed, working proof; run first, in parallel where the table allows)
+
+| # | Spike | Proves | Parallel lane |
+|---|---|---|---|
+| S1 | Existing schema + 100 API tests on real Postgres (RDS) via one `db` port; PGlite-on-disk locally; SQL migration runner | PGlite ↔ Postgres SQL parity, migration path | 1 |
+| S3 | One Dockerfile (API serves both SPAs) → App Runner + RDS + S3 in `975050032697`, deployed by script; HTTPS URL; measured monthly cost | Deploy shape, cost, demo URL | 1 (after S1's `db` port) |
+| S2 | Self-hosted email/password: `user`, `session`, argon2id, login/logout/invite/reset, seeded demo users per PDF §13 role, middleware on every route, both SPAs' login screens | Real login on the demo URL | 2 |
+| S7 | Gmail SMTP mailer port (invite, reset, digest) with a local "write to file" adapter for tests | Email channel | 2 (inside S2) |
+| S5 | Evidence upload: presigned S3 PUT + local-disk adapter; phone camera capture at 375px | Files port | 3 |
+| S4 | HTML → PDF with Chromium inside the container (₹, Indian names, A4, Draft watermark) | Document Factory renderer | 3 |
+| S6 | One DB per test file; Playwright with `--workers=4` green | CI speed, no shared-DB flakiness | 4 |
+| S8 | One OpenAI call behind the `llm` port classifying a communication into a commitment candidate, with cost logged | Intelligence layer wiring | 4 |
 
 ## 8. Open questions for Pranava
 
 | Question | Blocks |
 |---|---|
-| Which AWS account/region/budget may we deploy into (or any other host)? | A deploy |
-| Google OAuth client id/secret; domain or default URL? | A |
+| Pranava's own AWS account (or host) for go-live — building in Amarsh's `975050032697` meanwhile; no real customer PII until moved | Go-live |
+| **Google sign-in:** an OAuth client from Pranava's Google Workspace (client id/secret, allowed domain) — email/password works without it | A (Google method) |
+| **Email sender:** Pranava mailbox/domain for invites, resets, digests (SMTP or SES credentials) — Amarsh's Gmail is used meanwhile | A (email) |
+| App domain (e.g. `homeflow.pranava.in`) for HTTPS + cookies — App Runner default URL meanwhile | Deploy |
 | Is anyone entering real data into the Emergent preview app? Rotate the tokens committed in its `qa/*.tok`. | Cut-over |
 | Check-in satisfaction scale (1–5 assumed) and default when skipped (p17 §8.14 names 7/30/90 only) | N |
 | May a customer pay an instalment before its trigger fires? | I |
@@ -234,3 +258,46 @@ Defaults accepted by silence (2026-09-05): staff-entered receipts/loans/SRO slot
 **Found while building (carried):** `today()` uses the UTC day (fix in A: one `todayIst()`/project calendar); workspace hardcodes `satisfaction_score: 5` (N); Playwright screenshots gitignored while the rule says review them (CI uploads them as artifacts — A); e2e suite mutates the shared in-memory DB (A gives tests their own DB); `postReceipt` accepts receipts on scheduled demands (I, Open question); `demands.test.ts` at 200 lines (split on next touch); V110 seed flooring → `complete` (demo note).
 
 **Baselines (2026-09-05):** API 79.6% lines / 74.7% branches (server.ts and routes-lifecycle.ts 0%); workspace 3.7%; customer app 0%. Idle cost of the old CDK stack ≈ $107/month — moot under §3.
+
+**Merge lesson (05:00):** `gh pr merge --delete-branch` on stacked PRs while agent worktrees still hold the branches → branch delete fails → GitHub never retargets children → #3–#9 landed on their parent branches instead of `main`. Fixed by cherry-picking each squash commit onto `main` in dependency order (two conflicts resolved: `QaHandover.tsx`, `ControlTower.tsx`). Rule: `git worktree remove` first, merge parent, wait for retarget, then merge child. All nine PRs verified on `main` at `862900c`: tsc 0/0, API 100/100, workspace 52/52.
+
+**Secrets shared in chat on 2026-09-05 (rotate after R0):** AWS access key for `Amarsh_claude`; OpenAI project key; Gmail app password. All stored only in `~/.aws/credentials` and `services/api/.env.local` (gitignored, verified).
+
+## 10. Specs — `docs/specs/`
+
+One file per feature; the build contract for the autonomous run. `00-conventions.md` applies to every file. Written 2026-09-05 from the PDF + `docs/reference/emergent-business-rules.md` seeds; **[E]** marks Emergent-derived defaults, **[ours]** marks engineering choices.
+
+| File | Feature | Workstream | Wave |
+|---|---|---|---|
+| `00-conventions.md` | Stack, DB, ids, events, dates, errors, status vocabularies, UI bar, DoD | — | — |
+| `01-identity-access.md` | Login (email/password now, Google later), sessions, invites, users, roles, permission matrix, field masking, project scoping | A | R0–R2 |
+| `02-event-log.md` | Append-only event log, Appendix B taxonomy, audit views | A | R2 |
+| `03-platform-deploy.md` | Postgres port, migrations, container, App Runner/RDS/S3, files port, mailer port, PDF renderer, CI | A | R0 |
+| `04-canonical-model.md` | Portfolio, Project, hierarchy nodes, Unit, Booking, Customer, Applicant, product types | B | R2 |
+| `05-journey-templates.md` | Journey/Stage/Task templates, versions, product overlays, Journey Template Studio | F | R2 |
+| `06-timeline-sla-engine.md` | Journey instances, four-date model, SLA policies/clocks, calendars, delay reasons, status derivation | F | R2 |
+| `07-unit-progress-control.md` | UnitProgressState, component hierarchy, bulk update + preview, freshness, source/actor | C | R3 |
+| `08-changeability-engine.md` | ChangeCategory, ChangeGateRule, UnitChangeGate, five states, expiry forecast, exceptions, Sales read-only | C | R3 |
+| `09-specification-revisions.md` | Specification baseline, drawing/spec revision control, superseded lock | C/H | R3 |
+| `10-universal-action.md` | Action object, states, creation from handshakes, queues, evidence-to-close | G | R3 |
+| `11-my-day-ranking.md` | My Day ranking, "Why now?", departmental queues | G | R3 |
+| `12-escalations-notifications.md` | L0–L4 ladder, decision packs, notification rules, digest, pre-breach, quiet hours | G | R3 |
+| `13-promise-ledger.md` | Commitments | L | R3 |
+| `14-readiness-scores.md` | Unit / Customer-Booking / Handover readiness with drivers, trend, confidence | K | R3 |
+| `15-qa-evidence-snags.md` | Checklists + evidence, site-declared vs QA-verified, snag lifecycle, SLA by severity, analytics | K | R3 |
+| `16-handover-gates.md` | Eight gate dimensions, override with authority, appointment, digital handover checklist | K | R3 |
+| `17-sales-crm-handover.md` | Packet, completeness, checklist by customer type, return taxonomy, FTR metric, actions on accept | E | R3 |
+| `18-change-requests.md` | Change request lifecycle, line items, impact assessment, approval matrix, quotation, payment gate, execution, as-built, economics | H | R4 |
+| `19-collections-true-risk.md` | Demand schedule, buckets, reason codes, PTP, receipts, waivers, TDS, financial clearance | I | R4 |
+| `20-cash-forecast.md` | Forecast lines, snapshots, waterfall, scenarios, planner screens, portfolio comparison | I | R4 |
+| `21-loans.md` | Loan cases, sanction/disbursement, validity, gap vs demand, lender contacts | I | R4 |
+| `22-document-factory.md` | Templates, merge fields, clause library, selection rules, readiness panel, generation workflow, deviations, approvals, execution, archive, Studio | J | R4 |
+| `23-registration.md` | Readiness checklist, SRO slot, hard pre-registration gate, day-of checklist, archive, forecast date | J | R4 |
+| `24-sales-inventory-discovery.md` | Inventory changeability view, filters, compare, personalisation needs, requirement match, Change Window Hold, booking with applicants | D | R4 |
+| `25-policy-studio.md` | Every configurable table, effective dating, change log, per-workstream tabs | Q | R4 |
+| `26-customer-portal.md` | My Pranava Home areas, visibility rules, customer login/invite, moments that matter | O | R5 |
+| `27-management-control-tower.md` | Five interventions, cash-flow views, KPI framework, exceptions, profitability | P | R5 |
+| `28-360-views.md` | Customer / Unit / Booking 360, Project 360 header | R | R5 |
+| `29-communications.md` | Omnichannel log, internal vs customer-visible, templates + approval, guardrails | M | R5 |
+| `30-post-handover.md` | Move-in, DLP/warranty, Home Passport, service history, check-ins, advocacy | N | R5 |
+| `31-intelligence.md` | Rule-based risk/next-action/collection/commitment scores; OpenAI text tasks behind `llm` port | S | R6 |
