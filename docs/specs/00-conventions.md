@@ -1,6 +1,6 @@
-# Workstream specs — the build contract
+# Specs — the build contract
 
-One file per workstream in `TODO.md §4` (A–S). Each is written so an agent can build it **without asking**: data model, rules, API, screens, acceptance tests, dependencies, what not to build. Requirement authority is the client PDF (`docs/Pranava_HomeFlow_2.0_Full_Design_Spec_v8.pdf`, cited as `pNN §X`). Seed values marked **[E]** come from `docs/reference/emergent-business-rules.md` — Pranava's own decisions as encoded in their earlier app; they are editable defaults in Policy Studio, never code constants. Anything marked **[ours]** is an engineering choice.
+One file per feature (index in `TODO.md §10`). Each is written so an agent can build it **without asking**: data model, rules, API, screens, acceptance tests, dependencies, what not to build. Requirement authority is the client PDF (`docs/Pranava_HomeFlow_2.0_Full_Design_Spec_v8.pdf`, cited as `pNN §X`). Seed values marked **[E]** come from `docs/reference/emergent-business-rules.md` — Pranava's own decisions as encoded in their earlier app; they are editable defaults in Policy Studio, never code constants. Anything marked **[ours]** is an engineering choice.
 
 `docs/spec/**` and `docs/HOMEFLOW-OS.md` are legacy (AI-derived, unreviewed). Where these files and those disagree, these win.
 
@@ -30,26 +30,14 @@ One file per workstream in `TODO.md §4` (A–S). Each is written so an agent ca
 5. Events emitted and asserted for every mutation named in the workstream's Events list.
 6. `TODO.md` updated: workstream status, anything found while building, new client questions.
 
-## Files
+## Spec file layout
 
-| File | Workstream | Wave |
-|---|---|---|
-| `A-platform.md` | Identity, roles, project scoping, event log, persistence, deploy, notifications transport | 1 |
-| `B-canonical-model.md` | Portfolio → Project → Hierarchy → Unit → Booking → Customer/Applicant | 1 |
-| `F-journey-sla.md` | Journey templates, universal timeline, SLA engine, calendars | 1 |
-| `C-unit-twin-changeability.md` | Unit progress control, changeability engine, freshness, revisions | 2 |
-| `G-actions-myday.md` | Universal Action, My Day, escalation ladder, notifications, digest | 2 |
-| `L-promise-ledger.md` | Commitments | 2 |
-| `K-readiness-qa-handover.md` | Readiness scores, QA evidence, snags, handover gates | 2 |
-| `E-sales-crm-handover.md` | Sales → CRM quality gate | 2 |
-| `H-change-requests.md` | Customer change requests & customisation | 3 |
-| `I-collections-forecast.md` | Collections, cash forecast, loans, TDS, clearance | 3 |
-| `J-document-factory-registration.md` | Legal Document Factory, registration | 3 |
-| `Q-policy-studio.md` | Configuration surfaces | 3 (tabs land with each workstream) |
-| `D-sales-inventory.md` | Inventory changeability view, discovery, holds, booking | 3 |
-| `O-customer-portal.md` | My Pranava Home | 4 |
-| `P-management.md` | Control Tower, cash-flow views, KPIs, exceptions, profitability | 4 |
-| `R-360s.md` | Customer / Unit / Booking 360, Project 360 header | 4 |
-| `M-communications.md` | Omnichannel log, templates, guardrails | 4 |
-| `N-post-handover.md` | DLP/warranty, Home Passport, check-ins, advocacy | 4 |
-| `S-intelligence.md` | Rule-based intelligence, OpenAI-backed text tasks | 5 |
+Every `NN-feature.md` has the same headings so agents and reviewers know where to look: **Purpose** (PDF words + refs) · **Data** (tables/columns; migrations additive) · **Rules** (numbered; each becomes ≥1 test) · **API** (handler signatures; Express-free) · **Screens** (workspace and/or portal; states) · **Events** (Appendix B names emitted) · **Config** (what lands in Policy Studio) · **Acceptance** (PDF tests by reference + rule tests) · **Depends on / Feeds** · **Files** (the only paths the agent may touch) · **Not in this feature**.
+
+## Shared ports (defined in `03-platform-deploy.md`, used everywhere)
+
+`db` (query/transaction), `events` (append), `files` (put/get presigned), `mailer` (send), `pdf` (render HTML → PDF), `clock` (nowIst/todayIst, injectable in tests), `llm` (complete/classify, provider-agnostic). Handlers receive `ctx = { db, events, files, mailer, pdf, clock, llm, actor }`.
+
+## Actor and authorization (defined in `01-identity-access.md`)
+
+`ctx.actor = { user_id, roles[], project_ids[] | 'ALL', display_name }`. Every handler calls `authorize(ctx, module, level)` first; project-scoped reads filter by `actor.project_ids`; reads of a row outside scope return `not_found`, writes return `forbidden` **[E]**.
