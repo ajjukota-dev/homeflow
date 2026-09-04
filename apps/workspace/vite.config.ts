@@ -15,5 +15,7 @@ export default defineConfig({
     setupFiles: "./src/test/setup.ts",
     css: true,
     watch: false,
+    // Playwright specs live in e2e/ and have their own runner (`npm run e2e`).
+    exclude: ["e2e/**", "node_modules/**"],
   },
 });
