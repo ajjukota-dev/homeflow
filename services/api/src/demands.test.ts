@@ -11,6 +11,11 @@ import {
 } from "./demands";
 import { projectCollections } from "./collections-view";
 
+function must<T>(value: T | null | undefined): T {
+  if (value == null) throw new Error("expected a non-null value");
+  return value;
+}
+
 const completeInput = {
   applicant: { display_name: "Anita Sharma", phone: "9876543210", pan: "ABCDE1234F" },
   total_consideration: 10_000_000,
@@ -147,11 +152,12 @@ describe("T2 customer payment view", () => {
       `SELECT id FROM booking WHERE unit_id = 'u_v110' AND status = 'active'`
     );
     const home = await getCustomerHome(b.rows[0].id);
-    expect(home?.payments.schedule.length).toBeGreaterThan(0);
-    expect(home?.payments.schedule.every((s) => s.why_now.length > 0)).toBe(true);
-    expect(home?.payments.paid_total).toBeGreaterThan(0);
-    expect(home?.payments.remaining_total).toBeGreaterThan(0);
-    const blob = JSON.stringify(home?.payments);
+    const payments = must(home?.payments);
+    expect(payments.schedule.length).toBeGreaterThan(0);
+    expect(payments.schedule.every((s) => s.why_now.length > 0)).toBe(true);
+    expect(payments.paid_total).toBeGreaterThan(0);
+    expect(payments.remaining_total).toBeGreaterThan(0);
+    const blob = JSON.stringify(payments);
     expect(blob).not.toMatch(/TRUE_RISK|recovery_probability|PTP|loan_dependent/);
   });
 });

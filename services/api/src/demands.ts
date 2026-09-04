@@ -24,6 +24,12 @@ export interface DemandRow {
   has_active_ptp: boolean;
 }
 
+export type ReceiptRow = {
+  id: string; booking_id: string; project_id: string; demand_id: string; amount: string;
+  mode: string; received_at: Date; tds_amount: string; status: string;
+  idempotency_key: string | null; request_hash: string | null;
+};
+
 export function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
@@ -194,8 +200,8 @@ export async function postReceipt(
   );
   if (existing.rows.length > 0) {
     if (existing.rows[0].request_hash !== hash) throw new Error("idempotency_payload_mismatch");
-    const r = await db.query(`SELECT * FROM receipt WHERE id = $1`, [existing.rows[0].id]);
-    return { ...r.rows[0], amount: Number((r.rows[0] as { amount: number }).amount) };
+    const r = await db.query<ReceiptRow>(`SELECT * FROM receipt WHERE id = $1`, [existing.rows[0].id]);
+    return { ...r.rows[0], amount: Number(r.rows[0].amount) };
   }
 
   const d = (await mapDemands(`${DEMAND_SELECT} WHERE d.id = $1`, [demandId]))[0];
@@ -212,7 +218,7 @@ export async function postReceipt(
   const remaining = d.remaining - input.amount;
   const status: DemandStatus = remaining <= 0 ? "settled" : "part_paid";
   await db.query(`UPDATE demand SET status = $1 WHERE id = $2`, [status, demandId]);
-  const row = await db.query(`SELECT * FROM receipt WHERE id = $1`, [id]);
+  const row = await db.query<ReceiptRow>(`SELECT * FROM receipt WHERE id = $1`, [id]);
   return { ...row.rows[0], amount: input.amount, project_id: d.project_id };
 }
 

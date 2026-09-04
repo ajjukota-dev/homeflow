@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { db } from "./db";
 import { setupFunding } from "./demands";
+import type { BookingDetailRow, BookingListRow, CustomerListRow, CustomerRow } from "./bookings-types";
 
 // Sales → CRM handoff (handshakes.md H2). Completeness gate → accept births a Customer Twin.
 
@@ -32,7 +33,7 @@ export function assessCompleteness(input: BookingInput): { score: number; missin
 }
 
 export async function getBooking(id: string) {
-  const r = await db.query(
+  const r = await db.query<BookingDetailRow>(
     `SELECT b.id, b.booking_number, b.status, b.total_consideration::float8 AS total_consideration,
             b.completeness_score, b.return_reason, b.rm_owner,
             u.unit_number, u.unit_type, u.facing,
@@ -78,7 +79,7 @@ export async function createBooking(unitId: string, input: BookingInput) {
 }
 
 export async function listBookings(status?: string) {
-  const r = await db.query(
+  const r = await db.query<BookingListRow>(
     `SELECT b.id, b.booking_number, b.status, b.total_consideration::float8 AS total_consideration,
             b.completeness_score, b.return_reason,
             u.unit_number, u.unit_type,
@@ -127,7 +128,7 @@ export async function returnBooking(id: string, reason: string) {
 }
 
 export async function listCustomers() {
-  const r = await db.query(
+  const r = await db.query<CustomerListRow>(
     `SELECT c.id, c.display_name, c.primary_phone, c.kyc_status, b.booking_number, u.unit_number
        FROM customer c
        JOIN booking_applicant a ON a.customer_id = c.id
@@ -139,9 +140,16 @@ export async function listCustomers() {
 }
 
 export async function getCustomer(id: string) {
-  const c = await db.query(`SELECT * FROM customer WHERE id = $1`, [id]);
+  const c = await db.query<CustomerRow>(`SELECT * FROM customer WHERE id = $1`, [id]);
   if (c.rows.length === 0) return null;
-  const bookings = await db.query(
+  const bookings = await db.query<{
+    booking_number: string;
+    status: string;
+    total_consideration: number;
+    unit_number: string;
+    unit_type: string;
+    facing: string;
+  }>(
     `SELECT b.booking_number, b.status, b.total_consideration::float8 AS total_consideration,
             u.unit_number, u.unit_type, u.facing
        FROM booking b
@@ -150,5 +158,5 @@ export async function getCustomer(id: string) {
       WHERE a.customer_id = $1`,
     [id]
   );
-  return { ...(c.rows[0] as object), bookings: bookings.rows };
+  return { ...c.rows[0], bookings: bookings.rows };
 }

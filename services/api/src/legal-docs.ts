@@ -29,6 +29,11 @@ type SourceRow = {
   pan: string | null;
 };
 
+type GeneratedDocumentRow = {
+  id: string; booking_id: string; document_family: string; status: string; version: number;
+  snapshot: unknown; body_rendered: string; checksum: string | null; created_at: Date;
+};
+
 async function source(bookingId: string): Promise<SourceRow> {
   const r = await db.query<SourceRow>(
     `SELECT b.id, b.project_id, b.unit_id, b.booking_number,
@@ -118,7 +123,7 @@ export async function generateDocument(bookingId: string, documentFamily = "AOS"
 }
 
 export async function getDocument(id: string) {
-  const r = await db.query(
+  const r = await db.query<GeneratedDocumentRow>(
     `SELECT id, booking_id, document_family, status, version, snapshot, body_rendered, checksum, created_at
        FROM generated_document WHERE id = $1`,
     [id]
@@ -146,7 +151,7 @@ export async function executeDocument(id: string) {
 export async function completeRegistration(bookingId: string, sroReference: string) {
   const finance = await bookingFinance(bookingId);
   if (!finance.cleared) throw new Error(finance.reason ?? "financial_not_cleared");
-  const executed = await db.query(
+  const executed = await db.query<{ id: string }>(
     `SELECT id FROM generated_document WHERE booking_id = $1 AND status IN ('executed','archived') LIMIT 1`,
     [bookingId]
   );

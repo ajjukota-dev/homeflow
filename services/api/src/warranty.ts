@@ -4,6 +4,55 @@ import { db } from "./db";
 // H12 consumer — DLP, passport, check-ins, service history (post-handover/spec.md).
 // Durations come from handover_policy, never a hard-coded East Crest month count.
 
+interface DlpWindowRow {
+  id: string;
+  unit_id: string;
+  booking_id: string;
+  dlp_start: Date;
+  dlp_end: Date;
+  status: string;
+  policy_months: number;
+  unit_number: string;
+  customer_name: string | null;
+}
+
+interface WarrantyCaseRow {
+  id: string;
+  unit_id: string;
+  booking_id: string;
+  project_id: string;
+  passport_item_id: string | null;
+  category: string;
+  trade: string;
+  severity: string;
+  description: string;
+  coverage: string;
+  status: string;
+  chargeable_amount: string;
+  root_cause_code: string | null;
+  unit_number: string;
+  customer_name: string | null;
+}
+
+interface CheckinRow {
+  id: string;
+  booking_id: string;
+  day: number;
+  status: string;
+  satisfaction_score: number | null;
+  unit_number: string;
+  customer_name: string | null;
+}
+
+interface ServiceHistoryRow {
+  id: string;
+  unit_id: string;
+  event_type: string;
+  description: string;
+  actor: string;
+  occurred_at: Date;
+}
+
 function addMonths(iso: string, months: number): string {
   const d = new Date(`${iso}T00:00:00Z`);
   d.setUTCMonth(d.getUTCMonth() + months);
@@ -59,7 +108,7 @@ export async function onHandoverCompleted(bookingId: string) {
 }
 
 export async function projectWarranty(projectId: string) {
-  const windows = await db.query(
+  const windows = await db.query<DlpWindowRow>(
     `SELECT d.id, d.unit_id, d.booking_id, d.dlp_start, d.dlp_end, d.status, d.policy_months,
             u.unit_number, a.display_name AS customer_name
        FROM dlp_window d
@@ -69,7 +118,7 @@ export async function projectWarranty(projectId: string) {
       WHERE d.project_id = $1 ORDER BY u.unit_number`,
     [projectId]
   );
-  const cases = await db.query(
+  const cases = await db.query<WarrantyCaseRow>(
     `SELECT w.*, u.unit_number, a.display_name AS customer_name
        FROM warranty_case w
        JOIN unit u ON u.id = w.unit_id
@@ -77,7 +126,7 @@ export async function projectWarranty(projectId: string) {
       WHERE w.project_id = $1 ORDER BY w.status, u.unit_number`,
     [projectId]
   );
-  const checkins = await db.query(
+  const checkins = await db.query<CheckinRow>(
     `SELECT c.id, c.booking_id, c.day, c.status, c.satisfaction_score, u.unit_number,
             a.display_name AS customer_name
        FROM checkin_record c
@@ -91,7 +140,7 @@ export async function projectWarranty(projectId: string) {
 }
 
 export async function serviceHistory(unitId: string) {
-  const r = await db.query(
+  const r = await db.query<ServiceHistoryRow>(
     `SELECT id, unit_id, event_type, description, actor, occurred_at
        FROM service_history WHERE unit_id = $1 ORDER BY occurred_at`,
     [unitId]
@@ -115,7 +164,12 @@ export async function closeWarranty(id: string) {
      VALUES ($1,$2,'warranty.case.resolved',$3,$4,'service')`,
     [randomUUID(), w.rows[0].unit_id, id, `Closed: ${w.rows[0].description}`]
   );
-  return db.query(`SELECT * FROM warranty_case WHERE id = $1`, [id]).then((r) => r.rows[0]);
+  return db
+    .query<{ id: string; unit_id: string; status: string; chargeable_amount: string }>(
+      `SELECT * FROM warranty_case WHERE id = $1`,
+      [id]
+    )
+    .then((r) => r.rows[0]);
 }
 
 export async function captureCheckin(id: string, satisfactionScore: number) {
@@ -123,5 +177,10 @@ export async function captureCheckin(id: string, satisfactionScore: number) {
     `UPDATE checkin_record SET status = 'captured', satisfaction_score = $2, captured_at = now() WHERE id = $1`,
     [id, satisfactionScore]
   );
-  return db.query(`SELECT * FROM checkin_record WHERE id = $1`, [id]).then((r) => r.rows[0]);
+  return db
+    .query<{ id: string; booking_id: string; day: number; status: string; satisfaction_score: number | null }>(
+      `SELECT * FROM checkin_record WHERE id = $1`,
+      [id]
+    )
+    .then((r) => r.rows[0]);
 }
