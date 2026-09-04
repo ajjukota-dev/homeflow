@@ -173,6 +173,15 @@ export async function closeWarranty(id: string) {
 }
 
 export async function captureCheckin(id: string, satisfactionScore: number) {
+  const existing = await db.query(`SELECT id FROM checkin_record WHERE id = $1`, [id]);
+  if (existing.rows.length === 0) throw new Error("not_found");
+  if (!Number.isInteger(satisfactionScore) || satisfactionScore < 1 || satisfactionScore > 5) {
+    const err = new Error("validation_failed") as Error & {
+      errors: { code: string; field: string; message: string }[];
+    };
+    err.errors = [{ code: "validation", field: "satisfaction_score", message: "must be an integer from 1 to 5" }];
+    throw err;
+  }
   await db.query(
     `UPDATE checkin_record SET status = 'captured', satisfaction_score = $2, captured_at = now() WHERE id = $1`,
     [id, satisfactionScore]
