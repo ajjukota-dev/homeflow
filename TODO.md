@@ -183,12 +183,30 @@ Review load: waves 1–3 land 3–5 PRs each. If that's too much to read, the le
 
 Kept from the old list because the bugs are in surviving code: V1 error middleware, V2 block return on active booking, V3 progress-regression reason/audit (now part of C), V6 validation + unique constraints, V7 layout/tokens/dark mode, V8 CRM project filter (subsumed by A's project scoping), A9a IST dates, the paid-demand wording follow-up.
 
-## 7. Decisions I need from you (Amarsh) before wave 1 starts
+## 7. Decisions taken (Amarsh, 2026-09-05 04:30 IST)
 
-1. **Auth without Cognito** (§3) — Google OIDC + our sessions, no AWS dependency. Yes/no.
-2. **Deploy as a container, not Lambda** (§3) — delete `infra/` CDK stacks and replace with a container definition + IaC for App Runner/ECS + RDS + S3 when the account exists. Yes/no.
-3. **Waves 1 lanes in parallel** — A, B, F land together (3 large PRs). OK, or serial?
-4. **East Crest** stays demo config only; production projects come from Pranava. Confirm.
+1. **Auth = Google sign-in + email/password.** Provider is our call (see §3 update below).
+2. **Deploy as a container, not Lambda** — yes. `infra/` CDK stacks to be replaced.
+3. **Wave 1 lanes in parallel** — yes. Claude merges; no human review gate.
+4. **East Crest** stays demo config only — yes.
+5. **Single owner: Amarsh.** Vivek is out of the plan. Review ownership in §5 is moot; Claude builds and verifies, Amarsh accepts by using the deployed app.
+6. **Hosting: Amarsh's personal AWS account for now** (account `975050032697`, IAM user `Amarsh_claude`, local profile `pranava`, region `ap-south-1`). Real customer PII must not land here — move to Pranava's account before go-live. The access key was shared in chat on 2026-09-05 → rotate after the deploy spike.
+7. **Requirements pass before build:** keep asking until the build can run autonomously; run every spike first (§7a).
+
+§3 update — auth provider: with an AWS account in hand, **Cognito user pool** (Google as federated IdP + email/password, custom login page calling the Cognito API, API verifies the JWT) replaces the self-hosted OIDC+sessions choice. Reason: password storage, reset flows and Google federation come for free and the security surface is smaller; cost ₹0 under 50k users. Local dev points at a `dev` pool.
+
+### 7a. Spikes to run before wave 1 (each ends in a committed, working proof)
+
+| # | Spike | Proves |
+|---|---|---|
+| S1 | Existing 30-table schema + tests on real Postgres (RDS) via one `db` port; PGlite-on-disk locally; SQL migration runner | PGlite ↔ Postgres SQL parity, migration path |
+| S2 | Cognito pool (Google IdP + email/password) + custom login page + JWT middleware + invite flow | Auth end to end, both methods, no hosted-UI look |
+| S3 | One Dockerfile (API serves both SPAs) → App Runner + RDS + S3, deployed by script; measure monthly cost | Deploy shape, cost |
+| S4 | HTML → PDF with Chromium inside the container (₹, Indian names, A4) | Document Factory renderer |
+| S5 | Evidence upload: presigned S3 PUT + local-disk adapter; photo from phone camera at 375px | Files port |
+| S6 | Per-test database so Playwright runs in parallel | CI speed, no shared-DB flakiness |
+| S7 | Email via SES (sandbox, verified senders) for invite / reset / daily digest | Notification channel |
+| S8 | (only if approved) one Claude API call classifying a communication into a commitment | Intelligence layer feasibility/cost |
 
 ## 8. Open questions for Pranava
 
