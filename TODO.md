@@ -1,180 +1,212 @@
-# HomeFlow — task split
+# HomeFlow 2.0 — final-state scope
 
-Vivek owns the platform, the front half of the lifecycle (Site → Sales → CRM → customer portal) **and the AWS deploy** (one owner, task 23).
-Amarsh owns the back half (Accounts → Legal → QA → After keys → Management) and the quality gates (typecheck, lint, CI).
-Work top to bottom within your list. Phase 1 is small fixes; Phase 2 is the big foundation pieces; Phase 3 is building out each role screen to the spec.
+**Source of truth: `docs/Pranava_HomeFlow_2.0_Full_Design_Spec_v8.pdf` only.** Everything else under `docs/` (HOMEFLOW-OS.md, `docs/spec/**`) was AI-derived from it on 2026-09-03 and never reviewed; use it as a cross-check, never as the requirement. Page numbers below (`p13`) cite the PDF. The PDF names no database, language, cloud or auth provider ("System-Independent Architecture", p1); every stack choice in this file is ours and is marked as such.
 
-One task = one branch = one PR, with tests and Playwright screenshots. If a task adds a DB table or a new dependency, say so in the PR title.
+**Method.** Build the end state the PDF describes, in the PDF's own priority order (§24 P0 → P1 → P2), with **no intermediate state that gets thrown away**. Each workstream below is a capability the client will recognise, not an engineering step. Bug fixes survive because the code they fix survives; stopgaps do not.
 
-Renumbered 2026-09-05 after the spec audit (nothing had started — 0 PRs, 0 of 41 done). **NEW** = a spec MUST that was in neither the code nor this list. **MOVED** = re-sequenced to match the spec's own P0 order (HOMEFLOW-OS.md §24).
-
-## The Emergent app (decision 2026-09-05)
-
-Pranava has an earlier AI-built HomeFlow at `../emergent-homeflow` (FastAPI + MongoDB, built on the Emergent platform, 42 commits all by `emergent-agent-e1`, synthetic data, hosted at an Emergent preview URL). Measured against the same 73 spec acceptance tests: **Emergent 5 built / 15 partial; this repo 27 built.** It has breadth we lack (workflow engine, 11-role RBAC, TDS, loans, PDF generation, escalations) but on MongoDB, an indigo design the spec bans, an Emergent-hosted auth broker, direct cross-collection reads, and zero frontend tests; changeability gates, customer portal, post-handover and event handshakes are absent.
-
-**Decision (Amarsh): this repo stays the product. The Emergent app is the record of the client's business decisions.** Its rules, templates, matrices and thresholds are being extracted into [`docs/reference/emergent-business-rules.md`](docs/reference/emergent-business-rules.md) and become seed/config here (config-over-code). Do not port its Python. When a task below touches roles, journeys, TDS, clearance, documents, escalations or handover weights, read that document first.
-
-Two things for the client from that codebase: `qa/*.tok` holds committed auth tokens — ask them to rotate; and confirm nobody on staff is entering real data into the Emergent preview (if they are, a migration is needed before cut-over).
+Rewritten 2026-09-05 04:20 IST (Amarsh: "the technical specs were vibecoded; move to the final state; no redundant intermediates"). The previous 48-task list is in git history (`3baa6e3`).
 
 ---
 
-## Vivek
+## 1. The final state in one paragraph (p33 §29)
 
-### Phase 1 — fixes
+A customer opens My Pranava Home and understands their journey. An employee opens My Day and knows what matters. A functional head sees where the process fails. Management sees only material exceptions. The unit retains a permanent digital history. Risk is predicted before it becomes a complaint. Every failure traces to customer, schedule and margin impact.
 
-1. **Stop the API crashing on bad ids.** Add an Express error middleware and wrap every GET route in try/catch so an unknown project or unit returns `404 {errors:[{code:"not_found"}]}` instead of killing the process. Same middleware handles malformed JSON bodies (today it returns an HTML stack trace with file paths) and turns raw Postgres errors into structured `{code, message}` errors.
-2. **Block "return" on an active booking.** Only a `submitted` booking can be returned to Sales. Today an active booking can be returned, which flips the villa back to available while the customer, demands, receipts and agreement still hang off it.
-3. **Guard progress regression.** Moving a component backwards (e.g. structure from verified to not started) must require a reason and record who did it, the old value and the new value. A structural gate that is Hard Closed must never reopen through this path.
-4. **Fix "who am I" on the customer portal.** The portal currently shows whoever booked most recently (after the e2e suite runs, Karthik becomes Anita). Also remove the `?booking_id=` query parameter — anyone can read any customer's home with it. Resolve "me" from a stub user header until real login lands.
-5. **Make `npm test` pass from the root.** Vitest in the workspace app is picking up the Playwright spec and failing (it fails, it does not hang — fix the HANDOFF note). Exclude `e2e/**`. Add root scripts for `lint`, `dev:customer` and the customer app's e2e.
-6. **Validate unit and project creation.** Unknown component code on a progress update returns 400 instead of a silent 200. Creating a unit without type or facing returns a clean validation error instead of `Cannot read properties of undefined`. Add unique constraints on project code and on unit number within a project.
-7. **Layout and token fixes.** Customer portal overflows horizontally at 320px (the RERA number doesn't wrap). Workspace mobile header at 375px: the "HomeFlow" wordmark collides with the nav chips. Customer hero uses a hard-coded hex gradient (`Home.tsx` `#e7ddd0`, `#cdd6cb`) — replace with theme tokens. Customer app has no dark mode path — wire `data-theme` / `prefers-color-scheme` like the workspace.
-8. **Project-scope the CRM screen.** The acceptance queue and customer list show every project's bookings regardless of the project selector. Add `project_id` filters to the bookings and customers endpoints and pass the selected project down.
-9. **Split oversized files you own.** `SiteProgress.tsx` (214) and `schema.ts` (206) are over the 200-line rule.
+## 2. What already exists (measured 2026-09-05)
 
-### Phase 2 — foundation
+27 of the derived spec's 73 role tests built; 9 Phase-1 PRs open (#1–#9: typecheck gate, labels, file split, check-in + receipt validation, null due dates, truthful why-now, honest commitments gate, idempotent Act). 30 Postgres tables, 90 API tests, 55 UI tests, 22 Playwright specs. Engines that carry forward unchanged in intent: changeability gates (`gates.ts`), demand schedule + true-risk buckets (`collections*.ts`, `demands*.ts`), H7 clearance, evidence-based readiness, hard/soft handover gates, control tower ranking, customer transparency projection (T2–T6), DLP/warranty/check-ins, legal generate→approve→execute. No auth, no roles, no journey/SLA engine, no actions, no event log, in-memory DB, undeployed.
 
-10. **Durable Postgres.** Run a real Postgres in Docker for local dev, keep PGlite only for tests. The `db` port takes a connection string from env — this is also what lets the same handlers hit Aurora in task 23. Split the single schema string into versioned migration files. Add `docker-compose.yml`, a `Makefile` with `make dev`, and `.env.example`.
-11. **Login with Google via Cognito — and role-gated mutations.** CDK: add Google as a federated identity provider on the user pool. Local: run `cognito-local` so nobody needs an AWS account to develop. API: JWT middleware that rejects unauthenticated calls and exposes `user_id`, `role_ids`, `authorized_project_ids`. Both apps: Sign in with Google, logout. Staff self-signup stays off; customers get an invite path tied to their booking.
-    **NEW clause (project-site #7, sales #4, §26 "Sales and CRM can view but cannot edit"):** every mutating route declares which roles may call it, and the middleware returns `403 {code:"forbidden"}` otherwise. Minimum: `PUT /units/:id/progress` and anything that changes a gate → project-site roles only; receipts → Accounts; document approve/execute → Legal; snag close → QA. One test per route proving Sales gets 403.
-12. **Row-level security by project.** Set a Postgres session variable from the JWT and add RLS policies so a user only ever sees rows in their authorized projects. Depends on tasks 10 and 11.
-13. **Separate config seed from demo seed.** Component definitions, gate rules, payment plans, policies are config and always load. Karthik / Meera / Ananya / Rohan only load when `HOMEFLOW_DEMO=1`.
-14. **MOVED — Journey and SLA engine + Policy Studio** (was 20, Phase 3). Journey templates with stages, tasks, durations, dependencies and gates; a journey instance per booking with baseline, current plan, forecast and actual dates; SLA clocks with start, pause, warn, breach. Policy Studio screens so gate rules, payment plans, handover policy and templates are editable data, not seed SQL. Why moved: the spec puts this in weeks 1–2 of P0; Promise Ledger due dates (19), pre-breach alerts (Amarsh 21), My Day ranking (Amarsh 11) and the materiality threshold (Amarsh 20) all read from it. Start right after 13; it can run alongside 11–12.
-15. **Shared packages.** Create `packages/ui` (tokens, `cn`, `formatINR`, Button, Card, chips) and `packages/core` (shared types) and point both apps at them. Do this last in the phase so it doesn't churn under the others.
+## 3. Stack decisions (ours, not the client's — say so if you disagree)
 
-### Phase 3 — role slices
+| Decision | Choice | Why this is the fast clean path |
+|---|---|---|
+| Language / runtime | TypeScript, Node 20, Express handlers already framework-free | 27/73 already here with tests; one language for API, both UIs and shared types |
+| Database | PostgreSQL. Locally PGlite **persisted to disk** (one constructor arg), in prod any managed Postgres. Same SQL, one `db` port, versioned migrations | Removes the Docker-Postgres step entirely; PGlite in-memory stays for tests |
+| Auth | Google sign-in via OpenID Connect (`openid-client`) + our own httpOnly session cookie; users, roles, Project Team Assignments in Postgres | Rambabu asked for Google login (HANDOFF §4.1). Cognito adds an AWS-account dependency we don't have and the PDF doesn't ask for it. Staff self-signup off; customers via booking-bound invite |
+| Authorization | Role × module × action matrix as **data** (p26 §21 "Role/permission matrix and field-level sensitivity") + project scoping by Project Team Assignment; enforced in one middleware; field masking for financial/PII per p23 §17 | Matrix is Policy Studio config, not code |
+| Files / evidence | Object-storage port: local-disk adapter now, S3-compatible adapter by env | p16 §8.8 mandatory photographs/tests/certificates |
+| Documents (PDF output) | HTML template → PDF via headless Chromium (Playwright is already a dev dependency) | p38 §32 governed generation; no WeasyPrint/Python |
+| Deploy | One container (API + both SPAs as static) + managed Postgres + object storage. First target: AWS (App Runner or ECS Fargate + RDS Postgres + S3) once Pranava's account/budget exists; runs identically on any container host | Replaces the Lambda/Aurora/CDK path, which needed API bundling, an authorizer and CloudFront before anything worked (≈$107/mo idle). Existing `infra/` is deleted or rewritten for this shape |
+| UI | React + Vite + Tailwind tokens (design-language already in place), two SPAs, shared `packages/ui` only when a third consumer appears | Keep what exists; no extraction for its own sake |
+| Tests / CI | Vitest + Playwright as now; GitHub Actions: typecheck, unit, Playwright (`--workers=1` until per-test DB), coverage report | Already measured baseline 79.6% API lines |
+| Explicitly not built (p32 §27) | Chatbot, unexplained scores, a second chat stream, manual progress %, chart-heavy dashboards, AI auto-send, duplicated accounting masters, project-specific code branches | Client's own list |
 
-16. **Site: bulk progress updates.** Select many units, choose a component and state, preview which units and gates will change, then commit. Allow a per-unit exception with a reason. Every correction records actor, timestamp, prior value, new value, reason.
-17. **NEW — Site: drawing / spec revision control** (project-site #9, §26). Each unit-level drawing or specification carries a version. Releasing a new revision supersedes the previous one, which becomes read-only but stays viewable with its release date and approver. Progress updates and change requests reference the released revision id, never "latest". Editing a superseded revision is rejected with the id of the current one.
-18. **Sales: filters, compare, matching.** Inventory filters (Highly Customisable, Kitchen Open, Electrical Open, Flooring Open, Ready to Move). Pick three or more units and compare gates side by side. Personalisation discovery: capture a prospect's Must-Have / Preferred needs and rank available units with a plain-language explanation. Show an expected closing date on Closing gates.
-19. **NEW — Sales: pitch angles from live gates** (sales #8). Each unit's sales card shows pitch angles derived from its current gate state ("kitchen still open — layout can change", "ready to move") and nothing else. An angle disappears the moment its gate closes; Sales cannot type a free-text angle. Depends on 18.
-20. **CRM: Customer 360 and the Promise Ledger.** Tabs on Customer 360 (Journey, Payments, Documents, Commitments, Communications, Experience). Structured return-reason taxonomy that reopens a Sales action. On accept, create onboarding actions and start the journey. Build the Promise Ledger: commitments with owner, due date, status, evidence, and a pre-breach alert before the due date. Build the customer-update approval queue: staff preview exactly what the customer will see, then approve or suppress.
-    **Also (from Amarsh 6, 2026-09-05):** the handover commitments gate was made non-blocking as a stopgap. When the Promise Ledger exists, make it a hard gate again reading real open commitments — `handover.ts`.
-21. **NEW — CRM: customer merge** (crm-rm #6). Two customer records for the same person merge into one Customer Twin: bookings, communications, commitments, documents and check-ins move to the survivor; the merged-away id stays resolvable (redirects, never 404); nothing is deleted; the merge is an event with actor and reason. Depends on 20 and Amarsh's 10 (event log).
-22. **Change Requests.** Customer or prospect raises a change (kitchen, electrical, flooring). It routes by the live gate: normal, conditional, exception, or reject with reason — capture is never blocked. Feasibility → costing → internal approval → customer quote → customer acceptance → payment gate → release to site → QA → as-built closure. Add Change Window Hold for Sales with auto-expiry and Project approval.
-23. **Customer portal screens.** Bottom tab bar with Journey, My Home, Payments, Documents, Requests. Add Registration and Handover screens. Customer can raise a change request and a service request. Progress stage should advance only when the mapped component is verified, not merely complete.
-24. **AWS deploy — one owner, one sitting** (was 21 "deploy path"). Do **not** start the deploy-day part until 10, 11, 12 and Amarsh's 10 are merged: today `db.ts` is in-memory PGlite and there is no auth, so an earlier deploy ships an API with no database and no login, and starts the Aurora bill for nothing.
+## 4. Workstreams (the deliverables)
 
-    **Ask Pranava now (blocking):** which AWS account to deploy into, region (ap-south-1 unless told otherwise) and budget approval (HANDOFF §4.2); a Google OAuth client id + secret for the Cognito IdP; whether to use CloudFront URLs or a Pranava domain.
+Each has: **Goal** in the PDF's words · **Scope** · **Exists** today · **Acceptance** = PDF tests it must pass · **Needs** = dependencies. Letters are ids; order of build is in §5, not here.
 
-    **Build (CDK, PR-reviewed, `npm run synth` green — this is the real work):**
-    a. Bundle `services/api` into the Lambda with `NodejsFunction` (esbuild); delete the `infra/lambda/index.mjs` shell. Handler reads `DATABASE_URL` from Secrets Manager and talks to Aurora through the same `db` port as local.
-    b. Cognito authorizer on every route except `/api/health`; Google IdP on the user pool; secrets in Secrets Manager, never in git.
-    c. Both SPAs on S3 + CloudFront (origin access control); `VITE_API_URL` injected at build time.
-    d. CORS = the two CloudFront origins only. `RemovalPolicy.RETAIN` + deletion protection on Aurora and buckets; remove `autoDeleteObjects`.
-    e. Migrations + config seed run as a one-off step against Aurora (custom resource or a `migrate` Lambda — pick one, write it in `infra/README.md`).
+### A. Platform — identity, roles, project scoping, event log, persistence, deploy
+**Goal (p6 §4.4, p23 §17, p27 §22):** "Project is a universal filter and security dimension"; "Immutable event/audit log for consequential changes"; "Hard-gate overrides require named authority, reason and evidence."
+**Scope:** Google OIDC login + sessions; `user`, `role`, `permission_matrix` (data), `team`, `project_team_assignment` (p36 §31.1 fields: project, team, department, role_scope, assignment_type Dedicated/Shared/Central, primary/backup owner, effective_from/to, capacity, escalation_manager); every request resolves an actor + authorized projects; workspace opens in the user's default Project with a selector when authorized for more (p20 §13); field-level masking for financial/PII by role; append-only `event` table using Appendix B taxonomy (p42) emitted from every mutation; Postgres by env + migrations; container build; CI.
+**Exists:** nothing of this. `db.ts` is `new PGlite()` in-memory; API wide open.
+**Acceptance:** p37 §31.5 tests 1 ("Project-dedicated CRM user sees only assigned Project work by default; shared manager can switch"), 2 ("receipt posted against a Booking appears under the correct Project without manual selection"), 9 (effective-dated assignments don't rewrite history); p31 §26 "Critical workflows and edits have a complete audit trail"; p44 §33.6 test 3 ("Sales cannot edit Project-owned physical status or technical gates").
+**Needs:** nothing. Everything else needs A.
 
-    **Deploy day (the one-shot, from the CLI with Claude, ~1 hour):**
-    1. AWS CLI profile for the Pranava account; `aws sts get-caller-identity` must show **their** account id before anything else runs.
-    2. `cdk bootstrap aws://<account>/ap-south-1`
-    3. `cdk deploy HomeFlowPlatform` then `cdk deploy HomeFlowApp` with `--require-approval broadening`.
-    4. Run migrations + config seed. `HOMEFLOW_DEMO` unset — no Karthik / Meera / Ananya / Rohan in prod.
-    5. Smoke: `/api/health` → 200; unauthenticated `/api/projects` → 401; Google sign-in as a staff account → workspace loads with East Crest config and zero bookings; customer invite → My Pranava Home for one real booking.
-    6. Build both SPAs against the deployed API URL, `aws s3 sync`, CloudFront invalidation.
-    7. Record account, region, stack names, URLs and expected monthly cost in `infra/README.md`. Create a billing alarm.
+### B. Canonical model — Portfolio → Project → Hierarchy → Unit → Booking → Customer/Applicant
+**Goal (p4–6 §4):** seven entities that "must persist independently"; "Attach it to the Booking wherever the fact belongs to a particular customer-unit ownership relationship"; hierarchy keys mandatory on Unit; Project immutable on Unit (p27 §22); derived `project_id` on every downstream row validated against Unit/Booking (p36 §31.1).
+**Scope:** add `portfolio`, `project_hierarchy_node` (Phase/Tower/Block/Cluster/Floor), `applicant` (co-owners, roles), booking lifecycle incl. cancel/transfer/resale keeping unit history; project master fields (RERA, escrow, launch/handover dates); dedupe/merge for customers preserving history (p27 §22); single master identifiers.
+**Exists:** `project`, `unit`, `booking`, `customer`, `booking_applicant` tables; no hierarchy, no portfolio, no transfer/merge.
+**Acceptance:** p31 §26 first two bullets ("Every active booking resolves to exactly one current unit and one or more valid applicants"; "Unit history remains intact when booking/customer changes") and "traced Portfolio → Project → Unit → Booking/Customer without duplicate manual project tagging".
+**Needs:** A (actor on every write).
 
-    Idle running cost: see the note at the bottom of this file.
+### C. Unit Digital Twin — Progress Control, Changeability Engine, freshness
+**Goal (p13–15 §8.7.1, p33–35 §30, p43–44 §33):** "customisation availability … must be derived from the live physical state of each Unit Digital Twin and governed by configurable gates"; five states OPEN / CLOSING / CONDITIONAL / EXCEPTION ONLY / HARD CLOSED; "No API or UI path available to Sales/CRM may directly mutate UnitProgressState, ChangeGateRule or technical hard-gate state."
+**Scope:** objects from p33 §30.1 — `UnitProgressState` (component, state_code, pct, actual_date, planned_next_event, source, updated_by/at, freshness), `ChangeCategory`, `ChangeGateRule` (trigger, condition, resulting state, hard/soft, effective dates, exception authority), `UnitChangeGate` (current_state, reason_code, source_event, expected_close_at, closing_event, last_evaluated_at, freshness_status). Project Unit Status Console with Project → Phase/Tower → Floor → Unit drill-down, **bulk update with affected-unit/gate preview and unit-level exceptions**, source + timestamp on every state, reopen-a-closed-gate requires reason (p13). Rule re-evaluation on every progress/procurement/policy change; gate-expiry forecast; freshness threshold → "Verification Required" (p34 §30.3). Unit 360 → Changeability matrix (p34 §30.2). Specification baseline + drawing/spec revision control with superseded lock (p5 §4.1, p12).
+**Exists:** `gates.ts` pure engine (5 states, trigger rules), `unit_progress`, `component_definition`, `change_category`, `change_gate_rule` tables, Site progress screen. Missing: bulk + preview, exceptions, freshness, expiry forecast, source/actor, revision control, role gating.
+**Acceptance:** all ten of p35 §30.5 and all eight of p44 §33.6.
+**Needs:** A, B.
+
+### D. Sales — inventory changeability view, personalisation discovery, holds, booking
+**Goal (p14, p26 §20, p43 §33.3):** "Sales inventory must expose Construction %, expected possession window, Customisation Flexibility score and the current gate summary"; filters "Highly Customisable, Layout Flexible, Kitchen Changes Open, Electrical Changes Open, Flooring Selection Open, Bathroom Specification Open and Ready-to-Move"; compare ≥3 units; Must Have / Preferred / Not Important → Requirement Compatibility score "with a plain-language explanation … must never imply engineering approval"; Change Window Hold with expiry, Project approval, configured limits (p14).
+**Scope:** objects `ProspectPersonalisationNeed`, `UnitRequirementMatch`, `ChangeWindowHold` (p34 §30.1); Sales inventory + compare + discovery screens; hold request/approve/expire; booking with applicants, commercial approvals and deviations attached (p9 §8.1); Sales read-only on physics.
+**Exists:** inventory + book flow, gate chips, flexibility index (`readiness`/`gates`). Missing: filters, compare, discovery/match, holds, applicants UI, approvals.
+**Acceptance:** p35 §30.5 tests 4, 6, 8; p31–32 §26 "Sales can filter/compare … see source timestamp/freshness"; "Must Have / Preferred … compared … without implying technical approval"; "Any Change Window Hold is time-bound, Project-approved, automatically expires".
+**Needs:** C.
+
+### E. Sales → CRM handover gate
+**Goal (p9 §8.1):** "Make CRM acceptance a controlled quality gate": completeness score before submit; mandatory vs conditional document checklist by project/product/customer type; return reason taxonomy; first-time-right metric; automatic CRM actions on acceptance.
+**Exists:** completeness gate in `bookings.ts`, accept/return, CRM queue. Missing: configurable checklist, return taxonomy, FTR metric, action generation (needs G).
+**Acceptance:** Appendix B events "Sales handover submitted / returned / accepted"; p9 bullets as tests.
+**Needs:** B, G, Q (checklist config).
+
+### F. Journey Template + Universal Timeline/SLA Engine
+**Goal (p22 §16, p44–47 §34):** "Do not hardcode any Project-specific number of days, dates, charges, milestones, stage names or customer wording"; Pranava Standard Journey Template → Project Template (inherit + override) → Journey instance per booking; universal date model **baseline / current plan / forecast / actual** with variance; SLA separate from plan; statuses On Track / Due Soon / At Risk / Overdue / Completed On Time / Completed Late derived, never painted; parallel streams — "a journey is not blocked merely because a prior numbered stage is open unless an explicit dependency or gate says so"; template versioning that never reshapes active journeys.
+**Scope:** objects p46 §34.6 — `JourneyTemplate/Version`, `JourneyStageTemplate`, `JourneyTaskTemplate`, dependencies/gates, `JourneyInstance`, `StageInstance`, `TimelinePlanRevision`, `TimelineForecastRevision`, `SlaPolicy`, `SlaClockEvent`, `ProjectCalendar`, `DelayReason`. Screens p46 §34.5: Journey Template Studio, Project Journey Control, Customer/Booking Journey Timeline (customer layer + internal layer), Stage/Task detail, Management analytics. The 11 generic stages (p45) seeded as the Pranava Standard; East Crest's seven stages mapped as a Project override (p47 §35) — configuration, not code.
+**Exists:** nothing. (Customer portal has a hardcoded 5-step tracker — replaced by the customer layer of this.)
+**Acceptance:** all ten of p47 §34.7.
+**Needs:** A, B. Feeds G, L, O, P.
+
+### G. Universal Action + My Day + escalation + notifications
+**Goal (p8–9 §7, p17 §8.13, p22 §16, p28 §23):** "Every actionable item … should normalize into one Action object" with the p8 field list and states New / In Progress / Waiting Internal / Waiting Customer / Blocked / Ready for Approval / Closed / Cancelled; My Day "ranked by deadline, customer impact, revenue impact, dependency impact and escalation risk" with a plain-language "Why now?"; L0–L4 escalation with system-generated decision packs; notifications: in-app default, daily digest, pre-breach alerts, quiet hours.
+**Scope:** `action` table + creation from every handshake (accept → onboarding actions, demand due → collections action, snag → QA action, commitment at risk → owner action, intervention → owner action, document gap, approval); departmental queues; `GET /me/day`; escalation rules as config with tiers and backup owners; notification preferences + digest job; evidence required for closure (p8).
+**Exists:** nothing (Act on intervention stamps `acted_at` only).
+**Acceptance:** p31 §26 "Every actionable record appears in the universal action engine with owner, SLA and evidence requirement"; p22 §16 decision-pack contents; p28 §23 rules.
+**Needs:** A, F (SLA clocks).
+
+### H. Customer Change Requests & Unit Customisations
+**Goal (p11–12 §8.7, p42 App. A):** full status flow Draft/Requested → Feasibility Review → Costing → Awaiting Approval → Awaiting Customer → Awaiting Payment → Approved → Released → In Progress → Ready for QA → QA Verified → Customer Accepted → As-Built Closed (+ Rejected/Withdrawn/Cancelled); multiple line items by room/trade; mandatory impact assessment (cost, schedule, technical, handover); approval matrix by type/value/margin/schedule/pre-or-post freeze; customer quotation with validity; payment gate before release unless authorized exception; drawing/spec revision release + superseded lock; auto-generated site/procurement/vendor actions; QA evidence before acceptance; as-built updates the twin; cancellation/reversal with abortive cost; profitability view (price, vendor cost, tax, waiver, contribution). Capture never blocked by a closed gate — routed (p13).
+**Exists:** nothing.
+**Acceptance:** p31 §26 four customisation bullets ("unique request ID, structured scope, impact assessment, approval state and auditable disposition"; "No change can be released to Site before … gates are satisfied"; "Site, QA and Procurement can identify the current released drawing/specification revision"; "Every completed customisation updates the permanent Unit Digital Twin … and preserves variation economics"); p35 §30.5 test 7 (request after registration/handover scheduling still captured, routed).
+**Needs:** C, G, I (payment gate), K (QA), Q (approval matrix, catalogue, freeze dates).
+
+### I. Collections, cash-flow forecasting, loans, TDS
+**Goal (p9–10 §8.3–8.4, p36–37 §31):** "Move from reporting outstanding to predicting cash realization"; separate outstanding / due / overdue / disputed / loan-dependent / promise-to-pay / true risk; reason codes on every overdue; `CollectionForecastLine` per expected receipt with source types Contractual Due / Overdue Recovery / Promise-to-Pay / Loan Disbursement / Registration-Final Demand / Approved Reschedule / Manual Finance Override / Scenario-only Future Sales; immutable `ForecastSnapshot`s (month-start, weekly) + revisions; Actual vs Forecast-at-Month-Start vs Latest vs Actual-to-Date; waterfall (opening, due, expected, recovery, loan inflow, shortfall, closing, confidence); probability rule-based and explainable; Base/Conservative/Stretch scenarios never overwriting baseline; committed vs scenario lanes never mixed; no double counting; loans (sanctioned, disbursed, available, next demand, days-to-demand vs days-to-disbursement, lender contact, risk); TDS verification workflow; waiver approval + leakage.
+**Scope:** screens p36–37 §31.3 — Project Cash Flow Planner, Project Collections Forecast, Portfolio Project Comparison, Project 360 header; overdue-reason picker UI; loans screen; TDS + waiver workflows; early-payment rule (Open question).
+**Exists:** demand schedule (H3), buckets incl. TRUE_RISK and PTP, reason codes API, receipts (validated), clearance H7, loan_case table. Missing: forecast lines/snapshots/scenarios, planner screens, loans UI, TDS, waivers.
+**Acceptance:** all ten of p37 §31.5; p31 §26 "Every overdue collection has a structured reason and next action"; management can view "last-period actual, current actual-to-date, next-month forecast and 30/60/90-day forecast by Project and portfolio"; "retains forecast snapshots and calculates forecast-to-actual variance without overwriting prior forecasts".
+**Needs:** A, B, F (plan dates), G (actions).
+
+### J. Legal Document Factory + Registration
+**Goal (p9 §8.2, p10 §8.5–8.6, p38–41 §32):** "governed transaction/document platform, not free-form mail merge": document families (AOS, Sale Deed, Lease, Leave & Licence, Addendum, Allotment letter, Demand letter, Receipt/Statement, NOC, Possession letter, Declaration, Customisation agreement, Cancellation/Transfer, project letters) all configurable; objects p38 §32.2 — `DocumentTemplate` (project scope, legal entity, property type, transaction type, jurisdiction, effective dates, version, status Draft/Under Review/Approved/Retired, checksum), `MergeFieldDefinition`, `ClauseLibrary` (Locked / Parameterized / Negotiable-with-Approval), `ClauseSelectionRule`, `GeneratedDocument` (template version, data snapshot id, selected clauses, versions), `DocumentDeviation`, `DocumentApproval`, `ExecutionRecord`; readiness panel Ready/Warning/Blocked; canonical workflow Select → Readiness → Draft → Validation → Internal Review → Legal/Commercial Approval → Customer Review → Approved-for-Execution → eSign/Wet/Registration → Final → Archive; every revision immutable; redline with structured change summary; checksum-locked finals visible from Project/Unit/Booking/Customer; segregation of duties (no self-approval of own deviation); Template & Clause Studio. Registration: readiness checklist (documents, payments, TDS, appointments, signatures), SRO slot scheduling with change history, hard pre-registration gate, day-of checklist, registered document archive, forecast date with confidence.
+**Exists:** one AOS template, generate → approve → execute, registration blocked until H7, `registration_case`. Missing: everything structural above.
+**Acceptance:** all ten of p41 §32.11; p32 §26 six document bullets.
+**Needs:** A, B, I (consideration, clearance), object storage (A), PDF renderer (§3).
+
+### K. Readiness, QA, snags, handover
+**Goal (p7–8 §6, p16 §8.8–8.10, p17 §9):** three scores — Unit Readiness, Customer/Booking Readiness, Handover Readiness — each with "current value, trend, top three drivers, confidence level, and recommended actions"; component hierarchy by room/trade/system; checklist completion with mandatory photographs/tests/certificates; "Site declaration and independent QA verification as separate states"; common-area/utility/statutory dependencies; exception queue for failed/repeat inspections; snags with category, severity, location, trade, contractor, root cause, SLA by severity, before/after evidence, customer verification, repeat flag, cost; handover as gated event — eight gate dimensions (p17 §9: Financial, Legal, Registration, Physical, Quality, Commitments, Customer, FM/Community) with the override column as written; predicted handover date + confidence; appointment workflow + customer confirmation; digital handover checklist (keys, meters, manuals, warranties, signatures, photographs).
+**Exists:** evidence-based readiness engine, snag table, hard/soft handover gates for six dimensions, handover record, QA screen. Missing: Customer + FM gates, site-declared vs QA-verified split, real evidence upload, snag CRUD + SLA + root cause + analytics, appointment workflow, digital checklist, predicted date, named-authority override UI (safety gates never), exception queue, score drivers/trend/confidence.
+**Acceptance:** p31 §26 "Every readiness score is explainable down to component/blocker level"; "Hard handover gates cannot be bypassed without configured authority and audit reason"; Appendix A Snag and Handover statuses; Appendix B events.
+**Needs:** A, C, G, L (commitments gate reads real data).
+
+### L. Commitments — the Promise Ledger
+**Goal (p16 §8.11, p41 App. A):** "Promise, owner, beneficiary, due date, financial impact, approval and evidence"; internal vs customer-facing; statuses Draft / Approved / Active / At Risk / Fulfilled / Breached / Waived-Cancelled; pre-breach alerts + recovery plan; broken-promise rate by team and root cause; confidence from dependencies. (AI promise detection is P1+.)
+**Exists:** nothing — the commitments handover gate currently reports "Not verified" (PR #7). This workstream makes it a real hard gate again.
+**Acceptance:** p31 §26 "Every customer-facing commitment has owner, due date, status, dependencies and evidence"; §24 P0 row.
+**Needs:** A, G (actions + pre-breach), F (SLA).
+
+### M. Communications
+**Goal (p16 §8.12):** omnichannel log (call, email, WhatsApp, SMS, meeting, notice); strict internal vs customer-visible separation; templates with project/legal/compliance approval; frequency guardrails. (AI summary/sentiment are P1+.)
+**Exists:** nothing.
+**Acceptance:** Appendix B "Customer contact sent / response received"; p23 §17 "Internal notes … remain internal".
+**Needs:** A, Q (templates, approval), G (contact actions).
+
+### N. Post-handover — DLP/warranty, service, Home Passport, check-ins, advocacy
+**Goal (p17 §8.14):** move-in tasks + FM onboarding; warranty case management; Digital Home Passport (equipment, serials, manuals, warranties); service history on the unit; 7/30/90-day and DLP-closure check-ins; referral/testimonial workflow.
+**Exists:** DLP windows, warranty cases (₹1 placeholder for out-of-coverage), service history, check-ins (score now validated; UI hardcodes 5), passport items. Missing: real check-in input, quote flow, move-in tasks, FM onboarding, advocacy, root-cause → QA analytics.
+**Acceptance:** p17 bullets as tests; Appendix B warranty events.
+**Needs:** G, K.
+
+### O. Customer portal — My Pranava Home
+**Goal (p18–19 §11–12):** areas Journey, My Home, Payments, Documents, Registration, Handover, Requests (raise service requests **and** submit/approve unit customisations, quotations, drawings), Commitments, Home Passport; visibility rule verbatim: "show commitments, milestones, actions required from customer, approved dates and final evidence. Do not show internal blame, employee performance, vendor disputes, internal notes or unapproved forecasts"; moments that matter (p19 §12) incl. Booking+24h welcome and 7/30/90 check-ins; customer login via booking-bound invite (A).
+**Exists:** read-only portal for one hardcoded booking (Karthik), T2–T6 projections, hardcoded 5-step tracker. Missing: login, Documents, Registration, Handover, Requests (incl. customisation approval), Commitments areas; journey layer from F; stage-level visibility config (p27 §21).
+**Acceptance:** p31 §26 "Customer-facing information never exposes internal notes or unapproved assumptions"; p47 §34.7 test 9 ("Customer-facing journey hides internal-only tasks").
+**Needs:** A, F, H, J, K, L.
+
+### P. Management — Control Tower, Project Cash Flow, KPIs, exceptions, profitability
+**Goal (p21 §14, p21–22 §15, p24–25 §19):** "five problems that need intervention, not fifty charts"; Portfolio / Cash / Project Cash Flow / Project Performance / Experience / Execution / Profitability views with drill-down to Unit/Booking; five system-generated ranked interventions with owner, rupee/customer impact and decision; Management > Exceptions (stale gates, high-value exceptions, holds affecting schedule, post-gate changes, change margin impact — p34 §30.2); KPI framework p24 §19 by domain; profitability economic objects p21 §15 (commercial leakage, service leakage, quality cost, delay cost, cost-to-serve, unit contribution, customisation economics); materiality thresholds as config.
+**Exists:** control tower with five interventions, Act. Missing: drill-down, cash-flow views (from I), exceptions view, KPI explorer, profitability, thresholds.
+**Acceptance:** p31 §26 "Management can identify the top five portfolio interventions without navigating multiple reports"; p37 §31.5 test 10 (all dashboards drill to Unit/Booking and back to Project 360).
+**Needs:** I, F, G, H, K.
+
+### Q. Policy Studio — every configurable thing, as data
+**Goal (p26–27 §21):** the full list — workflow templates by product (apartment, villa, office, plotted), conditional task rules, SLA policies + calendars + pause reasons, approval authority matrix, handover gate configuration, communication templates, score weights/thresholds, role/permission matrix + field sensitivity, escalation routing + management thresholds, customisation policy (catalogue, freeze dates, constraints, quotation validity, payment gates, cancellation), variation approval matrix, change-gate rule studio, gate-expiry source mapping, Change Window Hold policy, freshness thresholds, project master + hierarchy, Project Team Assignment matrix, forecast policy, period calendar, cash-flow targets, template versioning with migration rule, parallel-stream config, stage-level customer visibility + wording, timeline policy. Effective-dated versions with change log.
+**Exists:** config tables for components, gate rules, payment plans, policies (seeded, not editable).
+**Acceptance:** p47 §34.7 tests 1, 2, 5; p31–32 §26 "Approved users can generate … only from an approved template version valid for the relevant Project/transaction context".
+**Needs:** A. Each other workstream lands its own studio tab as it lands (no big-bang admin).
+
+### R. Customer 360 / Unit 360 / Booking 360 (P1)
+**Goal (p25 §20):** the three twin screens; Project 360 header everywhere (p37 §31.3) with context retained across modules.
+**Exists:** Customer 360 (basic), unit detail. **Needs:** B, C, F, I, J, K, L.
+
+### S. Intelligence layer (P1–P2, rule-based first — p18 §10)
+Journey risk, next best action, collection risk, commitment risk, sentiment, document intelligence, quality root cause, profitability leakage; copilots last. **Not started until G, I, L, K produce the data.** Every score must show value, trend, three drivers, confidence, recommended action (p8 §6).
 
 ---
 
-## Amarsh
+## 5. Sequence — the PDF's priorities, run as parallel lanes
 
-### Phase 1 — fixes
+Agents build; Amarsh and Vivek review. Person-split is for **review ownership only**. Lanes run concurrently once their dependency is merged.
 
-1. **NEW — Typecheck gate. Do this first.** The API has no typecheck script; `tsx` runs it untyped and `tsc --noEmit` reports 113 errors (7 in `src`: `demands.ts` 2, `legal-docs.ts` 4, `qa.ts` 1; 106 in `*.test.ts`). Add `typecheck` (`tsc --noEmit`) to `services/api`, both apps, and a root `npm run typecheck`. Fix the 7 src errors and the 106 test errors — do not exclude tests from the check. Everything after this lands on a typed base.
-    Triage (2026-09-05): one root cause. `db.query(...)` is called without a row generic in `bookings.ts`, `customer.ts`, `demands.ts`, `legal-docs.ts`, `qa.ts` and the lifecycle modules, so helper return types collapse to `{}` / `{} | null` / `unknown[]`; every test that reads `.status` or `.id` off those then fails. Adding `db.query<RowType>(...)` at each untyped call site clears all 7 src errors and ~100 of the 106 test errors. All 7 src errors are typing gaps, not logic bugs. Enumerate the call sites with a grep first, fix all, re-grep.
-2. **Validate receipt amounts.** Posting `{"amount":"abc"}` is accepted today — `Number("abc")` is `NaN`, which passes both the `<= 0` and `> remaining` checks — and leaves the demand with a null balance and status `part_paid`. Require a finite number, greater than zero, not more than the remaining balance. Add a test.
-3. **Validate check-ins.** Satisfaction score must be 1–5 (today 99 is accepted). Capturing a check-in that doesn't exist must return 404, not `200 {}`.
-4. **Make "why now" tell the truth.** The customer portal says "Your flooring is complete — this milestone is now due" for a villa whose flooring hasn't started. Derive the sentence from the unit's actual component progress, not from the demand status. Fix the V110 seed so demands are consistent with progress.
-    **Decided 2026-09-05 (Amarsh):** short and factual wording. Stage verified → "Structure verified — payment due." · Booking-time payment → "Booking payment — due." · Not yet reached → "Upcoming — after flooring is verified." (stage noun substituted per milestone). Depends on 5 (null due dates).
-    **Follow-up (seen in PR #9 screenshot):** a *paid* demand still reads "Booking payment — due." next to a green "Paid" chip. Add a paid case ("Booking payment — paid.") — five-line change in `whyNow`, do it with 9a or the next touch of `collections.ts`.
-5. **Stop stamping today's date on future demands.** When a booking is accepted, every scheduled milestone demand gets `due_date = today`. Leave it null (or a planned date) and only set it when the construction trigger fires. Check the customer portal shows "Upcoming" without a date.
-    **Decided 2026-09-05 (Amarsh):** null, no estimated date. `demand.due_date` becomes nullable (schema change approved). Planned dates arrive with Vivek's 14 later.
-6. **Stop the commitments gate auto-passing.** The handover "commitments" gate always passes because nothing supplies the value. Until the Promise Ledger exists, evaluate it honestly and show the blocker.
-    **Decided 2026-09-05 (Amarsh):** honest-but-non-blocking. The gate reports *not passed* with reason "No commitment records — Promise Ledger not yet built", shown amber as "Not verified" on QA/Handover, and does NOT block handover while the ledger doesn't exist. This is a deliberate temporary deviation from the spec (commitments is a hard gate): **Vivek 20 must flip it back to hard** when the Promise Ledger lands — added to that task.
-7. **Make "Act" on an intervention do something.** Today it flips a status flag. Make it idempotent, record who acted and when, and create a stub action row for the owner.
-    **Decided 2026-09-05 (Amarsh):** identity-free half now — idempotent, `acted_at` stamped, `acted_by` column present but null until Vivek 11 (Cognito) supplies the user. The "stub action row" needs the `action` table from Amarsh 11 — so that piece moves to 11 (added there). Schema change: two columns on `intervention`.
-8. **Human labels instead of raw enums.** Sales shows `Handed_over`, QA shows `financial · open`, Legal shows `readiness in progress`. Add label maps for sale status, gate types and registration status.
-9. **Split oversized files you own.** `demands.ts` (237), `legal-docs.ts` (213), `qa.ts` (211) are over the 200-line rule.
-9a. **NEW (found 2026-09-05, PR #6) — Dates use the UTC day, not IST.** `demands.ts` `today()` is `new Date().toISOString().slice(0, 10)`, so between midnight and 05:30 IST every stamped `due_date` is *yesterday*, and `daysOverdue` in `collections.ts` is off by one in that window. Spec: display timezone `Asia/Kolkata`. Fix: one `todayIst()` helper (e.g. `Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" })`) used by every date-stamping site — grep `toISOString().slice(0, 10)` and `CURRENT_DATE` in seeds and enumerate all of them first; add a test that pins the clock to 01:00 IST and asserts the IST date. Do not hardcode the zone in more than one place (it becomes project config with Policy Studio). PR #8 added a second hardcode, `apps/workspace/src/lib/utils.ts` `formatIstDateTime` (`timeZone: "Asia/Kolkata"`) — the API should send the zone (or the display layer read it from project config) so both sides agree; cover it in this task.
+| Wave | PDF priority | Lanes (parallel) | Merged means |
+|---|---|---|---|
+| **0** (now) | — | Merge PRs #1–#9 | Typed base, validated inputs, honest gates |
+| **1** | P0 foundation (p28 §24, p30 §25 weeks 1–2) | **A** platform · **B** canonical model · **F** journey/SLA engine | Login works, roles/projects enforced, every write emits an event, Postgres by env, container deploys, journeys instantiate on booking with the 11 standard stages |
+| **2** | P0 (weeks 3–8) | **C** twin + changeability (bulk, freshness, expiry) · **G** actions/My Day/escalation · **L** Promise Ledger · **K** readiness/gates/snags (evidence, 8 gates, override) · **E** handover gate | The §30.5, §33.6 and §34.7 acceptance tests pass; My Day ranks real actions; commitments gate is hard again |
+| **3** | P0 (weeks 7–12) | **H** change requests · **I** collections forecast/loans/TDS · **J** document factory + registration · **Q** studio tabs for what landed | §31.5 and §32.11 pass; East Crest configured as a Project override, not code |
+| **4** | P1 (3–6 months) | **O** portal (all areas, login) · **P** control tower/cash-flow/KPIs/exceptions · **R** 360s · **M** communications · **N** post-handover completion | §26 all 30 bullets pass end to end |
+| **5** | P1–P2 | **S** intelligence, document intelligence, copilots; profitability analytics; vendor learning | — |
 
-### Phase 2 — foundation
+Review load: waves 1–3 land 3–5 PRs each. If that's too much to read, the lever is fewer lanes per wave, not smaller intermediates.
 
-10. **Event log.** Add an append-only `event` table with the envelope from the spec (type, actor, project, entity, payload, correlation id, timestamp). Inject an `events` port into handlers and emit an event from every existing mutation: booking submitted/accepted/returned, receipt posted, PTP recorded, progress updated, gate changed, document generated/approved/executed, registration completed, snag closed, handover completed, warranty opened/closed, check-in captured. No update or delete on this table, ever.
-11. **Universal Action and My Day.** Add an `action` table (type, owner, related booking/unit/project, priority, SLA due, state, evidence requirement). Every handshake creates a receiving action: CRM accept → onboarding actions; demand becomes due → collections action; handover blocked → QA action; intervention → owner action. Build `GET /me/day` returning ranked actions with a plain-language "why now", and a My Day screen in the workspace. SLA due dates come from Vivek's 14 once it lands; until then, the action carries its own due date. **Also (from Amarsh 7):** "Act" on an intervention creates the owner's action row here — task 7 only stamps `acted_at` because this table doesn't exist yet.
-12. **Handover override.** Endpoint and UI to override a non-safety hard gate with a named authority, a reason and evidence; the override is written to the event log. Safety and statutory gates reject the override outright. Depends on task 10.
-13. **Data freshness.** Compare each unit's last progress update against a policy threshold. When stale, gates return a freshness status and Sales, CRM and the customer portal show "Verification Required" instead of a confident open/closed chip.
-14. **Lint and CI.** Add an ESLint config (the `lint` script exists but nothing is installed). GitHub Actions on every PR: typecheck (task 1), lint, unit tests, Playwright, CDK synth. Publish the coverage report on each PR; set the threshold from the baseline measured on 2026-09-05 (bottom of this file) and ratchet it up, never down.
-    **Decide (found 2026-09-05, PR #2):** CLAUDE.md says Playwright screenshots "live in `e2e/__screenshots__/`" and the definition of done requires reviewing them, but `apps/workspace/.gitignore` excludes that folder — so no screenshot has ever been committed and reviewers can't see them in a PR. Either track the folder (and accept binary churn) or have CI upload screenshots as a PR artifact and fix the CLAUDE.md wording. Pick one here and apply it in the same PR.
+## 6. What was cut from the previous list, and why
 
-### Phase 3 — role slices
+| Old task | Why it's gone |
+|---|---|
+| V4 stub `x-user` header for "who am I" | Superseded by real login (A). Portal identity comes from the invite session |
+| V10 Docker Postgres + docker-compose + Makefile; V11 `cognito-local`; V21/V24 Lambda bundling, Cognito authorizer, CloudFront | Superseded by §3: PGlite-on-disk locally, managed Postgres by env, one container. Nothing to run locally but `npm run dev` |
+| V15 `packages/ui`, `packages/core` | Refactor with no functional requirement behind it; do it when a third consumer exists |
+| V9 / A9 file splits, A14 lint | Hygiene; keep the 200-line rule in review, drop the tasks (A9 already done in #3) |
+| A25 `/api/v1` + OpenAPI | PDF says nothing about API versioning; add OpenAPI when an external consumer appears (p23 §18 says integrations are optional) |
+| A6 soft-gate stopgap (shipped as #7), A7 `acted_by = null` (shipped as #8) | Kept as shipped, but both are superseded in wave 2 by L (real hard gate) and A (real actor). No further stopgaps |
+| A12 handover override as a separate task; A13 data freshness | Folded into K and C respectively — they are properties of those engines, not features |
+| "Vivek/Amarsh" as sequencing | Replaced by lanes; ownership stays for review |
 
-15. **Accounts: forecasting and loans.** Overdue-reason picker in the collections UI (API exists, no UI). Loans screen: sanctioned, disbursed, available, next demand, days-to-demand vs days-to-disbursement gap. Collections forecast lines per expected receipt with probability and source. Immutable month-start snapshot, latest forecast, actual-to-date, variance against both. Project cash-flow planner with drill-down to booking.
-16. **NEW — Accounts: scenario mode** (accounts #7). The forecast has two lanes, *committed* and *scenario*. Receipts expected from unsold units or hypothetical future sales live only in scenario; the committed forecast, the month-start snapshot and every Control Tower cash number exclude them. Switching lanes is explicit in the UI and never silent. Depends on 15.
-17. **Legal: templates and clauses.** Pick the template by project, property type and transaction type (today there is one AOS template). Regenerate as v2 when source data changes, keep v1 untouched, show a diff. Clause library with Locked / Parameterised / Negotiable clauses; deviations need Legal approval and create a new version. Retired templates can't generate but old documents stay viewable. Document preview screen. Stop hard-coding the SRO reference in the UI.
-18. **NEW — Legal: Sale Deed prerequisites and segregation of duties** (legal #6; HANDOFF §4.3). Sale Deed generation requires H7 financial clearance, an executed AOS and complete applicant KYC, and blocks with the named missing item. The user who generated or last edited a document cannot approve or execute it — a second Legal user must. Both rules are tested and both emit events. Depends on 17 and 10.
-19. **NEW — Legal: lease document type** (legal #9). Add `LEASE` as a transaction type on the same template / version / clause machinery as AOS and Sale Deed, with its own required fields. No parallel code path. Depends on 17.
-20. **QA: snags and evidence.** Create snags from the UI (severity, location, trade, description). Separate "site declares complete" from "QA verified". Real before/after evidence with file upload to S3 via signed URLs (LocalStack locally) instead of canned text. Repeat-defect flag and analytics by trade and contractor.
-21. **After keys: service and warranty.** Create warranty cases from the UI. Out-of-coverage cases go through a real quote flow instead of a ₹1 placeholder. Root-cause code on closure feeds the QA repeat-defect analytics. Check-in scores feed a Customer Health signal.
-    **Found 2026-09-05 (PR #4):** the workspace never asks for a score — `apps/workspace/src/api-lifecycle.ts:163` hardcodes `satisfaction_score: 5` on every capture, so every check-in on record is a 5 and the Health signal would be constant. Add a real 1–5 input to the After keys capture action. Also: the spec never defines the check-in scale or a default (`post-handover/spec.md` §2.2 names the field only); the API now enforces 1–5 as an assumption — confirm the scale with Pranava (see Open questions).
-22. **Management: drill-down and KPIs.** Every intervention drills Project → Unit → Booking. Cash-flow views on the tower (current-month actual, next-month forecast, 90-day, prior actual, variance) — depends on task 15. KPI explorer with trend and drivers for each metric, no decorative badges. Remove the hard-coded "Priya Nair" owner.
-23. **NEW — Management: materiality threshold** (management #6). The Control Tower surfaces an intervention only when it crosses a per-project materiality threshold (₹ amount, days overdue, or count) held as Policy Studio data, not code. Below threshold it is reachable through drill-down but never on the tower. Today `tower.ts` uses "material" as copy text only. Depends on 22 and Vivek's 14.
-24. **Notifications.** Daily digest of My Day, pre-breach alerts before an SLA or commitment fails, quiet hours. In-app first; email/WhatsApp adapters behind the customer visibility filter. Depends on task 11.
-25. **API contract.** Version all routes under `/api/v1`, generate OpenAPI from the routes, consistent `{data, meta, errors}` envelope, cursor pagination on list endpoints.
+Kept from the old list because the bugs are in surviving code: V1 error middleware, V2 block return on active booking, V3 progress-regression reason/audit (now part of C), V6 validation + unique constraints, V7 layout/tokens/dark mode, V8 CRM project filter (subsumed by A's project scoping), A9a IST dates, the paid-demand wording follow-up.
 
----
+## 7. Decisions I need from you (Amarsh) before wave 1 starts
 
-## Open questions for Pranava
+1. **Auth without Cognito** (§3) — Google OIDC + our sessions, no AWS dependency. Yes/no.
+2. **Deploy as a container, not Lambda** (§3) — delete `infra/` CDK stacks and replace with a container definition + IaC for App Runner/ECS + RDS + S3 when the account exists. Yes/no.
+3. **Waves 1 lanes in parallel** — A, B, F land together (3 large PRs). OK, or serial?
+4. **East Crest** stays demo config only; production projects come from Pranava. Confirm.
 
-Things the code cannot decide. Ask at the next client touchpoint; each has a task waiting on the answer.
+## 8. Open questions for Pranava
 
 | Question | Blocks |
 |---|---|
-| Which AWS account, region and monthly budget (≈ $107/month idle, see baselines) may we deploy into? | Vivek 24 |
-| Google OAuth client id + secret for the Cognito identity provider; CloudFront URLs or a Pranava domain? | Vivek 11, 24 |
-| Check-in satisfaction scale — is 1–5 right, and is there a default when the RM skips it? The spec names the field but not the scale. | Amarsh 21 |
-| ~~Should a handover be blocked or only flagged when no commitment data exists yet?~~ Decided 2026-09-05: flagged, not blocked, until the Promise Ledger exists. | Amarsh 6 |
-| Is anyone at Pranava entering real data into the Emergent preview app today? If yes, we need a migration plan before cut-over. Also: rotate the auth tokens committed in its `qa/*.tok`. | Cut-over |
-| May a customer pay an instalment before its construction trigger fires (early payment)? Today the API accepts it silently. If yes, how is it shown; if no, reject with a reason. | Amarsh 15 |
+| Which AWS account/region/budget may we deploy into (or any other host)? | A deploy |
+| Google OAuth client id/secret; domain or default URL? | A |
+| Is anyone entering real data into the Emergent preview app? Rotate the tokens committed in its `qa/*.tok`. | Cut-over |
+| Check-in satisfaction scale (1–5 assumed) and default when skipped (p17 §8.14 names 7/30/90 only) | N |
+| May a customer pay an instalment before its trigger fires? | I |
+| Working-day calendar and holidays per project (p46 §34.3 calendar) | F |
+| Materiality thresholds for management alerts (p28 §23) | P |
+| Change-freeze dates, allowed catalogue and payment-gate % per project (p11 §8.7) | H, Q |
 
-## Found while building
+## 9. Record
 
-Bugs and gaps discovered during a task that belong to a different task. Each is already folded into its owning task above; this is the running log so nothing is lost between sessions.
+**Done (open PRs, verified 2026-09-05):** #1 typecheck gate · #2 human labels · #3 file split · #4 check-in validation · #5 receipt validation · #6 null due dates on scheduled demands · #7 commitments gate "Not verified" · #8 idempotent Act + `acted_at` · #9 truthful why-now. Merge order: #1 → #3 → #5 → #6 → #9; #1 → #4 → #8; #1 → #7; #2 any time; squash-merge #4.
 
-| Date | Found in | Finding | Folded into |
-|---|---|---|---|
-| 2026-09-05 | PR #4 (Amarsh 3) | Workspace hardcodes `satisfaction_score: 5` on every check-in capture | Amarsh 21 |
-| 2026-09-05 | PR #4 (Amarsh 3) | Spec defines no check-in scale or default; 1–5 is an assumption | Amarsh 21, Open questions |
-| 2026-09-05 | PR #4 (Amarsh 3) | `routes-lifecycle.ts` `fail()` mapped every error to 400; now `not_found` → 404 for approve/execute document, close snag, close warranty, capture check-in, act intervention | Done in PR #4 |
-| 2026-09-05 | PR #2 (Amarsh 8) | Playwright screenshots are gitignored while CLAUDE.md requires them to be reviewed | Amarsh 14 |
-| 2026-09-05 | PR #2 (Amarsh 8) | QA screen shows "Commitments · Passed" green on every villa including ones failing three other gates — visible instance of the auto-pass bug | Amarsh 6 (already listed) |
-| 2026-09-05 | PR #5 (Amarsh 2) | `postReceipt` now accepts finite numeric strings (`"500"`) and coerces once; `recordPtp` next to it still requires a strict number. Pick one rule for all money inputs when doing the API contract. | Amarsh 25 |
-| 2026-09-05 | PR #5 (Amarsh 2) | `demands.test.ts` is at exactly 200 lines — the next receipt/demand test must split it (e.g. `demands-receipts.test.ts`) first | Whoever adds the next demand test |
-| 2026-09-05 | PR #4 (Amarsh 3) | Harness auto-checkpoint commit (`claude: update …`) landed on the PR branch — squash-merge PRs so these don't reach `main` | Merge process |
-| 2026-09-05 | PR #6 (Amarsh 5) | `today()` returns the UTC day; due dates and days-overdue are wrong between 00:00 and 05:30 IST | **Amarsh 9a (new)** |
-| 2026-09-05 | PR #6 (Amarsh 5) | `postReceipt` accepts a receipt against a `scheduled` (not yet due) demand — no status check. Engine now handles it without losing the money, but is early payment allowed at all? | Amarsh 15, Open questions |
-| 2026-09-05 | PR #9 (Amarsh 4) | V110 demo seed changed: flooring progress `not_started` → `complete` so the overdue flooring demand (the only TRUE_RISK demo row) is consistent with site truth. Karthik's QA card now reads "Flooring complete, not yet verified". Demo script should mention it. | Demo data (HANDOFF §3 table needs the one-word update) |
-| 2026-09-05 | PR #9 (Amarsh 4) | `whyNow` has exactly one caller (customer T2/T6). Staff Collections shows no "why now" at all — the accounts spec's next-action copy comes from `overdue_reason.next_action` instead. Not a bug; noted so nobody looks for it. | — |
-| 2026-09-05 | PR #8 (Amarsh 7) | Workspace now hardcodes `Asia/Kolkata` in `lib/utils.ts` — second zone hardcode alongside the API's UTC `today()` | Amarsh 9a |
-| 2026-09-05 | PR #7 (Amarsh 6) | Playwright's e2e run books V101 as "Anita Sharma", which then shows up in every later screenshot — the suite mutates the shared in-memory DB | Vivek 4 (already listed: "Karthik becomes Anita") |
-| 2026-09-05 | PR #6 (Amarsh 5) | One workspace Playwright test is flaky (passes in isolation, fails in the suite) — shared in-memory PGlite across parallel workers; PR #2 saw the same. Run with `--workers=1` until Vivek 10 gives tests their own DB | Vivek 5 (npm test) / Amarsh 14 (CI) |
+**Found while building (carried):** `today()` uses the UTC day (fix in A: one `todayIst()`/project calendar); workspace hardcodes `satisfaction_score: 5` (N); Playwright screenshots gitignored while the rule says review them (CI uploads them as artifacts — A); e2e suite mutates the shared in-memory DB (A gives tests their own DB); `postReceipt` accepts receipts on scheduled demands (I, Open question); `demands.test.ts` at 200 lines (split on next touch); V110 seed flooring → `complete` (demo note).
 
-## Shared-file rule
-
-`server.ts`, `schema.ts`, `App.tsx` will be touched by both of you. Whoever opens a PR on one of those first that day owns it; the other rebases on top rather than opening a competing PR.
-
-## Baselines measured 2026-09-05
-
-Measured with `vitest run --coverage` (v8 provider) per package; Playwright not included.
-
-| Package | Lines | Branches | Notes |
-|---|---|---|---|
-| `services/api` | **79.6%** | 74.7% | 78/78 tests. `server.ts` and `routes-lifecycle.ts` are **0%** and account for 292 of the 392 uncovered lines — the Express shell has no tests at all. Domain files (gates, readiness, clearance, handover, tower, transparency) all ≥85% lines; on branches `transparency.ts` 59%, `tower-view.ts` 54%, `readiness.ts` 75% miss the 80% bar. |
-| `apps/workspace` | **3.7%** | — | 4 RTL tests. 0 of 11 pages have any coverage; 3 of 7 `ui/` components at 0%. 9 Playwright tests cover the screens visually but don't count here. |
-| `apps/my-pranava-home` | **0%** | — | No unit tests. 2 Playwright tests. |
-
-CI threshold to start from (Amarsh 14): API 79% lines / 74% branches, ratchet up only. Workspace and customer app: set a threshold once task-level tests exist; today it would be decorative.
-
-**AWS, checked with `aws sts get-caller-identity`:** the CLI on Amarsh's machine is signed in as `Amarsh_claude` in account **975050032697 — our account, not Pranava's**. `infra/cdk.context.json` also carries a stale second account (`907213363571`) from an earlier synth. Task Vivek 24 step 1 exists because of this.
-
-**Idle cost of what the CDK creates today (ESTIMATE, ap-south-1 list prices via `aws pricing`):** 1 NAT gateway $0.056/hr ≈ $41/mo + Aurora Serverless v2 floor 0.5 ACU × $0.18/ACU-hr ≈ $66/mo → **≈ $107/month (~₹9,000) with zero traffic**, because `serverlessV2MinCapacity: 0.5` has no auto-pause. Pranava should approve this number before deploy day.
+**Baselines (2026-09-05):** API 79.6% lines / 74.7% branches (server.ts and routes-lifecycle.ts 0%); workspace 3.7%; customer app 0%. Idle cost of the old CDK stack ≈ $107/month — moot under §3.
