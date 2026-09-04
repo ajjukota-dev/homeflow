@@ -136,8 +136,13 @@ export async function controlTower(projectId: string) {
 }
 
 export async function actIntervention(id: string) {
-  const r = await db.query(`SELECT id FROM intervention WHERE id = $1`, [id]);
+  const r = await db.query<{ id: string }>(`SELECT id FROM intervention WHERE id = $1`, [id]);
   if (r.rows.length === 0) throw new Error("not_found");
   await db.query(`UPDATE intervention SET status = 'acted' WHERE id = $1`, [id]);
-  return db.query(`SELECT * FROM intervention WHERE id = $1`, [id]).then((x) => x.rows[0]);
+  return db
+    .query<{ id: string; status: string; category: string; headline: string }>(
+      `SELECT * FROM intervention WHERE id = $1`,
+      [id]
+    )
+    .then((x) => x.rows[0]);
 }

@@ -75,7 +75,7 @@ export async function projectReadiness(projectId: string) {
 
 export async function verifyComponent(unitId: string, component: string, evidenceNote: string) {
   if (!evidenceNote?.trim()) throw new Error("evidence_required");
-  const exists = await db.query(`SELECT code FROM component_definition WHERE code = $1`, [component]);
+  const exists = await db.query<{ code: string }>(`SELECT code FROM component_definition WHERE code = $1`, [component]);
   if (exists.rows.length === 0) throw new Error("unknown_component");
   await db.query(
     `INSERT INTO qa_evidence (unit_id, component_code, qa_verified, evidence_note, verified_at)
@@ -87,8 +87,13 @@ export async function verifyComponent(unitId: string, component: string, evidenc
   return unitReadiness(unitId);
 }
 
+type SnagRow = {
+  id: string; unit_id: string; severity: string; location: string;
+  trade: string; description: string; status: string; is_repeat: boolean;
+};
+
 export async function listSnagsForUnit(unitId: string) {
-  const r = await db.query(
+  const r = await db.query<SnagRow>(
     `SELECT id, unit_id, severity, location, trade, description, status, is_repeat
        FROM snag WHERE unit_id = $1 ORDER BY created_at`,
     [unitId]
@@ -104,7 +109,7 @@ export async function closeSnag(id: string, beforeNote: string, afterNote: strin
     `UPDATE snag SET status = 'closed', before_note = $2, after_note = $3 WHERE id = $1`,
     [id, beforeNote.trim(), afterNote.trim()]
   );
-  return db.query(`SELECT * FROM snag WHERE id = $1`, [id]).then((r) => r.rows[0]);
+  return db.query<SnagRow>(`SELECT * FROM snag WHERE id = $1`, [id]).then((r) => r.rows[0]);
 }
 
 async function policy(projectId: string) {
@@ -141,11 +146,11 @@ export async function handoverForBooking(bookingId: string) {
   const snags = await snagCounts(row.unit_id);
   const pol = await policy(row.project_id);
   const finance = await bookingFinance(bookingId);
-  const legal = await db.query(
+  const legal = await db.query<{ id: string }>(
     `SELECT id FROM generated_document WHERE booking_id = $1 AND status IN ('executed','archived') LIMIT 1`,
     [bookingId]
   );
-  const reg = await db.query(
+  const reg = await db.query<{ status: string }>(
     `SELECT status FROM registration_case WHERE booking_id = $1`,
     [bookingId]
   );
