@@ -6,7 +6,7 @@ import {
   type GateState,
   type ProgressState,
 } from "./gates";
-import { raiseDemandsForUnit } from "./demands";
+import { raiseDemandsForUnit } from "./demands-schedule";
 
 // Pure-ish handlers (portable to Lambda). Each reads/writes the DB and derives gates.
 

@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { db } from "./db";
 import {
   autoValidate,
@@ -8,61 +8,9 @@ import {
   type MergeField,
 } from "./legal";
 import { bookingFinance } from "./finance";
+import { checksum, getDocument, liveSnapshot, source } from "./legal-docs-source";
 
 // Legal Document Factory + registration (legal/spec.md, H4 / H7 / H8).
-
-function checksum(text: string) {
-  return createHash("sha256").update(text).digest("hex").slice(0, 16);
-}
-
-type SourceRow = {
-  id: string;
-  project_id: string;
-  unit_id: string;
-  booking_number: string;
-  total_consideration: number;
-  unit_number: string;
-  unit_type: string;
-  facing: string;
-  project_name: string;
-  display_name: string | null;
-  pan: string | null;
-};
-
-type GeneratedDocumentRow = {
-  id: string; booking_id: string; document_family: string; status: string; version: number;
-  snapshot: unknown; body_rendered: string; checksum: string | null; created_at: Date;
-};
-
-async function source(bookingId: string): Promise<SourceRow> {
-  const r = await db.query<SourceRow>(
-    `SELECT b.id, b.project_id, b.unit_id, b.booking_number,
-            b.total_consideration::float8 AS total_consideration,
-            u.unit_number, u.unit_type, u.facing, p.name AS project_name,
-            a.display_name, a.pan
-       FROM booking b
-       JOIN unit u ON u.id = b.unit_id
-       JOIN project p ON p.id = b.project_id
-       LEFT JOIN booking_applicant a ON a.booking_id = b.id AND a.role = 'primary'
-      WHERE b.id = $1`,
-    [bookingId]
-  );
-  if (r.rows.length === 0) throw new Error("booking_not_found");
-  return r.rows[0];
-}
-
-function liveSnapshot(row: SourceRow): Record<string, string | null> {
-  return {
-    applicant_name: row.display_name,
-    pan: row.pan,
-    unit_number: row.unit_number,
-    unit_type: row.unit_type,
-    facing: row.facing,
-    project_name: row.project_name,
-    booking_number: row.booking_number,
-    consideration: String(row.total_consideration),
-  };
-}
 
 export async function generateDocument(bookingId: string, documentFamily = "AOS") {
   const row = await source(bookingId);
@@ -120,15 +68,6 @@ export async function generateDocument(bookingId: string, documentFamily = "AOS"
     ]
   );
   return getDocument(id);
-}
-
-export async function getDocument(id: string) {
-  const r = await db.query<GeneratedDocumentRow>(
-    `SELECT id, booking_id, document_family, status, version, snapshot, body_rendered, checksum, created_at
-       FROM generated_document WHERE id = $1`,
-    [id]
-  );
-  return r.rows[0] ?? null;
 }
 
 export async function approveDocument(id: string) {

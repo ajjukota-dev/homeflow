@@ -15,10 +15,10 @@ import { getCustomerHome, firstActiveBooking } from "./customer";
 import { listProjects, createProject, createUnit } from "./projects";
 import {
   listDemands,
-  postReceipt,
   setOverdueReason,
   recordPtp,
 } from "./demands";
+import { postReceipt } from "./demands-receipts";
 import { projectCollections, listOverdueReasons } from "./collections-view";
 import { registerLifecycleRoutes } from "./routes-lifecycle";
 
