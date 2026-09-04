@@ -73,6 +73,8 @@ CREATE TABLE intervention (
   owner_name text,
   booking_id text,
   unit_id text,
-  status text NOT NULL DEFAULT 'open'
+  status text NOT NULL DEFAULT 'open',
+  acted_at timestamptz,
+  acted_by text
 );
 `;
