@@ -9,7 +9,7 @@ export interface PersonalisationWindow {
 export interface PaymentLine {
   milestone_label: string;
   amount: number;
-  due_date: string;
+  due_date: string | null; // null until the construction trigger fires — shown as "Upcoming"
   status: string;
   why_now: string;
 }
@@ -18,7 +18,7 @@ export interface Payments {
   paid_total: number;
   remaining_total: number;
   receipts: { receipt_id: string; amount: number; date: string }[];
-  next_due: { milestone_label: string; amount: number; due_date: string } | null;
+  next_due: { milestone_label: string; amount: number; due_date: string | null } | null;
 }
 export interface PassportItem {
   type: string;

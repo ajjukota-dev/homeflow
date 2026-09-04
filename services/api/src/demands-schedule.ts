@@ -65,6 +65,9 @@ export async function setupFunding(bookingId: string) {
         : Math.round((consideration * m.pct_of_consideration) / 100);
     allocated += amount;
     const status = initialStatus(m.construction_trigger_event, progressMap);
+    // Only a demand whose trigger has already fired gets a date; a scheduled demand
+    // is dated later by raiseDemandsForUnit, when its trigger actually fires.
+    const dueDate = status === "scheduled" ? null : today();
     await db.query(
       `INSERT INTO demand (id, booking_id, project_id, milestone_key, milestone_label,
         construction_trigger_event, sequence, amount, due_date, status)
@@ -78,7 +81,7 @@ export async function setupFunding(bookingId: string) {
         m.construction_trigger_event,
         m.sequence,
         amount,
-        today(),
+        dueDate,
         status,
       ]
     );

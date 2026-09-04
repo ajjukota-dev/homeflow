@@ -99,6 +99,12 @@ describe("classifyOpenAmount", () => {
     expect(bucket).toBe("TRUE_RISK");
     expect(bucket).not.toBe("OVERDUE");
   });
+
+  it("treats a null due_date (no trigger fired yet) as not past due, landing in DUE — never lost", () => {
+    // A demand can leave "scheduled" without gaining a due_date (e.g. an early receipt);
+    // it must still surface as owed money, not silently disappear from every bucket.
+    expect(classifyOpenAmount({ ...due, status: "part_paid", due_date: null })).toBe("DUE");
+  });
 });
 
 describe("recoveryProbability", () => {
@@ -118,6 +124,9 @@ describe("daysOverdue", () => {
   });
   it("counts calendar days past due", () => {
     expect(daysOverdue("2026-08-01", "2026-09-03")).toBe(33);
+  });
+  it("is zero for a null due_date rather than throwing", () => {
+    expect(daysOverdue(null, "2026-09-03")).toBe(0);
   });
 });
 

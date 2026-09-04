@@ -130,7 +130,7 @@ async function seedMoneyDemo(db: PGlite) {
       ('d_v110_2','b_v110','p_eastcrest','structure_milestone','Structure complete','structure:complete',2,3600000,CURRENT_DATE,'due',NULL,false),
       ('d_v110_3','b_v110','p_eastcrest','mep_milestone','MEP first-fix complete','mep_first_fix:complete',3,2400000,CURRENT_DATE - 10,'overdue','customer_delay',false),
       ('d_v110_4','b_v110','p_eastcrest','flooring_milestone','Flooring laid','flooring:complete',4,2400000,CURRENT_DATE - 70,'overdue','unresponsive',false),
-      ('d_v110_5','b_v110','p_eastcrest','possession_milestone','Possession','finishing:verified',5,2400000,CURRENT_DATE + 90,'scheduled',NULL,false);
+      ('d_v110_5','b_v110','p_eastcrest','possession_milestone','Possession','finishing:verified',5,2400000,NULL,'scheduled',NULL,false);
 
     INSERT INTO receipt (id, booking_id, project_id, demand_id, amount, mode, received_at, status, idempotency_key)
     VALUES ('r_v110_1','b_v110','p_eastcrest','d_v110_1',1200000,'neft',CURRENT_DATE - 50,'reconciled','seed-v110-booking');
@@ -152,8 +152,8 @@ async function seedMoneyDemo(db: PGlite) {
       ('d_v111_1','b_v111','p_eastcrest','booking_token','Booking amount',NULL,1,800000,CURRENT_DATE,'due',NULL,true),
       ('d_v111_2','b_v111','p_eastcrest','structure_milestone','Structure complete','structure:complete',2,2400000,CURRENT_DATE - 5,'disputed','dispute_raised',false),
       ('d_v111_3','b_v111','p_eastcrest','mep_milestone','MEP first-fix complete','mep_first_fix:complete',3,1600000,CURRENT_DATE + 5,'due',NULL,false),
-      ('d_v111_4','b_v111','p_eastcrest','flooring_milestone','Flooring laid','flooring:complete',4,1600000,CURRENT_DATE + 60,'scheduled',NULL,false),
-      ('d_v111_5','b_v111','p_eastcrest','possession_milestone','Possession','finishing:verified',5,1600000,CURRENT_DATE + 120,'scheduled',NULL,false);
+      ('d_v111_4','b_v111','p_eastcrest','flooring_milestone','Flooring laid','flooring:complete',4,1600000,NULL,'scheduled',NULL,false),
+      ('d_v111_5','b_v111','p_eastcrest','possession_milestone','Possession','finishing:verified',5,1600000,NULL,'scheduled',NULL,false);
 
     INSERT INTO promise_to_pay (id, demand_id, expected_date, expected_amount)
     VALUES ('ptp_v111_3','d_v111_3',CURRENT_DATE + 12,1600000);

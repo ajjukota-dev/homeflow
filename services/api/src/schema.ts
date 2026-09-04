@@ -108,7 +108,7 @@ CREATE TABLE demand (
   construction_trigger_event text,
   sequence int NOT NULL,
   amount numeric NOT NULL,
-  due_date date NOT NULL,
+  due_date date, -- null until the construction trigger fires (scheduled demands carry no date yet)
   status text NOT NULL,
   overdue_reason_code text REFERENCES overdue_reason(code),
   loan_dependent boolean NOT NULL DEFAULT false

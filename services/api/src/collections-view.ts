@@ -50,6 +50,11 @@ export async function projectCollections(projectId: string, asOf = today()) {
   let outstanding_total = 0;
   for (const row of rows.rows) {
     const remaining = Number(row.remaining);
+    // A scheduled demand's due_date is null; classifyOpenAmount already excludes
+    // "scheduled" from every bucket, and daysOverdue/isPastDue treat a null date as
+    // not-yet-due rather than crashing — so an un-triggered demand never appears here,
+    // and a demand that somehow left "scheduled" without a date (e.g. an early receipt)
+    // still surfaces its balance in DUE instead of silently disappearing.
     const dueDate = asDate(row.due_date);
     const ageing = daysOverdue(dueDate, asOf);
     const bucket = classifyOpenAmount({
