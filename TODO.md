@@ -8,6 +8,14 @@ One task = one branch = one PR, with tests and Playwright screenshots. If a task
 
 Renumbered 2026-09-05 after the spec audit (nothing had started — 0 PRs, 0 of 41 done). **NEW** = a spec MUST that was in neither the code nor this list. **MOVED** = re-sequenced to match the spec's own P0 order (HOMEFLOW-OS.md §24).
 
+## The Emergent app (decision 2026-09-05)
+
+Pranava has an earlier AI-built HomeFlow at `../emergent-homeflow` (FastAPI + MongoDB, built on the Emergent platform, 42 commits all by `emergent-agent-e1`, synthetic data, hosted at an Emergent preview URL). Measured against the same 73 spec acceptance tests: **Emergent 5 built / 15 partial; this repo 27 built.** It has breadth we lack (workflow engine, 11-role RBAC, TDS, loans, PDF generation, escalations) but on MongoDB, an indigo design the spec bans, an Emergent-hosted auth broker, direct cross-collection reads, and zero frontend tests; changeability gates, customer portal, post-handover and event handshakes are absent.
+
+**Decision (Amarsh): this repo stays the product. The Emergent app is the record of the client's business decisions.** Its rules, templates, matrices and thresholds are being extracted into [`docs/reference/emergent-business-rules.md`](docs/reference/emergent-business-rules.md) and become seed/config here (config-over-code). Do not port its Python. When a task below touches roles, journeys, TDS, clearance, documents, escalations or handover weights, read that document first.
+
+Two things for the client from that codebase: `qa/*.tok` holds committed auth tokens — ask them to rotate; and confirm nobody on staff is entering real data into the Emergent preview (if they are, a migration is needed before cut-over).
+
 ---
 
 ## Vivek
@@ -126,6 +134,7 @@ Things the code cannot decide. Ask at the next client touchpoint; each has a tas
 | Google OAuth client id + secret for the Cognito identity provider; CloudFront URLs or a Pranava domain? | Vivek 11, 24 |
 | Check-in satisfaction scale — is 1–5 right, and is there a default when the RM skips it? The spec names the field but not the scale. | Amarsh 21 |
 | ~~Should a handover be blocked or only flagged when no commitment data exists yet?~~ Decided 2026-09-05: flagged, not blocked, until the Promise Ledger exists. | Amarsh 6 |
+| Is anyone at Pranava entering real data into the Emergent preview app today? If yes, we need a migration plan before cut-over. Also: rotate the auth tokens committed in its `qa/*.tok`. | Cut-over |
 | May a customer pay an instalment before its construction trigger fires (early payment)? Today the API accepts it silently. If yes, how is it shown; if no, reject with a reason. | Amarsh 15 |
 
 ## Found while building
