@@ -131,6 +131,9 @@ Bugs and gaps discovered during a task that belong to a different task. Each is 
 | 2026-09-05 | PR #4 (Amarsh 3) | `routes-lifecycle.ts` `fail()` mapped every error to 400; now `not_found` → 404 for approve/execute document, close snag, close warranty, capture check-in, act intervention | Done in PR #4 |
 | 2026-09-05 | PR #2 (Amarsh 8) | Playwright screenshots are gitignored while CLAUDE.md requires them to be reviewed | Amarsh 14 |
 | 2026-09-05 | PR #2 (Amarsh 8) | QA screen shows "Commitments · Passed" green on every villa including ones failing three other gates — visible instance of the auto-pass bug | Amarsh 6 (already listed) |
+| 2026-09-05 | PR #5 (Amarsh 2) | `postReceipt` now accepts finite numeric strings (`"500"`) and coerces once; `recordPtp` next to it still requires a strict number. Pick one rule for all money inputs when doing the API contract. | Amarsh 25 |
+| 2026-09-05 | PR #5 (Amarsh 2) | `demands.test.ts` is at exactly 200 lines — the next receipt/demand test must split it (e.g. `demands-receipts.test.ts`) first | Whoever adds the next demand test |
+| 2026-09-05 | PR #4 (Amarsh 3) | Harness auto-checkpoint commit (`claude: update …`) landed on the PR branch — squash-merge PRs so these don't reach `main` | Merge process |
 
 ## Shared-file rule
 
