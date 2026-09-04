@@ -6,14 +6,7 @@ import { Card, CardBody } from "../ui/Card";
 import { Button } from "../ui/Button";
 import { MoneyFigure } from "../ui/MoneyFigure";
 import { cn } from "../lib/utils";
-
-const LABELS: Record<string, string> = {
-  customer: "Customer",
-  cash: "Cash",
-  handover: "Handover",
-  reputation: "Reputation",
-  margin: "Margin",
-};
+import { interventionCategoryLabel } from "../lib/labels";
 
 /** Five interventions — not fifty charts (management/spec.md §3.1). */
 export function ControlTower({ projectId }: { projectId: string }) {
@@ -76,7 +69,7 @@ export function ControlTower({ projectId }: { projectId: string }) {
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="text-caption font-medium uppercase tracking-wide text-fg-subtle">
-                      {LABELS[item.category] ?? item.category}
+                      {interventionCategoryLabel(item.category)}
                       {item.status === "acted" ? " · acted" : ""}
                     </div>
                     <h2 className="mt-1 text-title3 font-semibold">{item.headline}</h2>

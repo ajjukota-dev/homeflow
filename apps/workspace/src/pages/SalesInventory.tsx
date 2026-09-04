@@ -5,6 +5,7 @@ import { Card, CardBody } from "../ui/Card";
 import { GateChip } from "../ui/GateChip";
 import { ScoreDial } from "../ui/ScoreDial";
 import { Button } from "../ui/Button";
+import { saleStatusLabel } from "../lib/labels";
 
 /** Pitch-angle logic (sales/spec.md §1.3) — derived from the live score. */
 function pitchAngle(score: number): string {
@@ -89,8 +90,8 @@ export function SalesInventory({ projectId, onBook }: { projectId: string; onBoo
                           Book this villa
                         </Button>
                       ) : (
-                        <span className="inline-block rounded-full bg-surface-2 px-3 py-1 text-footnote font-medium capitalize text-fg-muted">
-                          {u.sale_status}
+                        <span className="inline-block rounded-full bg-surface-2 px-3 py-1 text-footnote font-medium text-fg-muted">
+                          {saleStatusLabel(u.sale_status)}
                         </span>
                       )}
                     </div>

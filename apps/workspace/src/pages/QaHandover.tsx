@@ -6,6 +6,7 @@ import { Card, CardBody } from "../ui/Card";
 import { Button } from "../ui/Button";
 import { ScoreDial } from "../ui/ScoreDial";
 import { cn } from "../lib/utils";
+import { gateRunStateLabel, gateTypeLabel, snagSeverityLabel } from "../lib/labels";
 
 /** QA evidence + handover eligibility (qa/spec.md §3.1). */
 export function QaHandover({ projectId }: { projectId: string }) {
@@ -110,7 +111,7 @@ export function QaHandover({ projectId }: { projectId: string }) {
                     {u.snags.map((s) => (
                       <li key={s.id} className="flex flex-wrap items-center gap-2 text-footnote">
                         <span className={cn("rounded-full px-2 py-0.5 font-medium", s.severity === "critical" ? "bg-overdue/10 text-overdue" : "bg-due/10 text-due")}>
-                          {s.severity}
+                          {snagSeverityLabel(s.severity)}
                         </span>
                         <span>{s.description}</span>
                         {s.status !== "closed" && (
@@ -150,7 +151,7 @@ export function QaHandover({ projectId }: { projectId: string }) {
                           g.state === "passed" ? "bg-ontrack/10 text-ontrack" : "bg-surface-2 text-fg-muted"
                         )}
                       >
-                        {g.type} · {g.state === "passed" ? "passed" : "open"}
+                        {gateTypeLabel(g.type)} · {gateRunStateLabel(g.state)}
                       </li>
                     ))}
                   </ul>

@@ -5,6 +5,7 @@ import type { LegalRow } from "../api-lifecycle";
 import { Card, CardBody } from "../ui/Card";
 import { Button } from "../ui/Button";
 import { cn } from "../lib/utils";
+import { documentStatusLabel, registrationStatusLabel } from "../lib/labels";
 
 /** Legal Document Factory + registration workbench (legal/spec.md §3.1). */
 export function LegalFactory({ projectId }: { projectId: string }) {
@@ -103,7 +104,7 @@ function LegalCard({
           <div className="text-footnote text-fg-muted">Villa {row.unit_number} · Agreement for sale</div>
           <div className="mt-2 flex flex-wrap gap-2">
             <span className={cn("rounded-full px-2.5 py-1 text-footnote font-medium", tone(status))}>
-              {label(status)}
+              {documentStatusLabel(status)}
             </span>
             <span
               className={cn(
@@ -114,7 +115,7 @@ function LegalCard({
               {row.financial.cleared ? "Finance cleared" : "Waiting on finance"}
             </span>
             <span className="rounded-full bg-surface-2 px-2.5 py-1 text-footnote text-fg-muted">
-              Registration {row.registration.status.replaceAll("_", " ")}
+              Registration {registrationStatusLabel(row.registration.status)}
             </span>
           </div>
         </div>
@@ -148,15 +149,6 @@ function LegalCard({
       </CardBody>
     </Card>
   );
-}
-
-function label(status: string) {
-  if (status === "none") return "Not generated";
-  if (status === "draft") return "Draft";
-  if (status === "legal_approved") return "Legal approved";
-  if (status === "executed") return "Executed";
-  if (status === "archived") return "Archived";
-  return status;
 }
 
 function tone(status: string) {

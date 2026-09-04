@@ -4,6 +4,7 @@ import { api, type Customer } from "../api";
 import { Card, CardBody } from "../ui/Card";
 import { MoneyFigure } from "../ui/MoneyFigure";
 import { cn } from "../lib/utils";
+import { bookingStatusLabel, kycStatusLabel } from "../lib/labels";
 
 function initials(name: string) {
   return name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
@@ -45,7 +46,7 @@ export function Customer360({ customerId, onBack }: { customerId: string; onBack
               <p className="text-subhead text-fg-muted">{customer.primary_phone}</p>
             </div>
             <span className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-ontrack/10 px-3 py-1 text-footnote font-medium text-ontrack">
-              <ShieldCheck className="h-3.5 w-3.5" /> KYC {customer.kyc_status}
+              <ShieldCheck className="h-3.5 w-3.5" /> KYC {kycStatusLabel(customer.kyc_status)}
             </span>
           </div>
 
@@ -63,7 +64,7 @@ export function Customer360({ customerId, onBack }: { customerId: string; onBack
                   <div className="ml-auto text-right">
                     <MoneyFigure amount={b.total_consideration} />
                     <div className={cn("mt-1 inline-block rounded-full px-2 py-0.5 text-caption font-medium", statusTone[b.status])}>
-                      {b.status}
+                      {bookingStatusLabel(b.status)}
                     </div>
                   </div>
                 </CardBody>
