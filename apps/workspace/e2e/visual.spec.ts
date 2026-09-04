@@ -68,6 +68,9 @@ for (const s of sizes) {
     await page.getByRole("button", { name: /Accounts|Cash/ }).first().click();
     await expect(page.getByRole("heading", { name: "Collections" })).toBeVisible();
     await expect(page.getByRole("tab", { name: /True risk/ })).toBeVisible();
+    // Scheduled demands (no due_date yet) are excluded from every risk bucket —
+    // never a stamped or malformed date on an undue milestone.
+    await expect(page.getByText("Invalid Date")).toHaveCount(0);
     await page.screenshot({ path: shot(`collections-${s.name}`), fullPage: true });
   });
 }

@@ -31,7 +31,7 @@ export const RISK_BUCKETS: RiskBucket[] = [
 export interface ClassifyInput {
   remaining: number;
   status: DemandStatus;
-  due_date: string; // YYYY-MM-DD
+  due_date: string | null; // YYYY-MM-DD; null until a construction trigger fires
   as_of: string;
   loan_dependent: boolean;
   has_active_ptp: boolean;
@@ -41,8 +41,9 @@ export interface ClassifyInput {
 
 const MS_PER_DAY = 86_400_000;
 
-/** Calendar days past due. Zero if as_of is on or before due_date. */
-export function daysOverdue(dueDate: string, asOf: string): number {
+/** Calendar days past due. Zero if as_of is on or before due_date, or due_date isn't set yet. */
+export function daysOverdue(dueDate: string | null, asOf: string): number {
+  if (dueDate === null) return 0;
   const delta = Date.parse(`${asOf}T00:00:00Z`) - Date.parse(`${dueDate}T00:00:00Z`);
   return Math.max(0, Math.round(delta / MS_PER_DAY));
 }
@@ -56,7 +57,8 @@ export function recoveryProbability(days: number): number {
 }
 
 function isPastDue(input: ClassifyInput): boolean {
-  return input.status === "overdue" || input.due_date < input.as_of;
+  if (input.status === "overdue") return true;
+  return input.due_date !== null && input.due_date < input.as_of;
 }
 
 /**

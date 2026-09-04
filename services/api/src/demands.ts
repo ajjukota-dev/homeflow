@@ -15,7 +15,7 @@ export interface DemandRow {
   sequence: number;
   amount: number;
   remaining: number;
-  due_date: string;
+  due_date: string | null; // null until the construction trigger fires (H3)
   status: DemandStatus;
   overdue_reason_code: string | null;
   next_action: string | null;
@@ -27,7 +27,10 @@ export function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-export function asDate(value: string | Date): string {
+export function asDate(value: string | Date): string;
+export function asDate(value: string | Date | null): string | null;
+export function asDate(value: string | Date | null): string | null {
+  if (value === null) return null;
   if (typeof value === "string") return value.slice(0, 10);
   return value.toISOString().slice(0, 10);
 }
