@@ -25,7 +25,6 @@ export interface HandoverInput {
   financial_cleared: boolean;
   legal_executed: boolean;
   registered: boolean;
-  commitments_clear?: boolean;
 }
 
 export interface HandoverGateView {
@@ -64,7 +63,9 @@ export function evaluateHandover(input: HandoverInput) {
     gate("registration", "hard", input.registered, ["Registration is not complete"]),
     gate("physical", "hard", physicalBlockers.length === 0, physicalBlockers),
     gate("quality", "hard", qualityBlockers.length === 0, qualityBlockers),
-    gate("commitments", "hard", input.commitments_clear !== false, ["Critical customer commitments are still open"]),
+    // gates.md classifies commitments as hard, but there is no Promise Ledger yet to
+    // evaluate it against — soft + always-open until that data exists (TODO.md task 6).
+    gate("commitments", "soft", false, ["No commitment records — Promise Ledger not yet built"]),
     gate("customer", "soft", true, []),
     gate("fm", "soft", true, []),
   ];

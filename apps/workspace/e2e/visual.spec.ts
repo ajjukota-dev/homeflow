@@ -126,10 +126,30 @@ test("QA handover completes keys for an eligible villa", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "QA & handover" })).toBeVisible();
   await expect(page.getByText(/critical/i).first()).toBeVisible();
   await page.screenshot({ path: shot("qa-handover"), fullPage: true });
+
+  // Commitments gate is honest (not verified), never silently "passed" — TODO.md task 6.
+  // 5 seeded villas (V101, V110, V111, V112, V113) — every one gets the chip.
+  await expect(page.getByText("Commitments · Not verified")).toHaveCount(5);
+  await expect(page.getByText(/Promise Ledger not yet built/).first()).toBeVisible();
+  await expect(page.getByText(/commitments\s*·\s*passed/i)).toHaveCount(0);
+  await expect(page.getByText("Eligible for keys").first()).toBeVisible();
+
   const complete = page.locator("button:enabled", { hasText: "Complete handover" });
   if ((await complete.count()) > 0) await complete.click();
   await expect(page.getByText("Keys issued").first()).toBeVisible();
 });
+
+for (const s of sizes) {
+  test(`QA handover commitments gate @ ${s.name}`, async ({ page }) => {
+    await page.setViewportSize({ width: s.width, height: s.height });
+    await page.goto("/");
+    await page.getByRole("button", { name: /^QA/ }).first().click();
+    await expect(page.getByRole("heading", { name: "QA & handover" })).toBeVisible();
+    await expect(page.getByText("Commitments · Not verified")).toHaveCount(5);
+    await expect(page.getByText(/commitments\s*·\s*passed/i)).toHaveCount(0);
+    await page.screenshot({ path: shot(`qa-handover-commitments-${s.name}`), fullPage: true });
+  });
+}
 
 test("After keys shows DLP and warranty", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });

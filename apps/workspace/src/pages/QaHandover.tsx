@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ClipboardCheck } from "lucide-react";
+import { ClipboardCheck, CircleDashed } from "lucide-react";
 import { api } from "../api";
 import type { HandoverRow, ReadinessRow } from "../api-lifecycle";
 import { Card, CardBody } from "../ui/Card";
@@ -142,17 +142,31 @@ export function QaHandover({ projectId }: { projectId: string }) {
                     {h.lifecycle === "completed" ? "Keys issued" : h.eligible ? "Eligible for keys" : "Not eligible yet"}
                   </p>
                   <ul className="mt-3 flex flex-wrap gap-1.5">
-                    {h.gates.filter((g) => g.classification === "hard").map((g) => (
-                      <li
-                        key={g.type}
-                        className={cn(
-                          "rounded-full px-2.5 py-1 text-caption font-medium",
-                          g.state === "passed" ? "bg-ontrack/10 text-ontrack" : "bg-surface-2 text-fg-muted"
-                        )}
-                      >
-                        {g.type} · {g.state === "passed" ? "passed" : "open"}
-                      </li>
-                    ))}
+                    {h.gates
+                      .filter((g) => g.classification === "hard" || g.type === "commitments")
+                      .map((g) =>
+                        g.type === "commitments" ? (
+                          // No Promise Ledger yet (TODO.md task 6) — always shown, never silently passed.
+                          <li
+                            key={g.type}
+                            className="inline-flex items-center gap-1.5 rounded-full bg-due/10 px-2.5 py-1 text-caption font-medium text-due"
+                          >
+                            <CircleDashed className="h-3 w-3" aria-hidden />
+                            Commitments · Not verified
+                            <span className="font-normal text-fg-subtle">· {g.blockers[0]}</span>
+                          </li>
+                        ) : (
+                          <li
+                            key={g.type}
+                            className={cn(
+                              "rounded-full px-2.5 py-1 text-caption font-medium",
+                              g.state === "passed" ? "bg-ontrack/10 text-ontrack" : "bg-surface-2 text-fg-muted"
+                            )}
+                          >
+                            {g.type} · {g.state === "passed" ? "passed" : "open"}
+                          </li>
+                        )
+                      )}
                   </ul>
                   {h.blockers.length > 0 && h.lifecycle !== "completed" && (
                     <ul className="mt-2 list-disc pl-5 text-footnote text-fg-muted">
