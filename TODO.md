@@ -90,6 +90,7 @@ Renumbered 2026-09-05 after the spec audit (nothing had started — 0 PRs, 0 of 
 12. **Handover override.** Endpoint and UI to override a non-safety hard gate with a named authority, a reason and evidence; the override is written to the event log. Safety and statutory gates reject the override outright. Depends on task 10.
 13. **Data freshness.** Compare each unit's last progress update against a policy threshold. When stale, gates return a freshness status and Sales, CRM and the customer portal show "Verification Required" instead of a confident open/closed chip.
 14. **Lint and CI.** Add an ESLint config (the `lint` script exists but nothing is installed). GitHub Actions on every PR: typecheck (task 1), lint, unit tests, Playwright, CDK synth. Publish the coverage report on each PR; set the threshold from the baseline measured on 2026-09-05 (bottom of this file) and ratchet it up, never down.
+    **Decide (found 2026-09-05, PR #2):** CLAUDE.md says Playwright screenshots "live in `e2e/__screenshots__/`" and the definition of done requires reviewing them, but `apps/workspace/.gitignore` excludes that folder — so no screenshot has ever been committed and reviewers can't see them in a PR. Either track the folder (and accept binary churn) or have CI upload screenshots as a PR artifact and fix the CLAUDE.md wording. Pick one here and apply it in the same PR.
 
 ### Phase 3 — role slices
 
@@ -100,12 +101,36 @@ Renumbered 2026-09-05 after the spec audit (nothing had started — 0 PRs, 0 of 
 19. **NEW — Legal: lease document type** (legal #9). Add `LEASE` as a transaction type on the same template / version / clause machinery as AOS and Sale Deed, with its own required fields. No parallel code path. Depends on 17.
 20. **QA: snags and evidence.** Create snags from the UI (severity, location, trade, description). Separate "site declares complete" from "QA verified". Real before/after evidence with file upload to S3 via signed URLs (LocalStack locally) instead of canned text. Repeat-defect flag and analytics by trade and contractor.
 21. **After keys: service and warranty.** Create warranty cases from the UI. Out-of-coverage cases go through a real quote flow instead of a ₹1 placeholder. Root-cause code on closure feeds the QA repeat-defect analytics. Check-in scores feed a Customer Health signal.
+    **Found 2026-09-05 (PR #4):** the workspace never asks for a score — `apps/workspace/src/api-lifecycle.ts:163` hardcodes `satisfaction_score: 5` on every capture, so every check-in on record is a 5 and the Health signal would be constant. Add a real 1–5 input to the After keys capture action. Also: the spec never defines the check-in scale or a default (`post-handover/spec.md` §2.2 names the field only); the API now enforces 1–5 as an assumption — confirm the scale with Pranava (see Open questions).
 22. **Management: drill-down and KPIs.** Every intervention drills Project → Unit → Booking. Cash-flow views on the tower (current-month actual, next-month forecast, 90-day, prior actual, variance) — depends on task 15. KPI explorer with trend and drivers for each metric, no decorative badges. Remove the hard-coded "Priya Nair" owner.
 23. **NEW — Management: materiality threshold** (management #6). The Control Tower surfaces an intervention only when it crosses a per-project materiality threshold (₹ amount, days overdue, or count) held as Policy Studio data, not code. Below threshold it is reachable through drill-down but never on the tower. Today `tower.ts` uses "material" as copy text only. Depends on 22 and Vivek's 14.
 24. **Notifications.** Daily digest of My Day, pre-breach alerts before an SLA or commitment fails, quiet hours. In-app first; email/WhatsApp adapters behind the customer visibility filter. Depends on task 11.
 25. **API contract.** Version all routes under `/api/v1`, generate OpenAPI from the routes, consistent `{data, meta, errors}` envelope, cursor pagination on list endpoints.
 
 ---
+
+## Open questions for Pranava
+
+Things the code cannot decide. Ask at the next client touchpoint; each has a task waiting on the answer.
+
+| Question | Blocks |
+|---|---|
+| Which AWS account, region and monthly budget (≈ $107/month idle, see baselines) may we deploy into? | Vivek 24 |
+| Google OAuth client id + secret for the Cognito identity provider; CloudFront URLs or a Pranava domain? | Vivek 11, 24 |
+| Check-in satisfaction scale — is 1–5 right, and is there a default when the RM skips it? The spec names the field but not the scale. | Amarsh 21 |
+| Should a handover be blocked or only flagged when no commitment data exists yet? | Amarsh 6 |
+
+## Found while building
+
+Bugs and gaps discovered during a task that belong to a different task. Each is already folded into its owning task above; this is the running log so nothing is lost between sessions.
+
+| Date | Found in | Finding | Folded into |
+|---|---|---|---|
+| 2026-09-05 | PR #4 (Amarsh 3) | Workspace hardcodes `satisfaction_score: 5` on every check-in capture | Amarsh 21 |
+| 2026-09-05 | PR #4 (Amarsh 3) | Spec defines no check-in scale or default; 1–5 is an assumption | Amarsh 21, Open questions |
+| 2026-09-05 | PR #4 (Amarsh 3) | `routes-lifecycle.ts` `fail()` mapped every error to 400; now `not_found` → 404 for approve/execute document, close snag, close warranty, capture check-in, act intervention | Done in PR #4 |
+| 2026-09-05 | PR #2 (Amarsh 8) | Playwright screenshots are gitignored while CLAUDE.md requires them to be reviewed | Amarsh 14 |
+| 2026-09-05 | PR #2 (Amarsh 8) | QA screen shows "Commitments · Passed" green on every villa including ones failing three other gates — visible instance of the auto-pass bug | Amarsh 6 (already listed) |
 
 ## Shared-file rule
 
