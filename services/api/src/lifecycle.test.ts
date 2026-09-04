@@ -3,7 +3,7 @@ import { initDb, db } from "./db";
 import { createBooking, acceptBooking } from "./bookings";
 import { generateDocument, approveDocument, executeDocument, completeRegistration, listLegalQueue } from "./legal-docs";
 import { unitReadiness, verifyComponent, completeHandover, handoverForBooking } from "./qa";
-import { serviceHistory, closeWarranty, projectWarranty } from "./warranty";
+import { serviceHistory, closeWarranty, projectWarranty, captureCheckin } from "./warranty";
 import { getCustomerHome } from "./customer";
 import { controlTower, actIntervention } from "./tower-view";
 
@@ -118,6 +118,33 @@ describe("Post-handover", () => {
     expect(closed.status).toBe("closed");
     const after = await serviceHistory("u_v113");
     expect(after.length).toBeGreaterThan(history.length);
+  });
+
+  // post-handover/spec.md §2.2 defines CheckinRecord.satisfaction_score but not its range;
+  // 1-5 assumed (CSAT convention), validated on capture — see PR body for confirmation needed
+  it("rejects an out-of-range or non-numeric satisfaction score and writes nothing", async () => {
+    for (const bad of [0, 6, 99, Number.NaN]) {
+      await expect(captureCheckin("ci_v113_30", bad)).rejects.toThrow("validation_failed");
+    }
+    const unchanged = await db.query<{ status: string; satisfaction_score: number | null }>(
+      `SELECT status, satisfaction_score FROM checkin_record WHERE id = $1`,
+      ["ci_v113_30"]
+    );
+    expect(unchanged.rows[0].status).toBe("scheduled");
+    expect(unchanged.rows[0].satisfaction_score).toBeNull();
+  });
+
+  it("throws not_found capturing an unknown check-in id", async () => {
+    await expect(captureCheckin("does-not-exist", 4)).rejects.toThrow("not_found");
+  });
+
+  it("captures a valid satisfaction score at the 1-5 scale boundaries", async () => {
+    const low = await captureCheckin("ci_v113_7", 1);
+    expect(low.status).toBe("captured");
+    expect(low.satisfaction_score).toBe(1);
+    const high = await captureCheckin("ci_v113_90", 5);
+    expect(high.status).toBe("captured");
+    expect(high.satisfaction_score).toBe(5);
   });
 });
 

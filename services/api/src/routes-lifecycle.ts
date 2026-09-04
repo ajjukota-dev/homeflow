@@ -19,6 +19,7 @@ import { controlTower, actIntervention } from "./tower-view";
 function fail(res: { status: (n: number) => { json: (b: unknown) => void } }, e: unknown) {
   const err = e as Error & { errors?: unknown };
   if (err.errors) return res.status(400).json({ errors: err.errors });
+  if (err.message === "not_found") return res.status(404).json({ errors: [{ code: "not_found" }] });
   res.status(400).json({ errors: [{ code: "bad_request", message: String(err.message ?? e) }] });
 }
 
@@ -99,7 +100,7 @@ export function registerLifecycleRoutes(app: Express) {
   });
   app.post("/api/checkins/:id/capture", async (req, res) => {
     try {
-      res.json({ data: await captureCheckin(req.params.id, Number(req.body?.satisfaction_score ?? 5)) });
+      res.json({ data: await captureCheckin(req.params.id, Number(req.body?.satisfaction_score)) });
     } catch (e) {
       fail(res, e);
     }
