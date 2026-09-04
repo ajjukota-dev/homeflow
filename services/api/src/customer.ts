@@ -90,11 +90,11 @@ export async function getCustomerHome(bookingId: string) {
     window: friendlyWindow(deriveGate(c.code, progress, rules).state),
   }));
 
-  const payments = await t2Payments(bookingId);
+  const payments = await t2Payments(bookingId, progress);
   const passport = await t4Passport(bk.unit_id);
   const legal = await t5Legal(bookingId, bk.project_id);
   const ho = await handoverForBooking(bookingId);
-  const keys = await t6Keys(bookingId, ho.eligible, ho.lifecycle === "completed");
+  const keys = await t6Keys(bookingId, ho.eligible, ho.lifecycle === "completed", progress);
 
   return {
     customer_name: bk.customer_name,

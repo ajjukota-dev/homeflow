@@ -8,6 +8,7 @@ import {
   type DemandStatus,
   type RiskBucket,
 } from "./collections";
+import { type ProgressState } from "./gates";
 import { asDate, DEMAND_SELECT, listDemands, today, type DemandRow } from "./demands";
 
 // Workbench + T2 projections over the demand ledger (accounts/spec.md §2.3 / T2).
@@ -93,7 +94,7 @@ export async function listOverdueReasons() {
   return r.rows;
 }
 
-export async function t2Payments(bookingId: string) {
+export async function t2Payments(bookingId: string, progress: Record<string, ProgressState>) {
   const b = await db.query<{ total_consideration: number }>(
     `SELECT total_consideration::float8 AS total_consideration FROM booking WHERE id = $1`,
     [bookingId]
@@ -124,6 +125,9 @@ export async function t2Payments(bookingId: string) {
         milestone_label: d.milestone_label,
         construction_trigger_event: d.construction_trigger_event,
         status: d.status,
+        component_state: d.construction_trigger_event
+          ? progress[d.construction_trigger_event.split(":")[0]] ?? "not_started"
+          : null,
       }),
     })),
     paid_total,

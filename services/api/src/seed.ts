@@ -101,6 +101,9 @@ export async function seed(db: PGlite) {
   await setState(db, "u_v104", "flooring", "complete");
   await setState(db, "u_v110", "structure", "complete");
   await setState(db, "u_v110", "mep_first_fix", "complete");
+  // d_v110_4 (flooring milestone) is overdue, i.e. its flooring:complete trigger has
+  // fired — the seed must agree, or T2 why-now would have to lie about the site state.
+  await setState(db, "u_v110", "flooring", "complete");
   await setState(db, "u_v111", "structure", "in_progress");
   for (const uid of ["u_v112", "u_v113"]) {
     await setState(db, uid, "structure", "verified");
