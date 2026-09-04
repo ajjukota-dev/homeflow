@@ -4,31 +4,10 @@ import { readinessScore } from "./readiness";
 import { evaluateHandover } from "./handover";
 import { bookingFinance } from "./finance";
 import { onHandoverCompleted } from "./warranty";
+import { componentsFor } from "./qa-evidence";
+import { listSnagsForUnit, snagCounts, type SnagRow } from "./qa-snags";
 
 // QA evidence, snags, and H9 handover eligibility (qa/spec.md).
-
-async function componentsFor(unitId: string) {
-  const r = await db.query<{ code: string; label: string; qa_verified: boolean }>(
-    `SELECT c.code, c.label, COALESCE(e.qa_verified, false) AS qa_verified
-       FROM component_definition c
-       LEFT JOIN qa_evidence e ON e.component_code = c.code AND e.unit_id = $1
-      ORDER BY c.sort_order`,
-    [unitId]
-  );
-  return r.rows;
-}
-
-async function snagCounts(unitId: string) {
-  const r = await db.query<{ severity: string; n: number }>(
-    `SELECT severity, COUNT(*)::int AS n FROM snag
-      WHERE unit_id = $1 AND status NOT IN ('closed','verified')
-      GROUP BY severity`,
-    [unitId]
-  );
-  const critical = r.rows.find((x) => x.severity === "critical")?.n ?? 0;
-  const minor = r.rows.find((x) => x.severity === "minor")?.n ?? 0;
-  return { critical, minor };
-}
 
 export async function unitReadiness(unitId: string) {
   const comps = await componentsFor(unitId);
@@ -85,20 +64,6 @@ export async function verifyComponent(unitId: string, component: string, evidenc
     [unitId, component, evidenceNote.trim()]
   );
   return unitReadiness(unitId);
-}
-
-type SnagRow = {
-  id: string; unit_id: string; severity: string; location: string;
-  trade: string; description: string; status: string; is_repeat: boolean;
-};
-
-export async function listSnagsForUnit(unitId: string) {
-  const r = await db.query<SnagRow>(
-    `SELECT id, unit_id, severity, location, trade, description, status, is_repeat
-       FROM snag WHERE unit_id = $1 ORDER BY created_at`,
-    [unitId]
-  );
-  return r.rows;
 }
 
 export async function closeSnag(id: string, beforeNote: string, afterNote: string) {

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { db } from "./db";
-import { setupFunding } from "./demands";
+import { setupFunding } from "./demands-schedule";
 import type { BookingDetailRow, BookingListRow, CustomerListRow, CustomerRow } from "./bookings-types";
 
 // Sales → CRM handoff (handshakes.md H2). Completeness gate → accept births a Customer Twin.

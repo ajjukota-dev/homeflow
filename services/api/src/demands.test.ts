@@ -5,10 +5,10 @@ import { setProgress } from "./handlers";
 import { getCustomerHome } from "./customer";
 import {
   listDemands,
-  postReceipt,
   setOverdueReason,
   recordPtp,
 } from "./demands";
+import { postReceipt } from "./demands-receipts";
 import { projectCollections } from "./collections-view";
 
 function must<T>(value: T | null | undefined): T {
