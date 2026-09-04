@@ -46,6 +46,27 @@ describe("evaluateHandover (H9)", () => {
   });
 });
 
+describe("commitments gate (Promise Ledger not yet built)", () => {
+  it("reports not-verified rather than auto-passing when no ledger data exists", () => {
+    const result = evaluateHandover(READY);
+    const commitments = result.gates.find((g) => g.type === "commitments");
+    expect(commitments?.state).toBe("open");
+    expect(commitments?.blockers).toEqual(["No commitment records — Promise Ledger not yet built"]);
+  });
+
+  it("does not block eligibility for a booking that passes every other hard gate", () => {
+    const result = evaluateHandover(READY);
+    expect(result.eligible).toBe(true);
+    expect(result.blockers.some((b) => b.gate === "commitments")).toBe(false);
+  });
+
+  it("still leaves a booking not eligible when another hard gate fails", () => {
+    const result = evaluateHandover({ ...READY, financial_cleared: false });
+    expect(result.eligible).toBe(false);
+    expect(result.blockers.some((b) => b.gate === "financial")).toBe(true);
+  });
+});
+
 describe("applyOverride", () => {
   it("rejects override of a safety-critical physical gate even with named authority", () => {
     const result = applyOverride({
