@@ -18,3 +18,20 @@ const twMerge = extendTailwindMerge({
 export function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs));
 }
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const IST_PARTS = new Intl.DateTimeFormat("en-US", {
+  timeZone: "Asia/Kolkata",
+  day: "numeric",
+  month: "numeric",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+});
+
+/** Format an ISO timestamp for IST display, e.g. "5 Sep 2026, 02:41" (spec: Asia/Kolkata). */
+export function formatIstDateTime(iso: string): string {
+  const part = (type: string) => IST_PARTS.formatToParts(new Date(iso)).find((p) => p.type === type)!.value;
+  return `${part("day")} ${MONTHS[Number(part("month")) - 1]} ${part("year")}, ${part("hour")}:${part("minute")}`;
+}

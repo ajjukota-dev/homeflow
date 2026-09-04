@@ -115,6 +115,8 @@ export interface Intervention {
   headline: string;
   owner: string;
   status: string;
+  acted_at: string | null;
+  acted_by: string | null;
   booking_id?: string;
   unit_id?: string;
   decision_pack: {

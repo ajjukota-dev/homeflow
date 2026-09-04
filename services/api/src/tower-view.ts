@@ -5,6 +5,21 @@ import { projectHandover } from "./qa";
 
 // Control Tower — five ranked interventions from live exceptions (management/spec.md, H11).
 
+interface InterventionRow {
+  id: string;
+  project_id: string;
+  category: string;
+  rank: number;
+  headline: string;
+  decision_pack: unknown;
+  owner_name: string | null;
+  booking_id: string | null;
+  unit_id: string | null;
+  status: string;
+  acted_at: Date | null;
+  acted_by: string | null;
+}
+
 export async function controlTower(projectId: string) {
   const candidates: TowerCandidate[] = [];
   const collections = await projectCollections(projectId);
@@ -111,7 +126,10 @@ export async function controlTower(projectId: string) {
   const out = [];
   for (const row of five) {
     const id = `tw_${projectId}_${row.category}`;
-    const prev = await db.query<{ status: string }>(`SELECT status FROM intervention WHERE id = $1`, [id]);
+    const prev = await db.query<{ status: string; acted_at: Date | null; acted_by: string | null }>(
+      `SELECT status, acted_at, acted_by FROM intervention WHERE id = $1`,
+      [id]
+    );
     const status = prev.rows[0]?.status ?? "open";
     await db.query(
       `INSERT INTO intervention (id, project_id, category, rank, headline, decision_pack, owner_name, booking_id, unit_id, status)
@@ -130,19 +148,26 @@ export async function controlTower(projectId: string) {
         status,
       ]
     );
-    out.push({ id, status, ...row });
+    out.push({
+      id,
+      status,
+      acted_at: prev.rows[0]?.acted_at ?? null,
+      acted_by: prev.rows[0]?.acted_by ?? null,
+      ...row,
+    });
   }
   return { interventions: out };
 }
 
+// Act is idempotent: only the first call stamps acted_at (acted_by awaits Cognito, H11).
 export async function actIntervention(id: string) {
-  const r = await db.query<{ id: string }>(`SELECT id FROM intervention WHERE id = $1`, [id]);
-  if (r.rows.length === 0) throw new Error("not_found");
-  await db.query(`UPDATE intervention SET status = 'acted' WHERE id = $1`, [id]);
-  return db
-    .query<{ id: string; status: string; category: string; headline: string }>(
-      `SELECT * FROM intervention WHERE id = $1`,
-      [id]
-    )
-    .then((x) => x.rows[0]);
+  const updated = await db.query<InterventionRow>(
+    `UPDATE intervention SET status = 'acted', acted_at = now(), acted_by = NULL
+     WHERE id = $1 AND status <> 'acted' RETURNING *`,
+    [id]
+  );
+  if (updated.rows[0]) return updated.rows[0];
+  const r = await db.query<InterventionRow>(`SELECT * FROM intervention WHERE id = $1`, [id]);
+  if (!r.rows[0]) throw new Error("not_found");
+  return r.rows[0];
 }

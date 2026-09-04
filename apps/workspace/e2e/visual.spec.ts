@@ -174,3 +174,32 @@ test("Control tower shows five interventions", async ({ page }) => {
   await page.screenshot({ path: shot("control-tower"), fullPage: true });
 });
 
+test("Act on an intervention stamps Acted and persists across reload (H11)", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("/");
+  await page.getByRole("button", { name: /Management|Tower/ }).first().click();
+  await expect(page.getByRole("heading", { name: "Control tower" })).toBeVisible();
+  const actButton = page.getByRole("button", { name: "Act" }).first();
+  await expect(actButton).toBeVisible();
+  const headline = await actButton
+    .locator("xpath=ancestor::div[contains(@class,'rounded-xl')][1]")
+    .locator("h2")
+    .textContent();
+  const cardByHeadline = () => page.locator("h2", { hasText: headline! }).locator("xpath=ancestor::div[contains(@class,'rounded-xl')][1]");
+  await actButton.click();
+  await expect(cardByHeadline().getByText(/Acted ·/)).toBeVisible();
+  await expect(cardByHeadline().getByRole("button", { name: "Act" })).toHaveCount(0);
+  await page.screenshot({ path: shot("control-tower-acted"), fullPage: true });
+
+  await page.reload();
+  await page.getByRole("button", { name: /Management|Tower/ }).first().click();
+  await expect(page.getByRole("heading", { name: "Control tower" })).toBeVisible();
+  await expect(cardByHeadline().getByText(/Acted ·/)).toBeVisible();
+  await expect(cardByHeadline().getByRole("button", { name: "Act" })).toHaveCount(0);
+
+  for (const s of sizes.filter((x) => x.name !== "desktop")) {
+    await page.setViewportSize({ width: s.width, height: s.height });
+    await page.screenshot({ path: shot(`control-tower-acted-${s.name}`), fullPage: true });
+  }
+});
+

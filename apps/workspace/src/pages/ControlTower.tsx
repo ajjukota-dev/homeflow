@@ -5,7 +5,7 @@ import type { Intervention } from "../api-lifecycle";
 import { Card, CardBody } from "../ui/Card";
 import { Button } from "../ui/Button";
 import { MoneyFigure } from "../ui/MoneyFigure";
-import { cn } from "../lib/utils";
+import { cn, formatIstDateTime } from "../lib/utils";
 import { interventionCategoryLabel } from "../lib/labels";
 
 /** Five interventions — not fifty charts (management/spec.md §3.1). */
@@ -70,7 +70,9 @@ export function ControlTower({ projectId }: { projectId: string }) {
                   <div className="min-w-0 flex-1">
                     <div className="text-caption font-medium uppercase tracking-wide text-fg-subtle">
                       {interventionCategoryLabel(item.category)}
-                      {item.status === "acted" ? " · acted" : ""}
+                      {item.status === "acted" && item.acted_at
+                        ? ` · Acted · ${formatIstDateTime(item.acted_at)}`
+                        : ""}
                     </div>
                     <h2 className="mt-1 text-title3 font-semibold">{item.headline}</h2>
                     <p className="mt-2 text-footnote text-fg-muted">{item.decision_pack.recommended_decision}</p>
