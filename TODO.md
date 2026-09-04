@@ -192,6 +192,12 @@ Kept from the old list because the bugs are in surviving code: V1 error middlewa
 5. **Single owner: Amarsh.** Vivek is out of the plan. Review ownership in §5 is moot; Claude builds and verifies, Amarsh accepts by using the deployed app.
 6. **Hosting: Amarsh's personal AWS account for now** (account `975050032697`, IAM user `Amarsh_claude`, local profile `pranava`, region `ap-south-1`). Real customer PII must not land here — move to Pranava's account before go-live. The access key was shared in chat on 2026-09-05 → rotate after the deploy spike.
 7. **Requirements pass before build:** keep asking until the build can run autonomously; run every spike first (§7a).
+8. **No CSV importers.** Pranava's existing Excel/Tally data is loaded by Claude Code directly into the DB when needed; richer demo data is added as building/testing requires. Keep a scripted seed path (SQL/JSON), not an import UI.
+9. **Intelligence layer = rules first, LLM where the PDF says AI, using OpenAI** (Amarsh's key, in `services/api/.env.local`, gitignored; rotate — it was shared in chat). S8 targets the OpenAI API, not Claude.
+10. **Products: apartments + villas + plots** from day one — `product_type` on Project/Unit, journey templates and change categories keyed by product (PDF §21 "workflow templates by product").
+11. **Hosting shape: App Runner + RDS Postgres + S3, ~₹3–5k/month**, measured in S3.
+
+Defaults accepted by silence (2026-09-05): staff-entered receipts/loans/SRO slots (no bank/government/lender integration); portal Payments view-only, no gateway; document execution recorded by uploaded signed scan, no e-sign vendor; in-app + SES email are live channels, WhatsApp/SMS/calls logged not sent; English only; responsive web with phone camera upload, no native app; Emergent-extracted values as editable seed defaults; roles exactly PDF §13.
 
 §3 update — auth provider: with an AWS account in hand, **Cognito user pool** (Google as federated IdP + email/password, custom login page calling the Cognito API, API verifies the JWT) replaces the self-hosted OIDC+sessions choice. Reason: password storage, reset flows and Google federation come for free and the security surface is smaller; cost ₹0 under 50k users. Local dev points at a `dev` pool.
 
