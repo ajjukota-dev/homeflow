@@ -3,11 +3,11 @@ import {
   classifyOpenAmount,
   recoveryProbability,
   daysOverdue,
-  whyNow,
   type ClassifyInput,
 } from "./collections";
 
-// Pure unit tests for the true-risk engine (accounts/spec.md §2.3) and T2 why-now.
+// Pure unit tests for the true-risk engine (accounts/spec.md §2.3). T2 why-now
+// tests live in why-now.test.ts.
 
 const due: ClassifyInput = {
   remaining: 1_200_000,
@@ -127,37 +127,5 @@ describe("daysOverdue", () => {
   });
   it("is zero for a null due_date rather than throwing", () => {
     expect(daysOverdue(null, "2026-09-03")).toBe(0);
-  });
-});
-
-describe("whyNow (T2 — customer-safe)", () => {
-  it("explains a construction-triggered demand in plain language", () => {
-    expect(
-      whyNow({
-        milestone_label: "Structure complete",
-        construction_trigger_event: "structure:complete",
-        status: "due",
-      })
-    ).toBe("Your structure is complete — this milestone is now due.");
-  });
-
-  it("explains a scheduled window without internal codes", () => {
-    const text = whyNow({
-      milestone_label: "Flooring laid",
-      construction_trigger_event: "flooring:complete",
-      status: "scheduled",
-    });
-    expect(text).toContain("Flooring laid");
-    expect(text).not.toMatch(/flooring:complete|TRUE_RISK|EXCEPTION_ONLY/);
-  });
-
-  it("explains the booking instalment without a construction trigger", () => {
-    expect(
-      whyNow({
-        milestone_label: "Booking amount",
-        construction_trigger_event: null,
-        status: "due",
-      })
-    ).toContain("Booking amount");
   });
 });

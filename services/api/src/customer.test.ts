@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from "vitest";
-import { initDb, setState } from "./db";
+import { initDb, setState, db } from "./db";
 import { createBooking, acceptBooking } from "./bookings";
 import { getCustomerHome } from "./customer";
 
@@ -44,5 +44,23 @@ describe("My Pranava Home projection (T1 + T3)", () => {
     await setState("u_v101", "structure", "in_progress");
     const after = await getCustomerHome(b.id);
     expect(after!.stages[0].state).toBe("done"); // Foundation now done
+  });
+});
+
+describe("T2 why-now matches V110's real progress", () => {
+  it("states the real component state it reached, never one it hasn't", async () => {
+    const rows = await db.query<{ component_code: string; state_code: string }>(
+      `SELECT component_code, state_code FROM unit_progress WHERE unit_id = 'u_v110'`
+    );
+    const stateOf = Object.fromEntries(rows.rows.map((r) => [r.component_code, r.state_code]));
+
+    const home = await getCustomerHome("b_v110");
+    const byLabel = Object.fromEntries(home!.payments!.schedule.map((s) => [s.milestone_label, s.why_now]));
+
+    expect(byLabel["Structure complete"]).toBe(`Structure ${stateOf.structure} — payment due.`);
+    expect(byLabel["MEP first-fix complete"]).toBe(`MEP first-fix ${stateOf.mep_first_fix} — payment due.`);
+    expect(byLabel["Flooring laid"]).toBe(`Flooring ${stateOf.flooring} — payment due.`);
+    expect(byLabel["Possession"]).toBe("Upcoming — after finishing is verified.");
+    for (const sentence of Object.values(byLabel)) expect(sentence).not.toMatch(/_/);
   });
 });

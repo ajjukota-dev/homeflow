@@ -10,7 +10,7 @@ test("My Pranava Home @ mobile", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Your paperwork" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Your keys" })).toBeVisible();
   await expect(page.getByText(/PRM\/KA\/RERA/)).toBeVisible();
-  await expect(page.getByText(/this milestone is now due|on your payment plan|becomes due when/i).first()).toBeVisible();
+  await expect(page.getByText(/payment due|Booking payment|Upcoming — after/i).first()).toBeVisible();
   await page.screenshot({ path: shot("home-mobile"), fullPage: true });
 });
 
@@ -34,6 +34,8 @@ for (const s of paymentSizes) {
     await expect(page.getByRole("heading", { name: "Payments" })).toBeVisible();
     await expect(page.getByText("Upcoming").first()).toBeVisible();
     await expect(page.getByText("Invalid Date")).toHaveCount(0);
+    // V110's flooring hasn't started on site; why-now must never claim otherwise.
+    await expect(page.getByText(/flooring is complete/i)).toHaveCount(0);
     await page.screenshot({ path: shot(`payments-${s.name}`), fullPage: true });
   });
 }

@@ -2,6 +2,8 @@
 // Pure functions: given an open demand's facts + policy threshold, land it in exactly one bucket.
 // No project-specific values here — threshold and labels come from data.
 
+import { progressAtLeast, type ProgressState } from "./gates";
+
 export type DemandStatus =
   | "scheduled"
   | "due"
@@ -88,21 +90,32 @@ const TRIGGER_NOUN: Record<string, string> = {
   finishing: "finishing",
 };
 
-/** Customer-safe T2 copy. Never emits internal codes or risk buckets. */
+function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/**
+ * Customer-safe T2 copy, derived from the unit's ACTUAL component progress —
+ * never from the demand's status/trigger name alone (customer-transparency.md §5.2).
+ * Never emits internal codes, risk buckets, or a stage the unit hasn't reached.
+ */
 export function whyNow(input: {
   milestone_label: string;
   construction_trigger_event: string | null;
   status: DemandStatus | string;
+  component_state: ProgressState | null;
 }): string {
   const trigger = input.construction_trigger_event;
-  const component = trigger?.split(":")[0];
-  const noun = component ? TRIGGER_NOUN[component] ?? input.milestone_label.toLowerCase() : null;
+  if (!trigger) return "Booking payment — due.";
+
+  const [component, minState] = trigger.split(":") as [string, ProgressState];
+  const noun = TRIGGER_NOUN[component];
+  if (!noun) return "Payment due.";
 
   if (input.status === "scheduled") {
-    return `This becomes due when ${input.milestone_label} is reached.`;
+    return `Upcoming — after ${noun} is verified.`;
   }
-  if (noun) {
-    return `Your ${noun} is complete — this milestone is now due.`;
-  }
-  return `This is the ${input.milestone_label} on your payment plan.`;
+  const state = input.component_state ?? "not_started";
+  if (!progressAtLeast(state, minState)) return "Payment due.";
+  return `${capitalize(noun)} ${state.replace(/_/g, " ")} — payment due.`;
 }

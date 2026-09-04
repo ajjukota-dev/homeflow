@@ -1,5 +1,6 @@
 import { db } from "./db";
 import { t2Payments } from "./collections-view";
+import { type ProgressState } from "./gates";
 
 // Customer-safe T4 / T5 / T6 projections (customer-transparency.md). Internal codes never cross.
 
@@ -52,8 +53,13 @@ function monthLabel(offset: number) {
   return d.toLocaleString("en-IN", { month: "short" });
 }
 
-export async function t6Keys(bookingId: string, eligible: boolean, completed: boolean) {
-  const payments = await t2Payments(bookingId);
+export async function t6Keys(
+  bookingId: string,
+  eligible: boolean,
+  completed: boolean,
+  progress: Record<string, ProgressState>
+) {
+  const payments = await t2Payments(bookingId, progress);
   const my_todos = (payments?.schedule ?? [])
     .filter((line) => line.status === "Due")
     .map((line) => ({ label: `Pay ${line.milestone_label}`, status: "open" as const }));
