@@ -110,6 +110,43 @@ describe("receipts and PTP", () => {
   });
 });
 
+describe("receipt amount validation", () => {
+  it("rejects non-finite, zero, negative or over-balance amounts, leaving the demand untouched", async () => {
+    const { db } = await import("./db");
+    const bookingId = (
+      await db.query<{ id: string }>(`SELECT id FROM booking WHERE unit_id = 'u_v104' AND status = 'active'`)
+    ).rows[0].id;
+    const due = (await listDemands(bookingId)).find((d) => d.status === "due" && !d.has_active_ptp)!;
+
+    await expect(postReceipt(due.id, { amount: "abc" })).rejects.toThrow("invalid_amount");
+    await expect(postReceipt(due.id, { amount: NaN })).rejects.toThrow("invalid_amount");
+    await expect(postReceipt(due.id, { amount: Infinity })).rejects.toThrow("invalid_amount");
+    await expect(postReceipt(due.id, { amount: -1 })).rejects.toThrow("invalid_amount");
+    await expect(postReceipt(due.id, { amount: 0 })).rejects.toThrow("invalid_amount");
+    await expect(postReceipt(due.id, {})).rejects.toThrow("invalid_amount");
+    await expect(postReceipt(due.id, { amount: due.amount + 1 })).rejects.toThrow("exceeds_remaining");
+
+    const after = (await listDemands(bookingId)).find((d) => d.id === due.id)!;
+    expect(after.status).toBe("due");
+    expect(after.remaining).toBe(due.amount);
+  });
+
+  it("accepts a numeric string amount and settles the demand when it matches the remaining balance", async () => {
+    const { db } = await import("./db");
+    const bookingId = (
+      await db.query<{ id: string }>(`SELECT id FROM booking WHERE unit_id = 'u_v104' AND status = 'active'`)
+    ).rows[0].id;
+    const due = (await listDemands(bookingId)).find((d) => d.status === "due" && !d.has_active_ptp)!;
+
+    const receipt = await postReceipt(due.id, { amount: String(due.amount) });
+    expect(receipt.amount).toBe(due.amount);
+
+    const after = (await listDemands(bookingId)).find((d) => d.id === due.id)!;
+    expect(after.status).toBe("settled");
+    expect(after.remaining).toBe(0);
+  });
+});
+
 describe("true-risk collections workbench", () => {
   it("splits outstanding into the six buckets and never returns only a single number", async () => {
     const view = await projectCollections("p_eastcrest");

@@ -13,10 +13,11 @@ export type ReceiptRow = {
 
 export async function postReceipt(
   demandId: string,
-  input: { amount: number; mode?: string; idempotency_key?: string }
+  input: { amount?: number | string; mode?: string; idempotency_key?: string }
 ) {
+  const amount = typeof input.amount === "string" ? Number(input.amount) : input.amount;
   const key = input.idempotency_key ?? randomUUID();
-  const hash = JSON.stringify({ amount: input.amount, mode: input.mode ?? "neft" });
+  const hash = JSON.stringify({ amount, mode: input.mode ?? "neft" });
   const existing = await db.query<{ id: string; request_hash: string }>(
     `SELECT id, request_hash FROM receipt WHERE idempotency_key = $1`,
     [key]
@@ -29,18 +30,18 @@ export async function postReceipt(
 
   const d = (await mapDemands(`${DEMAND_SELECT} WHERE d.id = $1`, [demandId]))[0];
   if (!d) throw new Error("not_found");
-  if (input.amount <= 0) throw new Error("invalid_amount");
-  if (input.amount > d.remaining) throw new Error("exceeds_remaining");
+  if (typeof amount !== "number" || !Number.isFinite(amount) || amount <= 0) throw new Error("invalid_amount");
+  if (amount > d.remaining) throw new Error("exceeds_remaining");
 
   const id = randomUUID();
   await db.query(
     `INSERT INTO receipt (id, booking_id, project_id, demand_id, amount, mode, status, idempotency_key, request_hash)
      VALUES ($1,$2,$3,$4,$5,$6,'reconciled',$7,$8)`,
-    [id, d.booking_id, d.project_id, demandId, input.amount, input.mode ?? "neft", key, hash]
+    [id, d.booking_id, d.project_id, demandId, amount, input.mode ?? "neft", key, hash]
   );
-  const remaining = d.remaining - input.amount;
+  const remaining = d.remaining - amount;
   const status: DemandStatus = remaining <= 0 ? "settled" : "part_paid";
   await db.query(`UPDATE demand SET status = $1 WHERE id = $2`, [status, demandId]);
   const row = await db.query<ReceiptRow>(`SELECT * FROM receipt WHERE id = $1`, [id]);
-  return { ...row.rows[0], amount: input.amount, project_id: d.project_id };
+  return { ...row.rows[0], amount, project_id: d.project_id };
 }
