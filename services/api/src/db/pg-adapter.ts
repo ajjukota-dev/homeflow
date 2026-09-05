@@ -1,5 +1,6 @@
 import pg from "pg";
 import type { DbClient, QueryResult } from "./types";
+import { SET_SESSION_TIME_ZONE_SQL } from "./session";
 
 // Prod adapter: `pg` Pool from DATABASE_URL. Same SQL as the pglite adapter
 // (03-platform-deploy.md rule 2 — parity verified by running the API suite
@@ -13,6 +14,13 @@ export function createPgClient(connectionString: string): DbClient {
   const pool = new pg.Pool({
     connectionString,
     ssl: isLocal ? undefined : { rejectUnauthorized: false },
+  });
+  // Session clock per pooled connection (db/session.ts). node-pg serialises a client's queries,
+  // so a SET queued on 'connect' runs before the first checkout query on that connection.
+  pool.on("connect", (client) => {
+    client.query(SET_SESSION_TIME_ZONE_SQL).catch((err: unknown) => {
+      console.error("db: failed to set session time zone", err);
+    });
   });
   return {
     async query<T>(sql: string, params?: unknown[]): Promise<QueryResult<T>> {
