@@ -1,0 +1,34 @@
+import { Building2, Store, Users, Banknote, Scale, ClipboardCheck, HeartHandshake, Landmark } from "lucide-react";
+
+export type View =
+  | "site"
+  | "sales"
+  | "crm"
+  | "accounts"
+  | "legal"
+  | "qa"
+  | "after"
+  | "tower"
+  | "admin-users"
+  | "admin-teams"
+  | "admin-permissions";
+
+// Rule 7 / p44 §33.6 t3: which roles see which workspace. Site's write controls
+// (unit_progress) never render for roles without WRITE there — hiding the nav
+// entry is the simplest correct gate until per-control checks land with 07/08.
+export const NAV: { id: View; label: string; role: string; short: string; Icon: typeof Building2; roles: string[] }[] = [
+  { id: "site", label: "Project / Site", role: "Owns unit progress", short: "Site", Icon: Building2, roles: ["SITE", "QA", "MANAGEMENT", "SUPER_ADMIN"] },
+  { id: "sales", label: "Sales", role: "Books, reads gates", short: "Sales", Icon: Store, roles: ["SALES", "MANAGEMENT", "SUPER_ADMIN"] },
+  { id: "crm", label: "CRM / RM", role: "Accepts, owns customers", short: "CRM", Icon: Users, roles: ["CRM", "MANAGEMENT", "SUPER_ADMIN"] },
+  { id: "accounts", label: "Accounts", role: "True-risk collections", short: "Cash", Icon: Banknote, roles: ["ACCOUNTS", "BANKING", "MANAGEMENT", "SUPER_ADMIN"] },
+  { id: "legal", label: "Legal", role: "Documents & registration", short: "Legal", Icon: Scale, roles: ["LEGAL", "REGISTRATION", "MANAGEMENT", "SUPER_ADMIN"] },
+  { id: "qa", label: "QA / Handover", role: "Evidence, then keys", short: "QA", Icon: ClipboardCheck, roles: ["QA", "SITE", "MANAGEMENT", "SUPER_ADMIN"] },
+  { id: "after", label: "After keys", role: "Warranty & DLP", short: "After", Icon: HeartHandshake, roles: ["FM", "MANAGEMENT", "SUPER_ADMIN"] },
+  { id: "tower", label: "Management", role: "Five interventions", short: "Tower", Icon: Landmark, roles: ["MANAGEMENT", "SUPER_ADMIN"] },
+];
+
+export const ADMIN_NAV: { id: View; label: string }[] = [
+  { id: "admin-users", label: "Users" },
+  { id: "admin-teams", label: "Teams & assignments" },
+  { id: "admin-permissions", label: "Permission matrix" },
+];
