@@ -36,6 +36,7 @@ import { registerEscalationRoutes } from "./routes-escalations";
 import { registerCommitmentRoutes } from "./routes-commitments";
 import { registerScoreRoutes } from "./routes-scores";
 import { registerMyDayRoutes } from "./routes-myday";
+import { registerSalesHandoverRoutes } from "./routes-sales-handover";
 import { registerNotificationRoutes } from "./routes-notifications";
 import { getAudit } from "./events";
 import { failHttp } from "./authz/httpError";
@@ -296,6 +297,7 @@ registerNotificationRoutes(app);
 registerCommitmentRoutes(app);
 registerScoreRoutes(app);
 registerMyDayRoutes(app);
+registerSalesHandoverRoutes(app);
 
 // files port: local-disk adapter serves its own presigned-URL routes; the
 // s3 adapter needs no server route (real presigned URLs hit S3 directly).

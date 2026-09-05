@@ -82,14 +82,17 @@ export async function acceptBooking(id: string, ctx: Ctx, rm = "Priya Nair") {
   return { booking: await getBooking(id), customer_id: custId };
 }
 
-/** CRM returns an incomplete file. Emits sales_handover.returned (Appendix B). */
+/** CRM returns an incomplete file. Emits sales_handover.returned (Appendix B).
+ *  17 rule 6: "Return after accept is not allowed" — the status guard below is what enforces
+ *  that (this function previously had none). */
 export async function returnBooking(id: string, reason: string, ctx: Ctx) {
   await authorize(ctx, "sales_handover", "WRITE");
-  const b = await db.query<{ unit_id: string; project_id: string }>(
-    `SELECT unit_id, project_id FROM booking WHERE id = $1`,
+  const b = await db.query<{ unit_id: string; project_id: string; status: string }>(
+    `SELECT unit_id, project_id, status FROM booking WHERE id = $1`,
     [id]
   );
   if (b.rows.length === 0) throw new Error("not_found");
+  if (b.rows[0].status !== "submitted") throw new Error("not_submitted");
   const { unit_id: unitId, project_id: projectId } = b.rows[0];
   await withTx(undefined, async (t) => {
     await t.query(`UPDATE booking SET status = 'returned', return_reason = $1 WHERE id = $2`, [reason, id]);

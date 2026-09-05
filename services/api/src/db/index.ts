@@ -10,6 +10,7 @@ import { seedDefaultCalendar } from "../seed/calendar";
 import { seedSlaPolicies } from "../seed/sla-policies";
 import { seedActionTypes } from "../seed/action-types";
 import { seedEscalationConfig } from "../seed/escalation-rules";
+import { seedHandoverChecklist } from "../seed/handover-checklist";
 import { registerJourneySubscribers } from "../journey/subscribers";
 import { registerNotificationSubscribers } from "../notifications/subscribers";
 import { registerEscalationSubscribers } from "../escalations/subscribers";
@@ -81,6 +82,9 @@ export function initDb(): Promise<void> {
       // 12 config: standard escalation ladder (attached to every per-task sla_policy row above)
       // + the 13-rule catalogue + materiality thresholds — real production wiring, not demo data.
       await seedEscalationConfig(db);
+      // 17 config: handover checklist rules (by product/residency) + return-reason taxonomy —
+      // config, not demo data, same as the SLA/escalation seeds above.
+      await seedHandoverChecklist(db);
       registerJourneySubscribers();
       registerNotificationSubscribers();
       registerEscalationSubscribers();

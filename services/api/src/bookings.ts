@@ -74,9 +74,9 @@ export async function createBooking(unitId: string, input: BookingInput, ctx: Ct
     await t.query(
       `INSERT INTO booking
         (id, project_id, unit_id, booking_number, status, total_consideration, completeness_score, docs,
-         code, agreement_value_inr)
-       VALUES ($1,$2,$3,$4,'submitted',$5,$6,$7,$8,$5)`,
-      [bookingId, u.rows[0].project_id, unitId, number, input.total_consideration, score, JSON.stringify(input.docs), code]
+         code, agreement_value_inr, sales_owner_user_id)
+       VALUES ($1,$2,$3,$4,'submitted',$5,$6,$7,$8,$5,$9)`,
+      [bookingId, u.rows[0].project_id, unitId, number, input.total_consideration, score, JSON.stringify(input.docs), code, ctx.actor.user_id]
     );
     await t.query(
       `INSERT INTO booking_applicant (id, booking_id, display_name, role, phone, pan)

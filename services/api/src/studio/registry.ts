@@ -83,7 +83,7 @@ export const TAB_REGISTRY: TabDef[] = [
   { key: "16.handover_gate_configuration", label: "Handover gate configuration", owner_spec: 16, built: false, edit_roles: MGMT },
   { key: "16.handover_checklist", label: "Handover checklist", owner_spec: 16, built: false, edit_roles: MGMT },
 
-  // 17 — sales -> CRM handover (not built)
+  // 17 — sales -> CRM handover (backend built; Studio CRUD UI deferred like every other spec's)
   { key: "17.sales_handover_checklist_rules", label: "Sales handover checklist rules", owner_spec: 17, built: false, edit_roles: ["CRM"] },
   { key: "17.return_reasons", label: "Return reasons", owner_spec: 17, built: false, edit_roles: ["CRM"] },
 

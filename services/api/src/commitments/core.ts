@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { db } from "../db";
-import { appendEvent, withTx, actorFields, type DbLike } from "../events";
+import { appendEvent, withTx, actorFields, type DbLike, type EventInput } from "../events";
 import { authorize } from "../authz/authorize";
 import { AppError, type Ctx } from "../authz/types";
 import { nextCode } from "../model/codes";
@@ -22,11 +22,12 @@ import { computeConfidence, type ConfidenceResult, type DependencyFact, type Dep
 //    Policy Studio. `defaultApproverRole` is the real, usable default the spec's own text
 //    describes; swapping in `requiredApprovers` is a one-line upgrade once a COMMITMENT/INR band
 //    exists — named here, not silently skipped.
-//  - Rule 6 (sales-handover-packet commitments auto-created as DRAFT/SALES_HANDOVER) has no real
-//    source to fire from: 17 (sales→CRM handover packet) doesn't exist, so nothing ever captures
-//    a "commitments_section" during sales to promote. `SALES_HANDOVER` stays a valid `source`
-//    enum value (a caller can create one directly), but no subscriber auto-creates one — same
-//    "flag, don't fake" treatment 12's rule catalogue got for its own unwired rows.
+//  - Rule 6 (sales-handover-packet commitments auto-created as DRAFT/SALES_HANDOVER) is now wired
+//    from 17's `submitHandover` via `createCommitmentFromSource` below — Sales only holds READ on
+//    this module (seed/permissions.ts), so the packet's commitments can't go through the normal
+//    ctx-gated `createCommitment`; the source variant mirrors actions/core.ts's
+//    `createAction(input, tx)` vs `createManualAction(input, ctx)` split (a Source writes directly,
+//    attributed to the real triggering user, not a fabricated elevated ctx).
 //  - Rule 5's `depends_on` can name ACTION|CHANGE_REQUEST|PROGRESS|DEMAND entries; only ACTION
 //    (10) and DEMAND (04/19) are real, queryable tables today. CHANGE_REQUEST (18) and PROGRESS
 //    (07) are unbuilt — those dependency entries score neutral in `confidence.ts`, not guessed.
@@ -173,9 +174,13 @@ export interface CreateCommitmentInput {
   depends_on?: { type: DependencyType; id: string }[];
 }
 
-export async function createCommitment(input: CreateCommitmentInput, ctx: Ctx): Promise<CommitmentRow> {
-  await authorize(ctx, "commitments", "WRITE");
-  const b = await db.query<{ project_id: string; unit_id: string; customer_id: string | null }>(
+async function insertCommitmentRow(
+  input: CreateCommitmentInput,
+  committedByUserId: string,
+  actor: Pick<EventInput, "actor_user_id" | "actor_kind">,
+  tx: DbLike
+): Promise<CommitmentRow> {
+  const b = await tx.query<{ project_id: string; unit_id: string; customer_id: string | null }>(
     `SELECT b.project_id, b.unit_id, a.customer_id
        FROM booking b LEFT JOIN booking_applicant a ON a.booking_id = b.id AND a.role = 'primary'
       WHERE b.id = $1`,
@@ -184,37 +189,49 @@ export async function createCommitment(input: CreateCommitmentInput, ctx: Ctx): 
   if (!b.rows[0]) throw new AppError("not_found", "booking not found");
   const { project_id, unit_id, customer_id } = b.rows[0];
 
-  return withTx(undefined, async (tx) => {
-    const id = "cmt_" + randomUUID().slice(0, 8);
-    const code = await nextCode(tx, "CMT");
-    // Rule 1: approval-gated commitments start DRAFT; everything else is auto-approved — there's
-    // no real "DRAFT → APPROVED" transition to log for the auto case, since it never visited DRAFT.
-    const status: CommitmentStatus = input.approval_required ? "DRAFT" : "APPROVED";
-    await tx.query(
-      `INSERT INTO commitment (
-         id, code, project_id, booking_id, customer_id, unit_id, category, description,
-         committed_by_user_id, source, beneficiary, customer_facing, owner_user_id,
-         responsible_department, due_date, financial_impact_inr, approval_required, status, depends_on
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19::jsonb)`,
-      [
-        id, code, project_id, input.booking_id, customer_id, unit_id, input.category, input.description,
-        ctx.actor.user_id, input.source, input.beneficiary, input.customer_facing, input.owner_user_id ?? null,
-        input.responsible_department ?? null, input.due_date ?? null, input.financial_impact_inr ?? null,
-        input.approval_required, status, JSON.stringify(input.depends_on ?? []),
-      ]
-    );
-    await appendEvent(tx, {
-      type: "commitment.created",
-      entity_type: "commitment",
-      entity_id: id,
-      project_id,
-      booking_id: input.booking_id,
-      customer_id,
-      payload: { code, category: input.category, status },
-      ...actorFields(ctx),
-    });
-    return requireCommitment(tx, id);
+  const id = "cmt_" + randomUUID().slice(0, 8);
+  const code = await nextCode(tx, "CMT");
+  // Rule 1: approval-gated commitments start DRAFT; everything else is auto-approved — there's
+  // no real "DRAFT → APPROVED" transition to log for the auto case, since it never visited DRAFT.
+  const status: CommitmentStatus = input.approval_required ? "DRAFT" : "APPROVED";
+  await tx.query(
+    `INSERT INTO commitment (
+       id, code, project_id, booking_id, customer_id, unit_id, category, description,
+       committed_by_user_id, source, beneficiary, customer_facing, owner_user_id,
+       responsible_department, due_date, financial_impact_inr, approval_required, status, depends_on
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19::jsonb)`,
+    [
+      id, code, project_id, input.booking_id, customer_id, unit_id, input.category, input.description,
+      committedByUserId, input.source, input.beneficiary, input.customer_facing, input.owner_user_id ?? null,
+      input.responsible_department ?? null, input.due_date ?? null, input.financial_impact_inr ?? null,
+      input.approval_required, status, JSON.stringify(input.depends_on ?? []),
+    ]
+  );
+  await appendEvent(tx, {
+    type: "commitment.created",
+    entity_type: "commitment",
+    entity_id: id,
+    project_id,
+    booking_id: input.booking_id,
+    customer_id,
+    payload: { code, category: input.category, status },
+    ...actor,
   });
+  return requireCommitment(tx, id);
+}
+
+export async function createCommitment(input: CreateCommitmentInput, ctx: Ctx): Promise<CommitmentRow> {
+  await authorize(ctx, "commitments", "WRITE");
+  return withTx(undefined, (tx) => insertCommitmentRow(input, ctx.actor.user_id, actorFields(ctx), tx));
+}
+
+/** Rule 6: 17's sales-handover packet creates these — Sales only holds READ on this module (seed/
+ *  permissions.ts), so it can't go through the ctx-gated `createCommitment` above. A Source writes
+ *  directly inside the caller's own transaction, still attributed to the real triggering user (see
+ *  header). Caller (17) is responsible for always passing `approval_required: true` here per rule 6
+ *  ("CRM must approve/activate before acceptance completes") — this function doesn't second-guess it. */
+export async function createCommitmentFromSource(input: CreateCommitmentInput, ctx: Ctx, tx: DbLike): Promise<CommitmentRow> {
+  return insertCommitmentRow(input, ctx.actor.user_id, actorFields(ctx), tx);
 }
 
 export async function approveCommitment(id: string, ctx: Ctx): Promise<CommitmentRow> {

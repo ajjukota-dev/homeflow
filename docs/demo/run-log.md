@@ -255,3 +255,14 @@ Amarsh: "dont stop - this was supposed to be an autonomous run." Continuing with
 - Found two more dead pre-declared columns: `action.impact` (jsonb, literally commented "for 11, not consumed here") and `action.escalation_tier` (always 'L0') — neither is ever written by any code path. Derived the same facts live via real joins instead (booking revenue/customer count, `depends_on_action_id` count, 12's `escalation` table).
 - Team view (rule 5) is project-scoped, not true team-hierarchy — flagged, no per-team roster query exists yet.
 - Next: 17 (sales-CRM handover) or 22 (document factory) — both mostly unblocked.
+
+## 23:54 IST — R4: sales → CRM handover backend merged (17-sales-crm-handover.md)
+
+- `0030_sales_handover.sql` (`sales_handover`, `handover_checklist_rule`, `return_reason`), `seed/handover-checklist.ts` (20 standard rules + 9 return reasons), `sales-handover/checklist.ts` (pure resolve + weighted score), `sales-handover/core.ts` (submit / accept / return / metrics / queue), `routes-sales-handover.ts`. 5 new tests covering rules 1–7, tsc clean, full suite 80/80 files, 484/484 tests.
+- Built additively, not the spec's "replace bookings.ts": measured first — 16 test files import `acceptBooking`/`createBooking`. `acceptHandover`/`returnHandover` delegate to them and layer the packet rules on top. Zero regressions.
+- Rule 5's `booking.status = CRM_ACCEPTED` deliberately not applied — 5 read sites filter `status = 'active'`, nothing moves crm_accepted→active. `sales_handover.status` carries the feature. Documented in `model/status.ts`.
+- 13 rule 6 now real: `createCommitmentFromSource(input, ctx, tx)` added to `commitments/core.ts` (Sales holds only READ on `commitments`, so the packet can't use the ctx-gated `createCommitment`); accept approves+activates the DRAFTs.
+- Found: `returnBooking` had no status guard — return-after-accept was silently allowed. Added the `'submitted'` check (only edit to existing accept/return code). `sales_owner_user_id`/`rm_owner_user_id` were never written by anything before this; both now populated.
+- Gotcha hit: calling a function that opens its own `withTx` from inside another `withTx` hangs on the single-connection PGlite adapter (5 s timeout). Restructured accept into sequential transactions.
+- Journey instantiation came free — 06's existing `sales_handover.accepted` subscriber fires from the unchanged `acceptBooking`. Test asserts `journey_instance` exists after accept.
+- Next: 22 (document factory) — re-checking its dependency line before starting.

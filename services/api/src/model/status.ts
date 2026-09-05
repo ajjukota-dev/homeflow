@@ -4,10 +4,16 @@
 // unit.sale_status. Renaming them would touch ~12 files (bookings.ts, demands-schedule.ts,
 // legal-docs.ts, qa.ts, tower-view.ts, customer.ts, warranty.ts, collections-view.ts,
 // legal-docs-source.ts, and 5+ test files) including several bare `WHERE status = 'active'`
-// SQL string filters — a typo there fails silently (0 rows), not at compile time. That
-// blast radius belongs with spec 17's planned rebuild of the sales→CRM flow, not this PR.
-// New code (confirm/cancel/transfer, this file's transition graph, the Admin screens) speaks
-// the spec vocabulary and translates at this one boundary. Flagged in the PR body and TODO.
+// SQL string filters — a typo there fails silently (0 rows), not at compile time.
+// 17 (sales-crm-handover) examined this directly: its own rule 5 literally says
+// `booking.status = CRM_ACCEPTED`, but routing accept through the (already-legal, per 0003's
+// CHECK constraint) unused 'crm_accepted' value would silently zero out the five non-test
+// `WHERE status = 'active'` read sites above with no invented follow-on trigger for
+// crm_accepted -> active anywhere in the spec set. 17 deliberately declined the rename — its
+// own `sales_handover.status` (DRAFT/SUBMITTED/RETURNED/ACCEPTED) is the real signal for that
+// feature; booking.status is untouched. New code (confirm/cancel/transfer, this file's
+// transition graph, the Admin screens) speaks the spec vocabulary and translates at this one
+// boundary. Flagged in the PR body and TODO.
 
 export const BOOKING_STATUSES = [
   "DRAFT",
