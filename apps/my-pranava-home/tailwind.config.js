@@ -1,7 +1,13 @@
-/** My Pranava Home — same Apple-homely tokens as the workspace, customer skin. */
+/** My Pranava Home — same Apple-homely tokens as the workspace, customer skin.
+ *  Extends the shared `@homeflow/ui` preset (docs/specs/32-design-system.md); this file's own
+ *  `theme.extend` still wins for existing keys, so no existing screen changes yet. */
+import homeflowUiPreset from "@homeflow/ui/tailwind-preset";
+
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: ["./index.html", "./src/**/*.{ts,tsx}"],
+  presets: [homeflowUiPreset],
+  darkMode: ["selector", '[data-theme="dark"]'],
+  content: ["./index.html", "./src/**/*.{ts,tsx}", "../../packages/ui/src/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {

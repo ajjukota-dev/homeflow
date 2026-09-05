@@ -1,9 +1,15 @@
 /** HomeFlow — Apple-homely theme. Tokens are semantic CSS variables (light + dark),
- *  so components never hard-code colour. */
+ *  so components never hard-code colour.
+ *  Extends the shared `@homeflow/ui` preset (docs/specs/32-design-system.md) so new work can use
+ *  its tokens/type scale; this file's own `theme.extend` still wins for existing keys, so no
+ *  existing screen changes until it migrates to the shared primitives. */
+import homeflowUiPreset from "@homeflow/ui/tailwind-preset";
+
 /** @type {import('tailwindcss').Config} */
 export default {
+  presets: [homeflowUiPreset],
   darkMode: ["selector", '[data-theme="dark"]'],
-  content: ["./index.html", "./src/**/*.{ts,tsx}"],
+  content: ["./index.html", "./src/**/*.{ts,tsx}", "../../packages/ui/src/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
