@@ -1,0 +1,106 @@
+/* HomeFlow design tokens — spec docs/specs/32-design-system.md.
+   Semantic CSS variables only; components/Tailwind preset consume these, never raw hex/px.
+   Light is default; dark via [data-theme="dark"] (elevation by lighter surfaces, not shadows). */
+
+:root {
+  /* Surfaces */
+  --bg: #f7f8f9;
+  --surface: #ffffff;
+  --surface-raised: #fcfcfc;
+  --line: #e6e6e6;
+
+  /* Text */
+  --fg: #1c1f26;
+  --fg-muted: #6a6a6a;
+  --fg-subtle: #9a9a9a;
+
+  /* Brand accent — orange is accent-only: primary action, focus ring, active nav, logo */
+  --accent: #e74c0a;
+  --accent-fg: #ffffff;
+  --accent-soft: #fdede6;
+
+  /* Status — never orange, so status never competes with the brand accent */
+  --ok: #1e7f4f;
+  --ok-soft: #e3f5ea;
+  --ok-fg: #146238;
+
+  --info: #2b6cb0;
+  --info-soft: #e5f0fa;
+  --info-fg: #1d4e82;
+
+  --warn: #b7791f;
+  --warn-soft: #fbf0dc;
+  --warn-fg: #8a5a12;
+
+  --danger: #c0392b;
+  --danger-soft: #fbe8e6;
+  --danger-fg: #8e2a1f;
+
+  /* Elevation — declare once: hairline border OR shadow, never both */
+  --shadow-panel: 0 12px 32px -8px rgb(0 0 0 / 0.18);
+  --radius-card: 12px;
+  --radius-control: 8px;
+  --radius-pill: 999px;
+
+  /* Spacing — 4px base scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Container widths */
+  --container-workspace: 1280px;
+  --container-portal: 880px;
+
+  /* Motion — exponential ease-out; prefers-reduced-motion collapses these (see motion.ts) */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-micro: 160ms;
+  --duration-panel: 240ms;
+  --duration-page: 400ms;
+}
+
+[data-theme="dark"] {
+  --bg: #111214;
+  --surface: #1a1b1e;
+  --surface-raised: #22242a;
+  --line: #2e3138;
+
+  --fg: #f2f2f0;
+  --fg-muted: #a7a9ae;
+  --fg-subtle: #7c7e84;
+
+  --accent: #ff6a3d;
+  --accent-fg: #1a1204;
+  --accent-soft: #3a1f12;
+
+  --ok: #3fbd80;
+  --ok-soft: #103322;
+  --ok-fg: #86e0b4;
+
+  --info: #5b9bdb;
+  --info-soft: #12283d;
+  --info-fg: #a7cdf0;
+
+  --warn: #d9a441;
+  --warn-soft: #3a2c0e;
+  --warn-fg: #f0cf8f;
+
+  --danger: #e2685a;
+  --danger-soft: #3a1714;
+  --danger-fg: #f3ada3;
+
+  --shadow-panel: 0 12px 32px -8px rgb(0 0 0 / 0.5);
+}
+
+/* prefers-reduced-motion: transitions collapse to opacity <=120ms everywhere tokens drive motion */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-micro: 120ms;
+    --duration-panel: 120ms;
+    --duration-page: 120ms;
+  }
+}

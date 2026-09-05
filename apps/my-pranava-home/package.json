@@ -11,6 +11,7 @@
     "e2e": "playwright test"
   },
   "dependencies": {
+    "@homeflow/ui": "*",
     "lucide-react": "^1.39.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

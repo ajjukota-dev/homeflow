@@ -1,3 +1,9 @@
+/* @homeflow/ui tokens + fonts load first; the :root block below (this app's current theme)
+ * re-declares the same variable names after them, so it still wins the cascade and no existing
+ * screen changes yet (docs/specs/32-design-system.md rule 10 — screens migrate one at a time). */
+@import "@homeflow/ui/tokens.css";
+@import "@homeflow/ui/fonts.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
