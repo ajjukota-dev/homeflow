@@ -1,7 +1,7 @@
 // 14-readiness-scores.md: the shared Score contract (p8 §6) — every score endpoint returns
 // exactly this shape. Pure, framework-free (00-conventions.md "explicit boundaries").
 
-export type ScoreType = "UNIT_READINESS" | "BOOKING_READINESS" | "HANDOVER_READINESS";
+export type ScoreType = "UNIT_READINESS" | "BOOKING_READINESS" | "HANDOVER_READINESS" | "UNIT_FLEXIBILITY"; // UNIT_FLEXIBILITY: 08 rule 9
 export type Trend = "UP" | "FLAT" | "DOWN";
 export type Confidence = "HIGH" | "MEDIUM" | "LOW";
 
