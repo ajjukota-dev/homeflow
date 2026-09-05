@@ -43,6 +43,7 @@ import { registerChangeabilityRoutes } from "./routes-changeability";
 import { registerSalesRoutes } from "./routes-sales";
 import { registerSpecificationRoutes } from "./routes-specification";
 import { registerDocumentRoutes } from "./routes-documents";
+import { registerChangeRequestRoutes } from "./routes-change-requests";
 import { registerNotificationRoutes } from "./routes-notifications";
 import { getAudit } from "./events";
 import { failHttp } from "./authz/httpError";
@@ -310,6 +311,7 @@ registerChangeabilityRoutes(app);
 registerSalesRoutes(app);
 registerSpecificationRoutes(app);
 registerDocumentRoutes(app);
+registerChangeRequestRoutes(app);
 
 // files port: local-disk adapter serves its own presigned-URL routes; the
 // s3 adapter needs no server route (real presigned URLs hit S3 directly).

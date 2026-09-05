@@ -128,10 +128,20 @@ describe("rule 5 — HARD_CLOSED never reopens; EXCEPTION_ONLY needs authority +
     expect((await db.query<{ status: string }>(`SELECT status FROM unit_gate_exception WHERE id = $1`, [ex2.id])).rows[0]!.status).toBe("EXPIRED");
     expect((await db.query(`SELECT id FROM event WHERE type = 'gate.exception_expired' AND entity_id = $1`, [ex2.id])).rows).toHaveLength(1);
 
-    // 18 consumes an exception on release (p44 §33.6 t8).
+    // 18 consumes an exception on release (p44 §33.6 t8). 18 is real now, and its own migration
+    // closed the gap 0033 flagged ("18, not built — no FK") with a real FK on change_request_id —
+    // needs an actual change_request row to reference, not the placeholder string this test used
+    // to pass before that FK existed.
+    const crBookingId = "bkg_" + unitId;
+    await db.query(`INSERT INTO booking (id, project_id, unit_id, booking_number, code) VALUES ($1,$2,$3,$4,$4)`, [crBookingId, PROJECT_ID, unitId, "GATETEST-CR-" + unitId]);
+    const crId = "cr_" + unitId;
+    await db.query(
+      `INSERT INTO change_request (id, code, booking_id, unit_id, project_id, raised_by_kind, title, freeze_state_at_request) VALUES ($1,$2,$3,$4,$5,'CRM',$6,'PRE_FREEZE')`,
+      [crId, "CR-" + unitId, crBookingId, unitId, PROJECT_ID, "test placeholder"]
+    );
     const ex3 = await grantException(unitId, { category_code: "electrical", ...base }, management());
-    const used = await useException(ex3.id, "cr_test", db);
-    expect(used).toMatchObject({ status: "USED", change_request_id: "cr_test" });
+    const used = await useException(ex3.id, crId, db);
+    expect(used).toMatchObject({ status: "USED", change_request_id: crId });
   });
 });
 

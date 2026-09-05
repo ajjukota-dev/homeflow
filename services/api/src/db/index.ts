@@ -13,6 +13,7 @@ import { seedEscalationConfig } from "../seed/escalation-rules";
 import { seedHandoverChecklist } from "../seed/handover-checklist";
 import { seedSnagSlaPolicies, seedQaTemplates } from "../seed/qa-templates";
 import { seedDocumentChecklistRules } from "../seed/documents";
+import { seedCrApprovalRules } from "../seed/change-requests";
 import { registerJourneySubscribers } from "../journey/subscribers";
 import { registerNotificationSubscribers } from "../notifications/subscribers";
 import { registerEscalationSubscribers } from "../escalations/subscribers";
@@ -97,6 +98,8 @@ export function initDb(): Promise<void> {
       // 22 config: KYC document checklist rules by residency — same "every environment needs
       // this" treatment as the SLA/escalation/handover-checklist config seeds above.
       await seedDocumentChecklistRules(db);
+      // 18 config: variation approval matrix (value/margin/schedule/freeze thresholds, UNCONFIRMED) + the default customisation policy.
+      await seedCrApprovalRules(db);
       registerJourneySubscribers();
       registerNotificationSubscribers();
       registerEscalationSubscribers();

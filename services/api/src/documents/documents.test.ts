@@ -160,7 +160,9 @@ describe("rule 3 — data_snapshot frozen; regenerating creates version+1, a red
     expect(v1Reloaded.rows[0]!.status).toBe("SUPERSEDED");
     expect(v1Reloaded.rows[0]!.superseded_by_id).toBe(v2.id);
     expect(await eventTypesFor(v2.id)).toContain("document.version_created");
-  }, 20_000);
+    // 30s not 20s: 18 (change-requests.test.ts) added its own pdf.render() calls to the full
+    // suite, and this test already ran two generations under the old threshold's headroom.
+  }, 30_000);
 });
 
 describe("rule 4 — draft watermark until APPROVED_FOR_EXECUTION", () => {
