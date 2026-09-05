@@ -3,7 +3,9 @@ import { insertUnit } from "./model/units";
 
 // Second demo project (04 §Rules 7, TODO §7.10: "villa and plot demo units under a second
 // demo project so product-awareness is visible") — East Crest alone can't show a MIXED
-// project or a PLOT unit (no floor/carpet area, plot_area_sqyd instead).
+// project, a PLOT unit (no floor/carpet area, plot_area_sqyd instead), or an APARTMENT unit
+// (floor_no). R1 (demo hardening, TODO.md §0): "demo data for 3 products" — Meadows is
+// genuinely MIXED, so its apartment tower belongs here rather than a fourth demo project.
 
 export async function seedCanonicalDemo(db: DbClient): Promise<void> {
   await db.query(
@@ -18,7 +20,8 @@ export async function seedCanonicalDemo(db: DbClient): Promise<void> {
   await db.query(
     `INSERT INTO project_hierarchy_node (id, project_id, kind, code, name, sort_order) VALUES
        ('node_meadows_villas','p_meadows','PHASE','VILLAS','Villa Enclave',1),
-       ('node_meadows_plots','p_meadows','PHASE','PLOTS','Plotted Development',2)`
+       ('node_meadows_plots','p_meadows','PHASE','PLOTS','Plotted Development',2),
+       ('node_meadows_towers','p_meadows','PHASE','TOWERS','Apartment Towers',3)`
   );
 
   await insertUnit(db, "p_meadows", "node_meadows_villas", {
@@ -52,5 +55,23 @@ export async function seedCanonicalDemo(db: DbClient): Promise<void> {
     product_type: "PLOT",
     plot_area_sqyd: 1667,
     base_price_inr: 11000000,
+  });
+  await insertUnit(db, "p_meadows", "node_meadows_towers", {
+    unit_number: "MT1-201",
+    unit_type: "2BHK",
+    facing: "East",
+    product_type: "APARTMENT",
+    carpet_area_sqft: 1050,
+    floor_no: 2,
+    base_price_inr: 7200000,
+  });
+  await insertUnit(db, "p_meadows", "node_meadows_towers", {
+    unit_number: "MT1-502",
+    unit_type: "3BHK",
+    facing: "North",
+    product_type: "APARTMENT",
+    carpet_area_sqft: 1450,
+    floor_no: 5,
+    base_price_inr: 9800000,
   });
 }
