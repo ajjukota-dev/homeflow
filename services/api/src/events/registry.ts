@@ -58,14 +58,12 @@ export const EVENT_TYPES: EventTypeDef[] = [
   { name: "unit.created", family: "unit", customer_visible: false, built: true },
   { name: "unit.sale_status_changed", family: "unit", customer_visible: true, built: true },
   { name: "customer.created", family: "customer", customer_visible: false, built: true },
-  // Not built yet — no merge/residency-change/applicant/transfer handler exists until 0003
-  // (canonical model) lands. Flip to true in that PR alongside the emit site + test.
-  { name: "customer.merged", family: "customer", customer_visible: false, built: false },
-  { name: "customer.residency_changed", family: "customer", customer_visible: false, built: false },
-  { name: "applicant.added", family: "applicant", customer_visible: false, built: false },
-  { name: "applicant.removed", family: "applicant", customer_visible: false, built: false },
+  { name: "customer.merged", family: "customer", customer_visible: false, built: true },
+  { name: "customer.residency_changed", family: "customer", customer_visible: false, built: true },
+  { name: "applicant.added", family: "applicant", customer_visible: false, built: true },
+  { name: "applicant.removed", family: "applicant", customer_visible: false, built: true },
   { name: "booking.status_changed", family: "booking", customer_visible: true, built: true },
-  { name: "booking.transferred", family: "booking", customer_visible: true, built: false },
+  { name: "booking.transferred", family: "booking", customer_visible: true, built: true },
 ];
 
 /** Appendix B (p42) names verbatim — the coverage test's universe. Extensions are exempt by design. */
