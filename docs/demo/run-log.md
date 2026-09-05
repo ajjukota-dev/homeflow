@@ -242,3 +242,16 @@ Amarsh: "dont stop - this was supposed to be an autonomous run." Continuing with
 - Unit readiness reuses the existing binary QA-verified engine (flagged: not rule 1's full weighted state model, needs 07). Booking readiness is a real weighted blend (payments/TDS/loan/agreement/registration/waiting-customer-actions); documents component flagged unavailable (17/22). Handover readiness reuses `evaluateHandover` with a real commitment-count penalty (13); FM component flagged unavailable (16).
 - Score weights are in-code constants, not read from `score_weight` (schema exists, unwired — Studio can populate it later).
 - R3 (CFO-first) is now fully backend-complete: 19, 21, 12, 13, 14 all merged. 20 (cash forecast) remains deliberately skipped pending 23/registration or Amarsh's sign-off to stub it.
+
+## 23:06 IST — checkpoint: R3 complete, moving to R4 (Amarsh's call)
+
+- Amarsh asked to speed up the whole build. Agreed cuts going forward: skip fresh-main re-verify after a clean fast-forward merge, leaner TODO/run-log entries (facts, not narrative), leaner tests (one per rule instead of exhaustive variations).
+- R4 order picked by real dependency count, not spec-list order: 26 (customer portal) and 27 (control tower) both depend on many unbuilt R5/R6 specs (07/15/16/18/23/30) — same "wrong next item" class as 20. 11 (my day) has zero forward dependencies (only 10/06/01, all built) — built first.
+
+## 23:12 IST — R4: my day backend merged (11-my-day-ranking.md)
+
+- `myday/rank.ts` (pure 5-term weighted scorer + tie-break + `whyNow`), `myday/core.ts` (`getMyDay`/`getTeamDay`), `routes-myday.ts`. 10 new tests, tsc clean, full suite 79/79 files, 479/479 tests.
+- Reused 12/21's own finding: `action.due_at` is never set outside `journey/instances.ts` — due dates read from `sla_clock.due_at` instead.
+- Found two more dead pre-declared columns: `action.impact` (jsonb, literally commented "for 11, not consumed here") and `action.escalation_tier` (always 'L0') — neither is ever written by any code path. Derived the same facts live via real joins instead (booking revenue/customer count, `depends_on_action_id` count, 12's `escalation` table).
+- Team view (rule 5) is project-scoped, not true team-hierarchy — flagged, no per-team roster query exists yet.
+- Next: 17 (sales-CRM handover) or 22 (document factory) — both mostly unblocked.
