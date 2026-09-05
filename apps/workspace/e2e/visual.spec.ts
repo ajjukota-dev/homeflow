@@ -99,10 +99,12 @@ test("Create a project and a unit", async ({ page }) => {
   await page.getByRole("button", { name: "Create" }).click();
   await expect(page.getByRole("combobox")).toHaveValue(/.+/);
 
-  // Empty project → add first unit
+  // Empty project → add first unit. Scoped to <main>: the sidebar's own
+  // "New project" form (01-identity-access.md's always-visible project
+  // switcher) also has a "Create" button, ambiguous by role+name alone.
   await page.getByRole("button", { name: /New unit/ }).click();
   await page.getByPlaceholder("e.g. V112").fill("WP-101");
-  await page.getByRole("button", { name: "Create" }).click();
+  await page.getByRole("main").getByRole("button", { name: "Create" }).click();
   await expect(page.getByRole("button", { name: "WP-101" })).toBeVisible();
   await page.screenshot({ path: shot("site-new-unit"), fullPage: true });
 });

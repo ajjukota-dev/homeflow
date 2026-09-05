@@ -9,9 +9,12 @@ const sizes = [
   { name: "mobile", width: 375, height: 812 },
 ];
 
+// 01-identity-access.md grouped this page's nav entry under a collapsible
+// "Admin" section (Users / Teams / Permission matrix / this one) alongside
+// the identity-branch's own admin screens — no longer a single "Admin" button.
 async function openAdmin(page: import("@playwright/test").Page) {
   await page.goto("/");
-  await page.getByRole("button", { name: /Admin/ }).first().click();
+  await page.getByRole("button", { name: /Projects, units & customers/ }).first().click();
   await expect(page.getByRole("radio", { name: "Projects" })).toBeVisible();
 }
 
