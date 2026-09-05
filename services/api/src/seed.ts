@@ -1,16 +1,16 @@
-import type { PGlite } from "@electric-sql/pglite";
+import type { DbClient } from "./db/types";
 import { seedLifecycleDemo } from "./seed-lifecycle";
 
 // Configuration + sample project data (not hard-coded UI values).
 
-async function setState(db: PGlite, unitId: string, component: string, state: string) {
+async function setState(db: DbClient, unitId: string, component: string, state: string) {
   await db.query(
     `UPDATE unit_progress SET state_code=$1, updated_at=now() WHERE unit_id=$2 AND component_code=$3`,
     [state, unitId, component]
   );
 }
 
-async function seedPlan(db: PGlite, planId: string, projectId: string | null) {
+async function seedPlan(db: DbClient, planId: string, projectId: string | null) {
   await db.query(`INSERT INTO payment_plan (id, project_id, name, basis) VALUES ($1,$2,$3,$4)`, [
     planId,
     projectId,
@@ -27,7 +27,7 @@ async function seedPlan(db: PGlite, planId: string, projectId: string | null) {
   `);
 }
 
-export async function seed(db: PGlite) {
+export async function seed(db: DbClient) {
   await db.exec(`INSERT INTO project (id, code, name, rera_reg_no, escrow_note) VALUES
     ('p_eastcrest','EASTCREST','East Crest','PRM/KA/RERA/1251/446/PR/171015/000123',
      'Booking amounts sit in a designated escrow account until they are due under RERA.');`);
@@ -117,7 +117,7 @@ export async function seed(db: PGlite) {
   await seedLifecycleDemo(db);
 }
 
-async function seedMoneyDemo(db: PGlite) {
+async function seedMoneyDemo(db: DbClient) {
   // V110 — Karthik: settled + due + overdue + true-risk + scheduled
   await db.exec(`
     INSERT INTO customer (id, display_name, primary_phone, kyc_status)
