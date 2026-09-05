@@ -16,6 +16,8 @@ One file per feature (index in `TODO.md §10`). Each is written so an agent can 
 | Dates | "Today" = IST calendar day via one `todayIst()`; project working-day calendar (F) for SLA math. Never `new Date().toISOString().slice(0,10)`. |
 | Errors | `{ code, message, field?, source_ref? }`. `validation` → 400, `forbidden` → 403, `not_found` → 404 (also for rows outside the actor's project scope **[E]**), `conflict` → 409, `gate_blocked` → 422 with `blockers[]`. |
 | Status vocabularies | Appendix A (p41–42) verbatim for Action, Change Request, Commitment, Document, Snag, Handover. `SCREAMING_SNAKE` in code (`HARD_CLOSED`), human labels via `apps/workspace/src/lib/labels.ts`. |
+| Demo data | Each feature's seed extends `seed/demo-*.ts` only as far as its own screens need to show every state (e.g. bookings across all journey stages, a commitment per status, an overdue demand with reason, a CR per state). Numbers must reconcile (demands = agreement value, receipts ≤ demands, forecast = outstanding) — journeys assert it. Existing data that already covers a state is left alone. |
+| No dead ends | A nav entry, button or tab appears only when its feature is merged and its journey is green. Unbuilt features are listed on Management → Roadmap (27) with spec + PDF refs — never as greyed controls. |
 | Config over code | Anything the PDF lists in §21 Policy Studio (p26–27) is a table with `effective_from/effective_to`, `version`, `changed_by`, never a constant. Seed via `services/api/src/seed/*.ts`, one file per config family. East Crest values live only in `seed/demo-east-crest.ts`. |
 | UI | Everything comes from `packages/ui` per `32-design-system.md`: tokens only (lint-enforced), Geist/Newsreader self-hosted, 4 px spacing scale, one authored motion moment per surface, seven control states, loading/empty/error on every list; WCAG AA via axe in E2E; screenshots at 1440/768/375 reviewed before merge; no purple/indigo, no glass, no filler text, no eyebrows, no ghost cards. One `h1` per page. Read `~/claude-setup/reference/impeccable/README.md` + `craft-floor.md` before any UI work. |
 | Clean code | ESLint (strict TS rules, no unused, no floating promises, token rule) + Prettier as CI gates; `knip` for dead exports; handlers pure and ≤ 200 lines; one module = one reason to change; names from the PDF's vocabulary; comments say *why* and cite the spec section. |
@@ -30,7 +32,7 @@ One file per feature (index in `TODO.md §10`). Each is written so an agent can 
 3. The feature's Playwright journey passes at 375 and 1440 with axe clean; screenshots committed under `e2e/__screenshots__/` and reviewed against `craft-floor.md` "Verify"; the review note is in the PR.
 4. Migration is additive and applied on boot; seed updated; demo data still loads.
 5. Events emitted and asserted for every mutation named in the workstream's Events list.
-6. `TODO.md` updated: workstream status, anything found while building, new client questions.
+6. `TODO.md` §0 status board and §9 record updated; `docs/demo/run-log.md` gets an entry (what landed, evidence, deviations, open issues); `docs/demo/click-path.md` reflects the deployed state; anything found while building and new client questions logged.
 
 ## Spec file layout
 

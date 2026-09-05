@@ -28,6 +28,7 @@ p21 §14: "five problems that need intervention, not fifty charts"; views Portfo
 - **Control Tower** (existing, extended): five cards with headline fact, ₹/customers/days, owner, decision pack, Act/Dismiss; below: portfolio strip (projects with 4 numbers) — no chart wall.
 - **Views** as tabs: Portfolio · Cash (20 compare) · Project Cash Flow (20 planner) · Project Performance (06 slippage, 16 pipeline) · Experience (check-ins, commitments, escalations) · Execution (07/08 heatmaps, QA exceptions) · Profitability (economic events by kind, per unit table) · Exceptions (rule 5) · KPIs (domain tabs, value/target/trend, drill).
 - All numbers link to the underlying list.
+- **Roadmap** (Management menu; ships in R1, before anything else here): the honest list of not-yet-merged specs with title, PDF refs and wave — generated from a small `roadmap.json` maintained with `TODO.md §0`. Replaces greyed-out nav entries (conventions "No dead ends"). Removed when everything is merged.
 
 ## Events
 `intervention.computed/acted/dismissed`, `kpi.snapshot_taken`, `economic_event.recorded`.

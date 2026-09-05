@@ -49,7 +49,7 @@ Measured starting point: no webfont (Windows renders Segoe UI at 17 px); motion 
 - Token lint: CI fails on a planted `#0a6cff` in a component.
 - Motion: reduced-motion test shows ≤ 120 ms transitions; My Day stagger present otherwise.
 - Screenshot review checklist (craft-floor "Verify") recorded in the PR for each migrated screen.
-- Amarsh's review in Claude Design: tokens + primitives approved before app screens migrate (gate R1 → R2).
+- Amarsh's review in Claude Design: **non-blocking on 2026-09-05** (demo day) — previews are synced as soon as they exist, Claude self-reviews against craft-floor, screens migrate without waiting; his comments land as token/primitive edits. From the day after, the review is the gate before further screen migration.
 
 ## Depends on / Feeds
 Depends on 03 (CI). Feeds every screen in every spec; blocks R1 demo hardening (demo shows the new design).

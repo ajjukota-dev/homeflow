@@ -8,6 +8,57 @@ Rewritten 2026-09-05 04:20 IST (Amarsh: "the technical specs were vibecoded; mov
 
 ---
 
+## 0. Status board (updated on every merge — the "where are we" view)
+
+**Position:** run not started · **Live URL:** none yet · **Last deploy:** — · **Last updated:** 2026-09-05 06:20 IST
+
+```
+Specs merged    [░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░]  0 / 33
+Deployed + E2E  [░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░]  0 / 33
+```
+
+Legend: ⬜ not started · 🟨 in progress (branch open) · 🟩 merged to main · 🟦 deployed to URL with journey green · ⛔ blocked (see §9)
+
+| Wave | Spec | Status | Notes |
+|---|---|---|---|
+| R0 | 03 platform & deploy | ⬜ | |
+| R0 | 01 identity & access | ⬜ | |
+| R0 | 32 design system | ⬜ | |
+| R0 | 02 event log | ⬜ | |
+| R0 | 04 canonical model | ⬜ | |
+| R1 | screen migration + journeys + Roadmap page + demo seed | ⬜ | |
+| R2 | 05 journey templates | ⬜ | |
+| R2 | 06 timeline & SLA | ⬜ | |
+| R2 | 10 universal action | ⬜ | |
+| R2 | 25 policy studio shell + approval matrix | ⬜ | |
+| R3 (CFO first) | 19 collections & true risk | ⬜ | |
+| R3 | 21 loans | ⬜ | |
+| R3 | 20 cash forecast | ⬜ | |
+| R3 | 12 escalations & notifications | ⬜ | |
+| R3 | 13 promise ledger | ⬜ | |
+| R3 | 14 readiness scores | ⬜ | |
+| R4 | 27 management control tower | ⬜ | |
+| R4 | 11 my day | ⬜ | |
+| R4 | 26 customer portal | ⬜ | |
+| R4 | 17 sales→CRM handover | ⬜ | |
+| R4 | 22 document factory | ⬜ | |
+| R5 | 07 unit progress control | ⬜ | |
+| R5 | 08 changeability engine | ⬜ | |
+| R5 | 09 spec revisions | ⬜ | |
+| R5 | 24 sales inventory & discovery | ⬜ | |
+| R5 | 18 change requests | ⬜ | |
+| R6 | 15 QA evidence & snags | ⬜ | |
+| R6 | 16 handover gates | ⬜ | |
+| R6 | 23 registration | ⬜ | |
+| R6 | 29 communications | ⬜ | |
+| R6 | 30 post-handover | ⬜ | |
+| R7 | 28 360 views | ⬜ | |
+| R7 | 31 intelligence | ⬜ | |
+
+Order follows dependency first, then Amarsh's Q3 priority (cash → Control Tower → portal → My Day → customisation → handover/QA → documents). Detailed log: `docs/demo/run-log.md`; demo script: `docs/demo/click-path.md`.
+
+---
+
 ## 1. The final state in one paragraph (p33 §29)
 
 A customer opens My Pranava Home and understands their journey. An employee opens My Day and knows what matters. A functional head sees where the process fails. Management sees only material exceptions. The unit retains a permanent digital history. Risk is predicted before it becomes a complaint. Every failure traces to customer, schedule and margin impact.
@@ -226,6 +277,7 @@ Defaults accepted by silence (2026-09-05): staff-entered receipts/loans/SRO slot
 19. **Clean-code gates**: ESLint strict + Prettier + `knip` in CI alongside tsc/tests.
 21. **Brand (05:50):** researched from the logo file + pranavagroup.com — orange `#E74C0A` (logo `#E65123`), ink `#1C1F26`, charcoal `#424242`, Jost typeface, tagline "Presenting the Future". Assets in `docs/brand/`. Orange is the accent only; Jost for headings, Geist for body/data. Claude Design project "Pranava HomeFlow" created (`a9dbd115-c63e-4358-a8fe-a57754659c37`); `/design-login` done. Still ask Pranava for the SVG logo (§8).
 22. **Demo (05:58): today, CEO + CFO, not movable, "complete app, prod-usable after adding the client's Google/mailbox".** Claude stated the dependency-graph estimate (days, not hours, for P0+P1) and the refusal to show mock screens or static numbers; Amarsh: "trust the process and keep going as far and fast as you can". Rule for today: build in dependency order, deploy every merged lane to the URL, demo exactly what is verified end to end at demo time, label the rest "in build" honestly. Amarsh will switch his own session to Sonnet during implementation (forks inherit the parent model).
+23. **Grill-me outcomes (06:05–06:20):** Q2 demo hour → Amarsh tells Claude later; freeze `main` 90 min before, smoke everything against the URL, fixes only inside the freeze. Q3 priority after foundation: cash/collections → Control Tower → portal → My Day → customisation/twin → handover/QA → documents. Q4 demo data extended per feature only where needed, always reconciling. Q5 default App Runner URL (custom domain is a client ask). Q6 Claude Design review non-blocking today. Q7 4 lanes (→6 if no 429s), push often, resume on same branch, two acceptance failures = stop and log. Q8 role accounts `<role>@demo.pranava` / `Demo@2026`, plus a live invite of the CFO in the room (smoke-tested first). Q9 three-line report per merge + `docs/demo/run-log.md` + `docs/demo/click-path.md`. Q10 no dead ends; Management → Roadmap page. Q11 main thread stays on Fable, no forks, Sonnet agents only. Target = everything; if short at demo time, decide together then.
 20. New dependencies approved for 32: `motion` (framer-motion v12), self-hosted Geist Sans/Mono + Newsreader woff2, `@axe-core/playwright`. Any other new dependency still needs a one-line ask.
 
 (Earlier Cognito note withdrawn — superseded by 12.)

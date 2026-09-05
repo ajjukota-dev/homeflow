@@ -46,8 +46,11 @@ Appendix B has no auth rows; add `auth.*` and `access.*` families (rule 11).
 ## Config
 `permission_matrix`, `field_sensitivity`, `project_team_assignment` are Policy Studio tables (p26 §21 "Role/permission matrix and field-level sensitivity", "Project Team Assignment matrix").
 
+## Demo accounts (seed)
+One staff user per PDF §13 role: `<role>@demo.pranava` (`management@demo.pranava`, `crm@…`, `accounts@…`, `sales@…`, `legal@…`, `registration@…`, `site@…`, `qa@…`, `customisation@…`, `fm@…`, `banking@…`, `superadmin@…`) and one customer login `customer@demo.pranava` bound to the primary seeded booking; password `Demo@2026` for all, documented in `seed/users.ts` and `docs/demo/click-path.md`. Real invites (CEO/CFO in the room) go through the normal invite flow over Gmail SMTP.
+
 ## Acceptance
-p37 §31.5 t1, t2, t9 · p44 §33.6 t3 · p31 §26 "Internal notes … remain internal" (masking test) · rule tests 1–10 · Playwright: login as each of the 12 staff roles with seeded demo users; a Sales user sees no Site write controls.
+p37 §31.5 t1, t2, t9 · p44 §33.6 t3 · p31 §26 "Internal notes … remain internal" (masking test) · rule tests 1–10 · Playwright: login as each of the 12 staff roles with seeded demo users; a Sales user sees no Site write controls · **Live smoke against the deployed URL:** Admin invites a fresh email → mail arrives via SMTP (file adapter in CI, real Gmail in smoke) → link sets password → lands in Management. This is demoed live; it must be in the pre-demo smoke run.
 
 ## Depends on / Feeds
 Depends on 03 (db, mailer, migrations). Feeds every other spec (`ctx.actor`).
