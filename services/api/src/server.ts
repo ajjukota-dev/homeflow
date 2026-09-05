@@ -21,6 +21,7 @@ import {
 import { postReceipt } from "./demands-receipts";
 import { projectCollections, listOverdueReasons } from "./collections-view";
 import { registerLifecycleRoutes } from "./routes-lifecycle";
+import { registerModelRoutes } from "./routes-model";
 import { getAudit } from "./events";
 
 // Local API gateway. Handlers are Lambda-portable; this Express wrapper is the local
@@ -181,6 +182,7 @@ app.get("/api/audit", async (req, res) => {
 });
 
 registerLifecycleRoutes(app);
+registerModelRoutes(app);
 
 const PORT = Number(process.env.PORT ?? 3001);
 initDb().then(() => {
