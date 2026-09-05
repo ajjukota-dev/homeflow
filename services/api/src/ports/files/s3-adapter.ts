@@ -28,5 +28,9 @@ export function createS3FilesAdapter(bucket: string, region: string): FilesPort 
       assertSafeKey(key);
       await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
     },
+    async putBuffer(key, data, contentType) {
+      assertSafeKey(key);
+      await client.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: data, ContentType: contentType }));
+    },
   };
 }

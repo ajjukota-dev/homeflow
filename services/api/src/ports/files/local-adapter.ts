@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, unlinkSync } from "node:fs";
+import { existsSync, mkdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { FilesPort } from "./types";
 import { assertSafeKey } from "./types";
@@ -34,6 +34,10 @@ export function createLocalFilesAdapter(): FilesPort {
     async delete(key) {
       const p = localFilePath(key);
       if (existsSync(p)) unlinkSync(p);
+    },
+    async putBuffer(key, data) {
+      ensureLocalFilesDir(key);
+      writeFileSync(localFilePath(key), data);
     },
   };
 }
