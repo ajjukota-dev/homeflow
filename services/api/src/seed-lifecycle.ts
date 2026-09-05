@@ -1,4 +1,4 @@
-import type { PGlite } from "@electric-sql/pglite";
+import type { DbClient } from "./db/types";
 import { nextCode } from "./model/codes";
 
 const AOS_BODY = `AGREEMENT FOR SALE
@@ -17,7 +17,7 @@ const AOS_FIELDS = JSON.stringify([
   { key: "consideration", label: "Consideration", source_ref: "booking.total_consideration", mandatory: true },
 ]);
 
-export async function seedLifecycleDemo(db: PGlite) {
+export async function seedLifecycleDemo(db: DbClient) {
   await db.query(
     `INSERT INTO document_template
       (id, document_family, project_id, property_type, transaction_type, status, version, body, mandatory_fields, checksum)
@@ -69,7 +69,7 @@ export async function seedLifecycleDemo(db: PGlite) {
   await seedHandedOverVilla(db);
 }
 
-async function seedKeysVilla(db: PGlite) {
+async function seedKeysVilla(db: DbClient) {
   const ananyaCode = await nextCode(db, "CUS");
   const v112Code = await nextCode(db, "BKG");
   await db.query(
@@ -112,7 +112,7 @@ async function seedKeysVilla(db: PGlite) {
   `);
 }
 
-async function seedHandedOverVilla(db: PGlite) {
+async function seedHandedOverVilla(db: DbClient) {
   const rohanCode = await nextCode(db, "CUS");
   const v113Code = await nextCode(db, "BKG");
   await db.query(

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { db } from "./db";
+import { clock } from "./ports/clock";
 import { type DemandStatus } from "./collections";
 import type { DbLike } from "./events";
 
@@ -24,8 +25,10 @@ export interface DemandRow {
   has_active_ptp: boolean;
 }
 
+// Was UTC (`new Date().toISOString().slice(0,10)`) — fixed to IST via the
+// clock port (03-platform-deploy.md); callers/signature unchanged.
 export function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  return clock.todayIst();
 }
 
 export function asDate(value: string | Date): string;

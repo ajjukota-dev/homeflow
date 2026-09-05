@@ -1,6 +1,8 @@
 import express from "express";
 import cors from "cors";
-import { initDb } from "./db";
+import { initDb, checkHealth } from "./db";
+import { registerStaticRoutes } from "./static";
+import { registerLocalFileRoutes } from "./ports/files";
 import { listUnits, getUnit, setProgress } from "./handlers";
 import {
   MANDATORY_DOCS,
@@ -31,6 +33,13 @@ app.use(cors());
 app.use(express.json());
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
+
+// Container health check (03-platform-deploy.md) — checks the DB, used by
+// App Runner and the deploy smoke test.
+app.get("/health", async (_req, res) => {
+  const dbOk = await checkHealth();
+  res.status(dbOk ? 200 : 503).json({ ok: dbOk, db: dbOk });
+});
 
 app.get("/api/units", async (req, res) => {
   res.json({ data: await listUnits(req.query.project_id as string | undefined) });
@@ -183,6 +192,19 @@ app.get("/api/audit", async (req, res) => {
 
 registerLifecycleRoutes(app);
 registerModelRoutes(app);
+
+// files port: local-disk adapter serves its own presigned-URL routes; the
+// s3 adapter needs no server route (real presigned URLs hit S3 directly).
+if (!process.env.FILES_BUCKET) registerLocalFileRoutes(app);
+
+// Any /api/* path not matched above is a real API 404, not the SPA shell —
+// without this, static.ts's catch-all `app.get("*")` would hand other lanes
+// an HTML index page for a typo'd or not-yet-built route (found in review).
+app.use("/api", (_req, res) => res.status(404).json({ errors: [{ code: "not_found" }] }));
+
+// Static SPA hosting (container only — see static.ts) must come after every
+// /api/* route so it never shadows them.
+registerStaticRoutes(app);
 
 const PORT = Number(process.env.PORT ?? 3001);
 initDb().then(() => {

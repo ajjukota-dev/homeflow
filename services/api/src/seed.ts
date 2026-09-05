@@ -1,18 +1,18 @@
-import type { PGlite } from "@electric-sql/pglite";
+import type { DbClient } from "./db/types";
 import { seedLifecycleDemo } from "./seed-lifecycle";
 import { seedCanonicalDemo } from "./seed-canonical";
 import { nextCode } from "./model/codes";
 
 // Configuration + sample project data (not hard-coded UI values).
 
-async function setState(db: PGlite, unitId: string, component: string, state: string) {
+async function setState(db: DbClient, unitId: string, component: string, state: string) {
   await db.query(
     `UPDATE unit_progress SET state_code=$1, updated_at=now() WHERE unit_id=$2 AND component_code=$3`,
     [state, unitId, component]
   );
 }
 
-async function seedPlan(db: PGlite, planId: string, projectId: string | null) {
+async function seedPlan(db: DbClient, planId: string, projectId: string | null) {
   await db.query(`INSERT INTO payment_plan (id, project_id, name, basis) VALUES ($1,$2,$3,$4)`, [
     planId,
     projectId,
@@ -29,7 +29,7 @@ async function seedPlan(db: PGlite, planId: string, projectId: string | null) {
   `);
 }
 
-export async function seed(db: PGlite) {
+export async function seed(db: DbClient) {
   await db.exec(`INSERT INTO project
       (id, code, name, rera_reg_no, escrow_note, portfolio_id, product_type, legal_entity,
        jurisdiction, escrow_account_ref, launch_date, planned_handover_date, status)
@@ -141,7 +141,7 @@ export async function seed(db: PGlite) {
   await seedLifecycleDemo(db);
 }
 
-async function seedMoneyDemo(db: PGlite) {
+async function seedMoneyDemo(db: DbClient) {
   // V110 — Karthik: settled + due + overdue + true-risk + scheduled
   const karthikCode = await nextCode(db, "CUS");
   const v110Code = await nextCode(db, "BKG");
