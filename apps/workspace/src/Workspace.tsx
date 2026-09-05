@@ -10,6 +10,7 @@ import { LegalFactory } from "./pages/LegalFactory";
 import { QaHandover } from "./pages/QaHandover";
 import { PostHandover } from "./pages/PostHandover";
 import { ControlTower } from "./pages/ControlTower";
+import { Roadmap } from "./pages/management/Roadmap";
 import { AdminUsers } from "./pages/admin/Users";
 import { AdminTeams } from "./pages/admin/Teams";
 import { AdminPermissionMatrix } from "./pages/admin/PermissionMatrix";
@@ -97,6 +98,7 @@ export function Workspace({ me, onLogout }: { me: NonNullable<ReturnType<typeof 
     qa: <QaHandover projectId={projectId} />,
     after: <PostHandover projectId={projectId} />,
     tower: <ControlTower projectId={projectId} />,
+    roadmap: <Roadmap />,
     "admin-users": <AdminUsers />,
     "admin-teams": <AdminTeams projectId={projectId} />,
     "admin-permissions": <AdminPermissionMatrix />,

@@ -20,6 +20,17 @@ for (const s of sizes) {
   });
 }
 
+for (const s of sizes) {
+  test(`Roadmap @ ${s.name}`, async ({ page }) => {
+    await page.setViewportSize({ width: s.width, height: s.height });
+    await page.goto("/");
+    await page.getByRole("button", { name: /Roadmap/ }).first().click();
+    await expect(page.getByRole("heading", { name: "Roadmap" })).toBeVisible();
+    await expect(page.getByText("31").first()).toBeVisible();
+    await page.screenshot({ path: shot(`roadmap-${s.name}`), fullPage: true });
+  });
+}
+
 // --- The H2 flow: book → CRM accept → Customer 360 (desktop) ---
 test("Booking → CRM handoff → Customer 360", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
