@@ -3,6 +3,7 @@
 
 import { lifecycleApi } from "./api-lifecycle";
 import { eventsApi } from "./api-events";
+import { modelApi } from "./api-model";
 
 export type GateState = "OPEN" | "CLOSING" | "CONDITIONAL" | "EXCEPTION_ONLY" | "HARD_CLOSED";
 export type ProgressState = "not_started" | "in_progress" | "complete" | "verified";
@@ -190,4 +191,5 @@ export const api = {
     }).then((r) => json<unknown>(r)),
   ...lifecycleApi,
   ...eventsApi,
+  ...modelApi,
 };

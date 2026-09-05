@@ -91,6 +91,32 @@ export async function insertUnit(
   return id;
 }
 
+/** Admin → Units table projection: every physical/product field, not just the booking-facing
+ * subset `handlers.ts`'s listUnits returns (kept separate to avoid widening that shared route). */
+export async function listUnitsForProject(projectId: string) {
+  const r = await db.query<{
+    id: string;
+    unit_number: string;
+    code: string;
+    unit_type: string;
+    facing: string;
+    product_type: ProductType;
+    sale_status: string;
+    hierarchy_node_id: string;
+    floor_no: number | null;
+    carpet_area_sqft: number | null;
+    plot_area_sqyd: number | null;
+    base_price_inr: number | null;
+  }>(
+    `SELECT id, unit_number, code, unit_type, facing, product_type, sale_status, hierarchy_node_id,
+            floor_no, carpet_area_sqft::float8 AS carpet_area_sqft, plot_area_sqyd::float8 AS plot_area_sqyd,
+            base_price_inr::float8 AS base_price_inr
+       FROM unit WHERE project_id = $1 ORDER BY unit_number`,
+    [projectId]
+  );
+  return r.rows;
+}
+
 export interface BulkUnitRangeInput {
   hierarchy_node_id?: string;
   floor_from: number;

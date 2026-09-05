@@ -32,6 +32,7 @@ const PATCHABLE = [
   "jurisdiction",
   "rera_reg_no",
   "escrow_account_ref",
+  "location",
   "launch_date",
   "planned_handover_date",
   "status",

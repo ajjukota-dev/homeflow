@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { getProjectMaster, updateProject } from "./model/projects";
 import { createHierarchyNode, listHierarchy } from "./model/hierarchy";
-import { bulkCreateUnits } from "./model/units";
+import { bulkCreateUnits, listUnitsForProject } from "./model/units";
 import { listApplicants, setApplicants } from "./model/applicants";
 import { mergePreview, mergeCustomer, updateCustomerResidency } from "./model/customers";
 import { confirmBooking, cancelBooking, transferBooking } from "./model/bookings";
@@ -44,7 +44,11 @@ export function registerModelRoutes(app: Express) {
     }
   });
 
-  // --- Bulk unit range create (04 §Screens "Units") ---
+  // --- Units (04 §Screens "Units"): admin projection + bulk range create ---
+  app.get("/api/projects/:id/units", async (req, res) => {
+    res.json({ data: await listUnitsForProject(req.params.id) });
+  });
+
   app.post("/api/projects/:id/units/bulk", async (req, res) => {
     try {
       const ids = await bulkCreateUnits(req.params.id, req.body ?? {});

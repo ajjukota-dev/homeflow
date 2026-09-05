@@ -39,6 +39,7 @@ ALTER TABLE project ADD COLUMN product_type text NOT NULL DEFAULT 'VILLA'
 ALTER TABLE project ADD COLUMN legal_entity text;
 ALTER TABLE project ADD COLUMN jurisdiction text;
 ALTER TABLE project ADD COLUMN escrow_account_ref text;
+ALTER TABLE project ADD COLUMN location text;
 ALTER TABLE project ADD COLUMN launch_date date;
 ALTER TABLE project ADD COLUMN planned_handover_date date;
 ALTER TABLE project ADD COLUMN status text NOT NULL DEFAULT 'ACTIVE'
