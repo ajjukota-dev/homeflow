@@ -266,3 +266,17 @@ Amarsh: "dont stop - this was supposed to be an autonomous run." Continuing with
 - Gotcha hit: calling a function that opens its own `withTx` from inside another `withTx` hangs on the single-connection PGlite adapter (5 s timeout). Restructured accept into sequential transactions.
 - Journey instantiation came free — 06's existing `sales_handover.accepted` subscriber fires from the unchanged `acceptBooking`. Test asserts `journey_instance` exists after accept.
 - Next: 22 (document factory) — re-checking its dependency line before starting.
+
+## 00:09 IST 2026-09-06 — checkpoint: 22 skipped (Amarsh's call), 07 is next
+
+- Surveyed 22 before starting: 8 tables; its `document_template`/`generated_document` redesign (new column names, UPPERCASE statuses) collides with 4 live readers (qa.ts, scores/booking-readiness.ts, transparency.ts, seed-lifecycle.ts) + 4 test files on the current lowercase vocabulary; its Files list says "replace `legal-docs*.ts`" — same instruction class 17 declined. Offered thin slice (rule 8 customer-document checklist) / full factory / skip. Amarsh chose skip. 17's `documents_section` stays on `booking.docs`.
+- R5 candidates by real dependency line: 07 needs only 01/02/04 (all built) — the sole unblocked one. 15 needs 07; 16 needs 15/22/23; 18 needs 08/09/15/22/26; 23 needs 22/20. Building 07.
+- Known going in (TODO §9): `component_definition` and `unit_progress` already exist in `0000_init.sql` — 07's migration must ALTER, not CREATE; 0006 is taken, so it lands as 0031.
+
+## 00:25 IST 2026-09-06 — R5: unit progress control backend merged (07-unit-progress-control.md) + DB session clock fix
+
+- `0031_progress.sql` ALTERs `unit_progress`/`component_definition` in place (+ new `progress_bulk_update`, `progress_reopen`), `progress/{core,freshness,gate-inputs}.ts`, `routes-progress.ts`; `handlers.ts::setProgress` is now a compatible wrapper over `updateProgress`, so every write path gets rules 1–4/7/8. 9 new tests (rules 1–8), tsc clean, full suite 82/82 files, 493/493 tests.
+- Found and fixed at the cause (own commit in PR #36): PGlite's session TimeZone is GMT (RDS is UTC) while the app's `today()` is IST, so every SQL `CURRENT_DATE` — seed demand due dates, `journey/instances.ts` `actual_end`, 17/07 effective-dating reads — was one day behind IST from 00:00–05:30 IST. Surfaced at 00:20 IST as `collections-view.test.ts:40` / `demands.test.ts:174` failing on seed `d_v110_2` (due `CURRENT_DATE` → classified OVERDUE against IST today). Proven with a direct query: `current_date` 2026-09-05 vs `todayIst()` 2026-09-06. Both adapters now pin `SET TIME ZONE 'Asia/Kolkata'` per session (`db/session.ts`). Five JS-side UTC-day lines remain, enumerated in TODO §9 for one follow-up.
+- `rework` added to `gates.ts::ProgressState`; the compiler found exactly two `Record<ProgressState, number>` sites (`gates.ts`, `customer.ts`) — both rank it with in_progress.
+- Registry coverage test caught a real gap: my rule-6 test asserted the stale sweep's action but not its `progress.stale` event — assertion added, not the test relaxed.
+- Next: 15 (QA evidence & snags) — the one spec 07 unblocks directly.

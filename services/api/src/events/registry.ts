@@ -128,6 +128,10 @@ export const EVENT_TYPES: EventTypeDef[] = [
   { name: "loan.blocker_resolved", family: "loan", customer_visible: false, built: true },
   { name: "loan.rejected", family: "loan", customer_visible: false, built: true },
   { name: "loan.withdrawn", family: "loan", customer_visible: false, built: true },
+  // 07 unit progress control — Appendix B has progress.updated only; these are its extensions.
+  { name: "progress.reopened", family: "progress", customer_visible: false, built: true },
+  { name: "progress.bulk_applied", family: "progress", customer_visible: false, built: true },
+  { name: "progress.stale", family: "progress", customer_visible: false, built: true },
 ];
 
 /** Appendix B (p42) names verbatim — the coverage test's universe. Extensions are exempt by design. */
