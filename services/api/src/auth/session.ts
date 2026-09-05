@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { query } from "../db";
 import { buildActor } from "../authz/buildActor";
+import { appendAuthEvent } from "./events";
 import type { Actor } from "../authz/types";
 
 // Data model: session.id stores sha256(token) hex — the raw token only ever
@@ -44,6 +45,10 @@ export async function validateSessionToken(token: string): Promise<Actor | null>
 
   if (actor.kind === "STAFF" && now.getTime() - new Date(row.last_seen_at).getTime() > STAFF_IDLE_MS) {
     await revokeSessionById(id);
+    // Rule 11: system-initiated revocation (not the user's own logout) is a
+    // distinct event; actor_user_id is null because no one acted, session
+    // idled out.
+    await appendAuthEvent("auth.session_revoked", null, row.user_id, { reason: "idle_timeout" });
     return null;
   }
 
@@ -63,4 +68,5 @@ export async function revokeSession(token: string): Promise<void> {
 /** Rule 3: password reset revokes every other session for the user. */
 export async function revokeAllSessionsForUser(userId: string): Promise<void> {
   await query(`UPDATE session SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL`, [userId]);
+  await appendAuthEvent("auth.session_revoked", userId, userId, { reason: "password_reset" });
 }

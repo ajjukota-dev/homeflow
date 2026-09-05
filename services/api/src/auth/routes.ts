@@ -5,6 +5,7 @@ import { me } from "./me";
 import { requestPasswordReset, completePasswordReset } from "./reset";
 import { acceptInvite } from "./invite";
 import { requireSession, type AuthedRequest } from "./middleware";
+import { validateSessionToken } from "./session";
 import { readSessionCookie, setSessionCookie, clearSessionCookie } from "./cookie";
 import { listUsers, createUser, updateUser } from "./adminUsers";
 import { createAssignment, updateAssignment, listAssignments } from "./adminAssignments";
@@ -40,9 +41,15 @@ export function registerAuthRoutes(app: Express): void {
     }
   });
 
+  // Not requireSession: logout must succeed (idempotently) even against an
+  // already-expired/revoked cookie. Rule 11 still requires the auth.logout
+  // event when the token *was* a live session, so resolve the actor here
+  // rather than relying on req.actor, which requireSession never sets for
+  // this route (it is registered before the global requireSession gate).
   app.post("/api/auth/logout", async (req: AuthedRequest, res) => {
     const token = readSessionCookie(req);
-    if (token) await logout(token, req.actor ?? null);
+    const actor = token ? await validateSessionToken(token) : null;
+    if (token) await logout(token, actor);
     clearSessionCookie(res);
     res.json({ data: { ok: true } });
   });

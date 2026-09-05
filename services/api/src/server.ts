@@ -11,7 +11,7 @@ import {
   listCustomers,
   getCustomer,
 } from "./bookings";
-import { getCustomerHome, firstActiveBooking } from "./customer";
+import { getCustomerHome, firstActiveBooking, bookingForCustomerUser } from "./customer";
 import { listProjects, createProject, createUnit } from "./projects";
 import {
   listDemands,
@@ -22,7 +22,7 @@ import { postReceipt } from "./demands-receipts";
 import { projectCollections, listOverdueReasons } from "./collections-view";
 import { registerLifecycleRoutes } from "./routes-lifecycle";
 import { registerAuthRoutes } from "./auth/routes";
-import { requireSession } from "./auth/middleware";
+import { requireSession, type AuthedRequest } from "./auth/middleware";
 
 // Local API gateway. Handlers are Lambda-portable; this Express wrapper is the local
 // mirror (architecture.md §6b) — the same handlers run behind API Gateway on AWS.
@@ -111,8 +111,14 @@ app.post("/api/bookings/:id/return", async (req, res) => {
 });
 
 // --- My Pranava Home (customer portal, H10-filtered) ---
-app.get("/api/me/home", async (req, res) => {
-  const bookingId = (req.query.booking_id as string) || (await firstActiveBooking());
+// 01-identity-access.md Rule 4: a CUSTOMER session always resolves to its own
+// booking via customer_login — booking_id/firstActiveBooking() fallbacks are
+// for staff previewing the portal only, never for an authenticated customer
+// (that used to leak whichever booking was "first active" to any customer).
+app.get("/api/me/home", async (req: AuthedRequest, res) => {
+  const actor = req.actor!;
+  const bookingId =
+    actor.kind === "CUSTOMER" ? await bookingForCustomerUser(actor.user_id) : (req.query.booking_id as string) || (await firstActiveBooking());
   if (!bookingId) return res.status(404).json({ errors: [{ code: "no_booking" }] });
   const home = await getCustomerHome(bookingId);
   if (!home) return res.status(404).json({ errors: [{ code: "not_found" }] });

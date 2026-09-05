@@ -53,6 +53,28 @@ test("SITE lands on the Project / Site workspace", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Unit Progress Control" })).toBeVisible();
 });
 
+// Rule 9 "workspace opens in the user's default Project/home view", walked
+// across every seeded demo login (not just SALES/SITE above) — this is what
+// caught CUSTOMISATION landing on an empty-nav Control tower before the fix.
+const ROLE_LANDINGS: [string, string][] = [
+  ["management@demo.pranava", "Control tower"],
+  ["crm@demo.pranava", "CRM · Relationship"],
+  ["accounts@demo.pranava", "Collections"],
+  ["banking@demo.pranava", "Collections"],
+  ["legal@demo.pranava", "Document factory"],
+  ["registration@demo.pranava", "Document factory"],
+  ["qa@demo.pranava", "QA & handover"],
+  ["customisation@demo.pranava", "CRM · Relationship"],
+  ["fm@demo.pranava", "After keys"],
+  ["superadmin@demo.pranava", "Unit Progress Control"],
+];
+for (const [email, heading] of ROLE_LANDINGS) {
+  test(`${email} lands on "${heading}"`, async ({ page }) => {
+    await login(page, email, "Demo@2026");
+    await expect(page.getByRole("heading", { name: heading })).toBeVisible();
+  });
+}
+
 test("wrong password shows an error and does not sign in", async ({ page }) => {
   await login(page, "sales@demo.pranava", "wrong-password");
   await expect(page.getByRole("alert")).toContainText(/incorrect email or password/i);

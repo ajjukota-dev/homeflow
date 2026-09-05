@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { query } from "../db";
 import { authorize } from "../authz/authorize";
-import { todayIst } from "../authz/clock";
+import { todayIst, yesterdayIst } from "../authz/clock";
 import type { Level } from "../authz/levels";
 import { AppError, type Ctx } from "../authz/types";
 import { appendAuthEvent } from "./events";
@@ -35,7 +35,7 @@ export async function putPermissionMatrix(input: PutPermissionMatrixInput, ctx: 
   if (!input.changes?.length) throw new AppError("validation", "changes[] is required");
 
   const today = todayIst();
-  const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const yesterday = yesterdayIst();
 
   for (const change of input.changes) {
     const current = await query<{ version: number }>(

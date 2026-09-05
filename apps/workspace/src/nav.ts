@@ -19,7 +19,7 @@ export type View =
 export const NAV: { id: View; label: string; role: string; short: string; Icon: typeof Building2; roles: string[] }[] = [
   { id: "site", label: "Project / Site", role: "Owns unit progress", short: "Site", Icon: Building2, roles: ["SITE", "QA", "MANAGEMENT", "SUPER_ADMIN"] },
   { id: "sales", label: "Sales", role: "Books, reads gates", short: "Sales", Icon: Store, roles: ["SALES", "MANAGEMENT", "SUPER_ADMIN"] },
-  { id: "crm", label: "CRM / RM", role: "Accepts, owns customers", short: "CRM", Icon: Users, roles: ["CRM", "MANAGEMENT", "SUPER_ADMIN"] },
+  { id: "crm", label: "CRM / RM", role: "Accepts, owns customers", short: "CRM", Icon: Users, roles: ["CRM", "CUSTOMISATION", "MANAGEMENT", "SUPER_ADMIN"] },
   { id: "accounts", label: "Accounts", role: "True-risk collections", short: "Cash", Icon: Banknote, roles: ["ACCOUNTS", "BANKING", "MANAGEMENT", "SUPER_ADMIN"] },
   { id: "legal", label: "Legal", role: "Documents & registration", short: "Legal", Icon: Scale, roles: ["LEGAL", "REGISTRATION", "MANAGEMENT", "SUPER_ADMIN"] },
   { id: "qa", label: "QA / Handover", role: "Evidence, then keys", short: "QA", Icon: ClipboardCheck, roles: ["QA", "SITE", "MANAGEMENT", "SUPER_ADMIN"] },
@@ -47,7 +47,11 @@ const ROLE_HOME: Record<string, View> = {
   REGISTRATION: "legal",
   SITE: "site",
   QA: "qa",
-  CUSTOMISATION: "site",
+  // CUSTOMISATION is seeded READ-only on customer_overview/customer_journey
+  // (see seed/permissions.ts CUSTOMISATION_MODULES) — CRM's customer-record
+  // view fits that footprint; Site carries unit-progress write controls the
+  // role has no grant for.
+  CUSTOMISATION: "crm",
   FM: "after",
 };
 

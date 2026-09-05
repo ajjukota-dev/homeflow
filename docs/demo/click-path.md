@@ -15,7 +15,7 @@ Email/password, one seeded staff user per PDF §13 role plus one customer login,
 | Registration | `registration@demo.pranava` | Legal |
 | Site | `site@demo.pranava` | Project / Site |
 | QA | `qa@demo.pranava` | QA / Handover |
-| Customisation | `customisation@demo.pranava` | Project / Site |
+| Customisation | `customisation@demo.pranava` | CRM / RM |
 | FM | `fm@demo.pranava` | After keys |
 | Banking | `banking@demo.pranava` | Accounts |
 | Super Admin | `superadmin@demo.pranava` | Project / Site (Admin → Users / Teams & Assignments / Permission matrix) |

@@ -125,3 +125,11 @@ export async function firstActiveBooking() {
   );
   return r.rows[0]?.id ?? null;
 }
+
+// 01-identity-access.md Rule 4: a logged-in customer must only ever resolve
+// to their OWN booking via customer_login — never firstActiveBooking(),
+// which would leak another customer's data to whoever is signed in.
+export async function bookingForCustomerUser(userId: string) {
+  const r = await db.query<{ booking_id: string }>(`SELECT booking_id FROM customer_login WHERE user_id = $1`, [userId]);
+  return r.rows[0]?.booking_id ?? null;
+}
