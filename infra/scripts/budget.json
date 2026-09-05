@@ -1,0 +1,7 @@
+{
+  "BudgetName": "homeflow-monthly-budget",
+  "BudgetLimit": { "Amount": "60", "Unit": "USD" },
+  "TimeUnit": "MONTHLY",
+  "BudgetType": "COST",
+  "CostFilters": { "TagKeyValue": ["user:Project$homeflow"] }
+}

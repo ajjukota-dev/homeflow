@@ -1,0 +1,105 @@
+name: ci
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch: {}
+  schedule:
+    - cron: "0 21 * * *" # 02:30 IST
+
+jobs:
+  secret-grep:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: fail on committed secret shapes
+        # 03-platform-deploy.md rule 4. Docs that spell the patterns out as
+        # examples (this file, infra/README.md's placeholder) are excluded
+        # deliberately — everything else must never match.
+        run: |
+          if grep -rIn \
+            -e 'sk-[A-Za-z0-9]\{20,\}' \
+            -e 'AKIA[0-9A-Z]\{16\}' \
+            -e 'SMTP_PASS=[^"$]' \
+            --exclude-dir=node_modules --exclude-dir=.git \
+            --exclude=.env.example \
+            --exclude=ci.yml \
+            --exclude=03-platform-deploy.md \
+            --exclude=README.md \
+            .
+          then
+            echo "::error::committed secret-shaped string found — see above"
+            exit 1
+          fi
+
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm ci --prefix services/api
+      - run: npm ci --prefix apps/workspace
+      - run: npm ci --prefix apps/my-pranava-home
+      - run: npm run typecheck
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm ci --prefix services/api
+      - run: npm ci --prefix apps/workspace
+      # pdf port tests need a real Chromium (rule 2's PGlite parity tests
+      # need nothing extra — DATABASE_URL is unset here, so they run
+      # against pglite; the RDS/pg parity run is the nightly job below).
+      - run: npx --prefix services/api playwright install --with-deps chromium
+      - run: npm --prefix services/api test
+      - run: npm --prefix apps/workspace test
+
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t homeflow-api:ci .
+
+  # Nightly / manual: proves the same SQL runs on real Postgres, not just
+  # pglite (rule 2). One test file at a time against a fresh schema — a
+  # single shared Postgres service container isn't isolated per file the
+  # way pglite is (see the r0/03-platform PR for the full note).
+  postgres-parity:
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: test }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm ci --prefix services/api
+      - name: run each test file against a freshly reset schema
+        working-directory: services/api
+        env:
+          DATABASE_URL: postgres://postgres:test@localhost:5432/postgres
+        run: |
+          for f in src/*.test.ts; do
+            node -e "
+              const { Pool } = require('pg');
+              (async () => {
+                const p = new Pool({ connectionString: process.env.DATABASE_URL });
+                await p.query('DROP SCHEMA public CASCADE; CREATE SCHEMA public;');
+                await p.end();
+              })();
+            "
+            npx vitest run "$f" --fileParallelism=false
+          done
