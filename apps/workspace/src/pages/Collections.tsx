@@ -7,8 +7,7 @@ import {
   type OverdueReason,
   type RiskBucket,
 } from "../api";
-import { Card, CardBody } from "../ui/Card";
-import { Button } from "../ui/Button";
+import { Card, CardBody, Button } from "@homeflow/ui";
 import { MoneyFigure } from "../ui/MoneyFigure";
 import { BucketChip } from "../ui/BucketChip";
 import { CollectionBuckets } from "./CollectionBuckets";
@@ -131,7 +130,7 @@ export function Collections({ projectId }: { projectId: string }) {
                           </Button>
                         )}
                         {row.bucket !== "PROMISE_TO_PAY" && row.bucket !== "DISPUTED" && (
-                          <Button size="sm" variant="tinted" onClick={() => promise(row)} disabled={busy === row.demand_id}>
+                          <Button size="sm" variant="secondary" onClick={() => promise(row)} disabled={busy === row.demand_id}>
                             Record PTP
                           </Button>
                         )}

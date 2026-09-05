@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { api } from "../../api";
 import type { HierarchyKind, HierarchyNode } from "../../api-model";
-import { Card, CardBody } from "../../ui/Card";
-import { Button } from "../../ui/Button";
+import { Card, CardBody, Button } from "@homeflow/ui";
 
 // Hierarchy tree editor (04 §Screens "Projects"). Add + list only — reordering ships as
 // up/down buttons once a PATCH sort_order endpoint exists; no drag-and-drop library (new

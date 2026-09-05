@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft, ShieldCheck } from "lucide-react";
 import { api, type Customer } from "../api";
-import { Card, CardBody } from "../ui/Card";
+import { Card, CardBody } from "@homeflow/ui";
 import { MoneyFigure } from "../ui/MoneyFigure";
 import { cn } from "../lib/utils";
 import { bookingStatusLabel, kycStatusLabel } from "../lib/labels";

@@ -1,8 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { authApi, ApiError } from "../auth/api";
 import { useAuth } from "../auth/AuthContext";
-import { Button } from "../ui/Button";
-import { Card, CardBody } from "../ui/Card";
+import { Button, Card, CardBody } from "@homeflow/ui";
 
 const inputCls =
   "w-full rounded-lg border border-line bg-surface px-3.5 py-2.5 text-body outline-none focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/30 disabled:opacity-50";
@@ -118,7 +117,7 @@ export function Login() {
               <p className="text-subhead text-fg-muted">
                 If an account exists for that email, a reset link is on its way.
               </p>
-              <Button variant="outline" onClick={() => setMode("signin")} className="w-full">
+              <Button variant="secondary" onClick={() => setMode("signin")} className="w-full">
                 Back to sign in
               </Button>
             </div>

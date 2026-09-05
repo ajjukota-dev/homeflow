@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { api } from "../../api";
 import type { BulkUnitRangeInput, ProductType } from "../../api-model";
-import { Card, CardBody } from "../../ui/Card";
-import { Button } from "../../ui/Button";
+import { Card, CardBody, Button } from "@homeflow/ui";
 
 // Bulk range create (04 §Screens "Units"): e.g. floors 1-12 × units A-D.
 

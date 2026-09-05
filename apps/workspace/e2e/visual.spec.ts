@@ -195,10 +195,10 @@ test("Act on an intervention stamps Acted and persists across reload (H11)", asy
   const actButton = page.getByRole("button", { name: "Act" }).first();
   await expect(actButton).toBeVisible();
   const headline = await actButton
-    .locator("xpath=ancestor::div[contains(@class,'rounded-xl')][1]")
+    .locator("xpath=ancestor::div[contains(@class,'rounded-card')][1]")
     .locator("h2")
     .textContent();
-  const cardByHeadline = () => page.locator("h2", { hasText: headline! }).locator("xpath=ancestor::div[contains(@class,'rounded-xl')][1]");
+  const cardByHeadline = () => page.locator("h2", { hasText: headline! }).locator("xpath=ancestor::div[contains(@class,'rounded-card')][1]");
   await actButton.click();
   await expect(cardByHeadline().getByText(/Acted ·/)).toBeVisible();
   await expect(cardByHeadline().getByRole("button", { name: "Act" })).toHaveCount(0);

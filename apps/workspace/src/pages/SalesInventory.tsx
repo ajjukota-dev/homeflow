@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { RefreshCw, Home } from "lucide-react";
 import { api, type Unit } from "../api";
-import { Card, CardBody } from "../ui/Card";
+import { Card, CardBody, Button } from "@homeflow/ui";
 import { GateChip } from "../ui/GateChip";
 import { ScoreDial } from "../ui/ScoreDial";
-import { Button } from "../ui/Button";
 import { saleStatusLabel } from "../lib/labels";
 
 /** Pitch-angle logic (sales/spec.md §1.3) — derived from the live score. */
@@ -43,7 +42,7 @@ export function SalesInventory({ projectId, onBook }: { projectId: string; onBoo
             then refresh to watch the gates move.
           </p>
         </div>
-        <Button variant="tinted" size="sm" onClick={load} disabled={loading}>
+        <Button variant="secondary" size="sm" onClick={load} disabled={loading}>
           <RefreshCw className={loading ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
           Refresh
         </Button>

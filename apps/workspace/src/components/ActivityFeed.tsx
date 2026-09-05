@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import type { AuditRow } from "../api-events";
-import { Card, CardBody } from "../ui/Card";
-import { Segmented } from "../ui/Segmented";
+import { Card, CardBody, Segmented } from "@homeflow/ui";
 import { eventDescription, eventFamily } from "../lib/labels";
 
 // Reusable "Activity" tab for Booking/Unit/Customer 360 (spec 02 Screens): renders the
@@ -72,7 +71,7 @@ export function ActivityFeed({ entityType, entityId }: { entityType: string; ent
     <div className="flex flex-col gap-3">
       {families.length > 1 && (
         <Segmented
-          ariaLabel="Filter activity by family"
+          aria-label="Filter activity by family"
           value={family}
           onChange={setFamily}
           options={[{ value: "all", label: "All" }, ...families.map((f) => ({ value: f, label: f }))]}

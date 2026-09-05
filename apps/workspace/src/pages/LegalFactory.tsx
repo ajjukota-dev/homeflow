@@ -2,8 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Scale } from "lucide-react";
 import { api } from "../api";
 import type { LegalRow } from "../api-lifecycle";
-import { Card, CardBody } from "../ui/Card";
-import { Button } from "../ui/Button";
+import { Card, CardBody, Button } from "@homeflow/ui";
 import { cn } from "../lib/utils";
 import { documentStatusLabel, registrationStatusLabel } from "../lib/labels";
 
@@ -138,7 +137,7 @@ function LegalCard({
           {(status === "executed" || status === "archived") && row.registration.status !== "completed" && (
             <Button
               size="sm"
-              variant={row.financial.cleared ? "solid" : "outline"}
+              variant={row.financial.cleared ? "primary" : "secondary"}
               onClick={() => run(row.booking_id, () => api.completeRegistration(row.booking_id, "SRO/BNG/2026/LOCAL"))}
               disabled={busy === row.booking_id}
             >

@@ -2,8 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { HeartHandshake } from "lucide-react";
 import { api } from "../api";
 import type { ServiceEvent, WarrantyView } from "../api-lifecycle";
-import { Card, CardBody } from "../ui/Card";
-import { Button } from "../ui/Button";
+import { Card, CardBody, Button } from "@homeflow/ui";
 import { dlpWindowStatusLabel, warrantyCaseStatusLabel } from "../lib/labels";
 
 /** DLP, warranty cases, check-ins, unit service history (post-handover/spec.md §3.1). */
@@ -82,7 +81,7 @@ export function PostHandover({ projectId }: { projectId: string }) {
                       {w.policy_months}-month cover · {String(w.dlp_start).slice(0, 10)} to {String(w.dlp_end).slice(0, 10)} · {dlpWindowStatusLabel(w.status)}
                     </p>
                   </div>
-                  <Button size="sm" variant="tinted" className="sm:ml-auto" onClick={() => openHistory(w.unit_id)}>
+                  <Button size="sm" variant="secondary" className="sm:ml-auto" onClick={() => openHistory(w.unit_id)}>
                     Service history
                   </Button>
                 </CardBody>
@@ -133,7 +132,7 @@ export function PostHandover({ projectId }: { projectId: string }) {
                     </p>
                   </div>
                   {c.status !== "captured" && (
-                    <Button size="sm" variant="tinted" onClick={() => run(c.id, () => api.captureCheckin(c.id))} disabled={busy === c.id}>
+                    <Button size="sm" variant="secondary" onClick={() => run(c.id, () => api.captureCheckin(c.id))} disabled={busy === c.id}>
                       Capture
                     </Button>
                   )}

@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Inbox, ChevronRight } from "lucide-react";
 import { api, type Booking, type CustomerRow } from "../api";
-import { Card, CardBody } from "../ui/Card";
-import { Button } from "../ui/Button";
+import { Card, CardBody, Button } from "@homeflow/ui";
 import { MoneyFigure } from "../ui/MoneyFigure";
 import { Customer360 } from "./Customer360";
 
@@ -124,7 +123,7 @@ export function CrmQueue({ roles }: { roles: string[] }) {
                         placeholder="Reason for return…"
                         className="flex-1 rounded-lg border border-line bg-surface px-3 py-2 text-body outline-none focus:border-accent"
                       />
-                      <Button size="sm" variant="outline" onClick={() => submitReturn(b.id)}>
+                      <Button size="sm" variant="secondary" onClick={() => submitReturn(b.id)}>
                         Send back
                       </Button>
                     </div>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, type Project } from "../../api";
 import type { ProjectMaster, ProductType, ProjectStatus } from "../../api-model";
-import { Card, CardBody } from "../../ui/Card";
+import { Card, CardBody } from "@homeflow/ui";
 import { HierarchyEditor } from "./HierarchyEditor";
 import type { HierarchyNode } from "../../api-model";
 
