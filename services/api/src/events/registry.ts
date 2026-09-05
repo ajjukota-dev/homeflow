@@ -25,8 +25,8 @@ export const EVENT_TYPES: EventTypeDef[] = [
   { name: "demand.raised", family: "demand", customer_visible: true, built: true },
   { name: "payment.received", family: "payment", customer_visible: true, built: true },
   { name: "payment.reconciled", family: "payment", customer_visible: true, built: true },
-  { name: "loan.sanction_received", family: "loan", customer_visible: false, built: false },
-  { name: "loan.disbursement_received", family: "loan", customer_visible: false, built: false },
+  { name: "loan.sanction_received", family: "loan", customer_visible: false, built: true },
+  { name: "loan.disbursement_received", family: "loan", customer_visible: false, built: true },
   { name: "agreement.generated", family: "agreement", customer_visible: false, built: true },
   { name: "agreement.executed", family: "agreement", customer_visible: true, built: true },
   { name: "registration.scheduled", family: "registration", customer_visible: true, built: false },
@@ -105,6 +105,17 @@ export const EVENT_TYPES: EventTypeDef[] = [
   { name: "waiver.rejected", family: "waiver", customer_visible: false, built: true },
   { name: "clearance.approved", family: "clearance", customer_visible: false, built: true },
   { name: "clearance.rejected", family: "clearance", customer_visible: false, built: true },
+
+  // --- Loans (21-loans.md) — literal Events section names, plus loan.withdrawn (sanctioned
+  // extension: the spec names only "loan.rejected", but reusing that name for an actual
+  // WITHDRAWN outcome would be a false audit trail — same class of extension waiver.rejected
+  // already established for spec 19) ---
+  { name: "loan.application_submitted", family: "loan", customer_visible: false, built: true },
+  { name: "loan.stage_changed", family: "loan", customer_visible: false, built: true },
+  { name: "loan.blocker_recorded", family: "loan", customer_visible: false, built: true },
+  { name: "loan.blocker_resolved", family: "loan", customer_visible: false, built: true },
+  { name: "loan.rejected", family: "loan", customer_visible: false, built: true },
+  { name: "loan.withdrawn", family: "loan", customer_visible: false, built: true },
 ];
 
 /** Appendix B (p42) names verbatim — the coverage test's universe. Extensions are exempt by design. */

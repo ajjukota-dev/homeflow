@@ -193,8 +193,8 @@ async function seedMoneyDemo(db: DbClient) {
     INSERT INTO booking_applicant (id, booking_id, customer_id, display_name, role, phone, pan)
     VALUES ('a_v111','b_v111','c_meera','Meera Krishnan','primary','9845033344','XYZAB1234C');
     UPDATE unit SET sale_status = 'booked' WHERE id = 'u_v111';
-    INSERT INTO loan_case (id, booking_id, lender, sanctioned_amount, status)
-    VALUES ('lc_v111','b_v111','HDFC','6000000','docs_pending');
+    INSERT INTO loan_case (id, code, booking_id, project_id, lender_name, sanctioned_amount_inr, stage)
+    VALUES ('lc_v111','LN-DEMO01','b_v111','p_eastcrest','HDFC','6000000','DOCS_PENDING');
 
     INSERT INTO demand (id, booking_id, project_id, milestone_key, milestone_label, construction_trigger_event, sequence, amount, due_date, status, overdue_reason_code, loan_dependent) VALUES
       ('d_v111_1','b_v111','p_eastcrest','booking_token','Booking amount',NULL,1,800000,CURRENT_DATE,'due',NULL,true),
