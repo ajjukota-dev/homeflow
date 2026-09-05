@@ -1,0 +1,36 @@
+{
+  "version": "54.0.0",
+  "files": {
+    "8725836a19c0a9303e8aca16cb073f4666536b3a2acb3d41031ba4faf88f3193": {
+      "displayName": "ApiFn/Code",
+      "source": {
+        "path": "asset.8725836a19c0a9303e8aca16cb073f4666536b3a2acb3d41031ba4faf88f3193",
+        "packaging": "zip"
+      },
+      "destinations": {
+        "975050032697-ap-south-1-891eed13": {
+          "bucketName": "cdk-hnb659fds-assets-975050032697-ap-south-1",
+          "objectKey": "8725836a19c0a9303e8aca16cb073f4666536b3a2acb3d41031ba4faf88f3193.zip",
+          "region": "ap-south-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::975050032697:role/cdk-hnb659fds-file-publishing-role-975050032697-ap-south-1"
+        }
+      }
+    },
+    "8ccc724eeb34b15e805cb95326c0b927784f86cdd92b4445cfc6617397fa6fcd": {
+      "displayName": "HomeFlow-App Template",
+      "source": {
+        "path": "HomeFlow-App.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "975050032697-ap-south-1-2d3f8d46": {
+          "bucketName": "cdk-hnb659fds-assets-975050032697-ap-south-1",
+          "objectKey": "8ccc724eeb34b15e805cb95326c0b927784f86cdd92b4445cfc6617397fa6fcd.json",
+          "region": "ap-south-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::975050032697:role/cdk-hnb659fds-file-publishing-role-975050032697-ap-south-1"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}
