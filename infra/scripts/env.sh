@@ -2,6 +2,12 @@
 # Shared config for infra/scripts/*.sh — 03-platform-deploy.md.
 set -euo pipefail
 
+# On Windows/Git Bash, MSYS rewrites args that look like absolute Unix paths
+# (anything starting with "/") into Windows paths before the AWS CLI ever
+# sees them — silently corrupting ARNs, S3 keys, and CloudWatch log group
+# names like "/aws/apprunner/...". Harmless no-op on Linux/macOS CI runners.
+export MSYS_NO_PATHCONV=1
+
 export AWS_PROFILE=pranava
 export AWS_REGION=ap-south-1
 export ACCOUNT_ID=975050032697
