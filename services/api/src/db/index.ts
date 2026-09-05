@@ -5,6 +5,7 @@ import { seed } from "../seed";
 import { seedEventTypes } from "../events";
 import { seedIdentity } from "../seed/permissions";
 import { seedUsers } from "../seed/users";
+import { seedJourneyStandard } from "../seed/journey-standard";
 import type { DbClient } from "./types";
 
 export type { DbClient } from "./types";
@@ -59,6 +60,9 @@ export function initDb(): Promise<void> {
       if (Number(roleCount.rows[0]?.count ?? 0) === 0) {
         await seedIdentity();
       }
+      // Pranava Standard journey template is config too (05-journey-templates.md) — every
+      // environment needs a PUBLISHED template before any project can be assigned one.
+      await seedJourneyStandard(db);
       const seedAllowed = process.env.NODE_ENV !== "production" || process.env.SEED_DEMO === "1";
       if (!seedAllowed) return;
       const { rows } = await db.query<{ count: number }>(`SELECT count(*)::int AS count FROM project`);
