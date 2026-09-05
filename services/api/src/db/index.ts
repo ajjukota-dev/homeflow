@@ -14,6 +14,7 @@ import { seedHandoverChecklist } from "../seed/handover-checklist";
 import { seedSnagSlaPolicies, seedQaTemplates } from "../seed/qa-templates";
 import { seedDocumentChecklistRules } from "../seed/documents";
 import { seedCrApprovalRules } from "../seed/change-requests";
+import { seedRegistrationConfig } from "../seed/registration";
 import { registerJourneySubscribers } from "../journey/subscribers";
 import { registerNotificationSubscribers } from "../notifications/subscribers";
 import { registerEscalationSubscribers } from "../escalations/subscribers";
@@ -100,6 +101,9 @@ export function initDb(): Promise<void> {
       await seedDocumentChecklistRules(db);
       // 18 config: variation approval matrix (value/margin/schedule/freeze thresholds, UNCONFIRMED) + the default customisation policy.
       await seedCrApprovalRules(db);
+      // 23 config: a global fallback registration checklist template (pre_items/day_of_items),
+      // same "every environment needs a default before Studio configures a real one" treatment.
+      await seedRegistrationConfig(db);
       registerJourneySubscribers();
       registerNotificationSubscribers();
       registerEscalationSubscribers();

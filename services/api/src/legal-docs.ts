@@ -12,6 +12,7 @@ import { checksum, getDocument, liveSnapshot, source } from "./legal-docs-source
 import { appendEvent, withTx, actorFields } from "./events";
 import { authorize } from "./authz/authorize";
 import type { Ctx } from "./authz/types";
+import { nextCode } from "./model/codes";
 
 // Appendix B names only agreement.generated/executed for this factory. AOS is the only
 // template that exists today (seed-lifecycle.ts); once spec 22's Document Factory lands with
@@ -157,11 +158,15 @@ export async function completeRegistration(bookingId: string, sroReference: stri
   if (executed.rows.length === 0) throw new Error("executed_agreement_missing");
   const row = await source(bookingId);
   await withTx(undefined, async (t) => {
+    // code/unit_id are real NOT NULL columns since 23-registration.md's migration (0038) — a
+    // fresh INSERT here (no prior registration/core.ts case) needs both, same as any other
+    // producer of this row.
+    const code = await nextCode(t, "REG");
     await t.query(
-      `INSERT INTO registration_case (id, booking_id, project_id, status, sro_reference, completed_at)
-       VALUES ($1,$2,$3,'completed',$4, now())
-       ON CONFLICT (booking_id) DO UPDATE SET status = 'completed', sro_reference = $4, completed_at = now()`,
-      [randomUUID(), bookingId, row.project_id, sroReference]
+      `INSERT INTO registration_case (id, code, booking_id, unit_id, project_id, status, sro_reference, completed_at)
+       VALUES ($1,$2,$3,$4,$5,'completed',$6, now())
+       ON CONFLICT (booking_id) DO UPDATE SET status = 'completed', sro_reference = $6, completed_at = now()`,
+      [randomUUID(), code, bookingId, row.unit_id, row.project_id, sroReference]
     );
     await t.query(`UPDATE unit SET sale_status = 'registered' WHERE id = $1 AND sale_status <> 'handed_over'`, [
       row.unit_id,

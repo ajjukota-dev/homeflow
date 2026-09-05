@@ -109,8 +109,8 @@ export const TAB_REGISTRY: TabDef[] = [
   { key: "22.document_checklist_rules", label: "Document checklist rules", owner_spec: 22, built: true, edit_roles: ["LEGAL"] },
 
   // 23 — registration (not built)
-  { key: "23.registration_checklists", label: "Registration checklists", owner_spec: 23, built: false, edit_roles: ["REGISTRATION"] },
-  { key: "23.sro_offices", label: "SRO offices", owner_spec: 23, built: false, edit_roles: ["REGISTRATION"] },
+  { key: "23.registration_checklists", label: "Registration checklists", owner_spec: 23, built: true, edit_roles: ["REGISTRATION"] },
+  { key: "23.sro_offices", label: "SRO offices", owner_spec: 23, built: true, edit_roles: ["REGISTRATION"] },
 
   // 24 — holds (not built)
   { key: "24.hold_policy", label: "Hold policy", owner_spec: 24, built: true, edit_roles: MGMT }, // GET/PUT /api/hold-policy (routes-sales.ts); UI deferred
