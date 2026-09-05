@@ -29,6 +29,7 @@ import { registerModelRoutes } from "./routes-model";
 import { registerJourneyRoutes } from "./routes-journey";
 import { registerJourneyInstanceRoutes } from "./routes-journey-instances";
 import { registerActionRoutes } from "./routes-actions";
+import { registerStudioRoutes } from "./routes-studio";
 import { getAudit } from "./events";
 import { failHttp } from "./authz/httpError";
 
@@ -278,6 +279,7 @@ registerModelRoutes(app);
 registerJourneyRoutes(app);
 registerJourneyInstanceRoutes(app);
 registerActionRoutes(app);
+registerStudioRoutes(app);
 
 // files port: local-disk adapter serves its own presigned-URL routes; the
 // s3 adapter needs no server route (real presigned URLs hit S3 directly).
