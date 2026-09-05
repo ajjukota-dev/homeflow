@@ -3,6 +3,8 @@ import {
   bookingStatusLabel,
   dlpWindowStatusLabel,
   documentStatusLabel,
+  eventDescription,
+  eventFamily,
   gateRunStateLabel,
   gateTypeLabel,
   interventionCategoryLabel,
@@ -66,5 +68,31 @@ describe("fallback for unknown values", () => {
   });
   it("never renders an empty string for an empty input", () => {
     expect(saleStatusLabel("")).toBe("");
+  });
+});
+
+// ActivityFeed rendering (spec 02 Screens): every built event type reads as a plain sentence.
+describe("eventDescription — plain-language activity feed (02 Screens)", () => {
+  it("renders booking.created with the amount", () => {
+    expect(
+      eventDescription({ type: "booking.created", payload: { booking_number: "BK-1", total_consideration: 9000000 } })
+    ).toBe("Booking BK-1 created for ₹90,00,000");
+  });
+  it("renders payment.received with the amount", () => {
+    expect(eventDescription({ type: "payment.received", payload: { amount: 100000 } })).toBe(
+      "Payment of ₹1,00,000 received"
+    );
+  });
+  it("renders progress.updated with from/to", () => {
+    expect(
+      eventDescription({ type: "progress.updated", payload: { component: "structure", from: "not_started", to: "in_progress" } })
+    ).toBe("structure moved from not_started to in_progress");
+  });
+  it("falls back to a readable sentence for an unmapped type instead of crashing", () => {
+    expect(eventDescription({ type: "escalation.raised", payload: {} })).toBe("Escalation raised");
+  });
+  it("eventFamily extracts the family for filtering", () => {
+    expect(eventFamily("sales_handover.accepted")).toBe("sales_handover");
+    expect(eventFamily("booking.created")).toBe("booking");
   });
 });

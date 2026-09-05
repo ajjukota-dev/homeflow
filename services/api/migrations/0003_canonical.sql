@@ -1,0 +1,1 @@
+-- 0003 — canonical model (docs/specs/04-canonical-model.md). Filled in after 0002/events lands.

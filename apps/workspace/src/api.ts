@@ -2,6 +2,7 @@
 // The same calls hit API Gateway on AWS by changing the base URL only.
 
 import { lifecycleApi } from "./api-lifecycle";
+import { eventsApi } from "./api-events";
 
 export type GateState = "OPEN" | "CLOSING" | "CONDITIONAL" | "EXCEPTION_ONLY" | "HARD_CLOSED";
 export type ProgressState = "not_started" | "in_progress" | "complete" | "verified";
@@ -188,4 +189,5 @@ export const api = {
       body: JSON.stringify({ expected_date, expected_amount }),
     }).then((r) => json<unknown>(r)),
   ...lifecycleApi,
+  ...eventsApi,
 };

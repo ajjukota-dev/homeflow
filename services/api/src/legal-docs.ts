@@ -9,6 +9,11 @@ import {
 } from "./legal";
 import { bookingFinance } from "./finance";
 import { checksum, getDocument, liveSnapshot, source } from "./legal-docs-source";
+import { appendEvent, withTx } from "./events";
+
+// Appendix B names only agreement.generated/executed for this factory. AOS is the only
+// template that exists today (seed-lifecycle.ts); once spec 22's Document Factory lands with
+// other families, non-agreement ones should get their own document.* event names.
 
 // Legal Document Factory + registration (legal/spec.md, H4 / H7 / H8).
 
@@ -51,42 +56,88 @@ export async function generateDocument(bookingId: string, documentFamily = "AOS"
   );
   const version = Number(ver.rows[0].n) + 1;
   const id = randomUUID();
-  await db.query(
-    `INSERT INTO generated_document
-      (id, template_id, booking_id, project_id, unit_id, document_family, status, version, snapshot, body_rendered)
-     VALUES ($1,$2,$3,$4,$5,$6,'draft',$7,$8::jsonb,$9)`,
-    [
-      id,
-      tpl.rows[0].id,
-      bookingId,
-      row.project_id,
-      row.unit_id,
-      documentFamily,
-      version,
-      JSON.stringify(snapshot),
-      rendered.body,
-    ]
-  );
+  await withTx(undefined, async (t) => {
+    await t.query(
+      `INSERT INTO generated_document
+        (id, template_id, booking_id, project_id, unit_id, document_family, status, version, snapshot, body_rendered)
+       VALUES ($1,$2,$3,$4,$5,$6,'draft',$7,$8::jsonb,$9)`,
+      [
+        id,
+        tpl.rows[0].id,
+        bookingId,
+        row.project_id,
+        row.unit_id,
+        documentFamily,
+        version,
+        JSON.stringify(snapshot),
+        rendered.body,
+      ]
+    );
+    await appendEvent(t, {
+      type: "agreement.generated",
+      entity_type: "generated_document",
+      entity_id: id,
+      project_id: row.project_id,
+      booking_id: bookingId,
+      unit_id: row.unit_id,
+      payload: { document_family: documentFamily, version },
+    });
+  });
   return getDocument(id);
 }
 
+async function docLocation(id: string): Promise<{ project_id: string; unit_id: string }> {
+  const r = await db.query<{ project_id: string; unit_id: string }>(
+    `SELECT project_id, unit_id FROM generated_document WHERE id = $1`,
+    [id]
+  );
+  return r.rows[0];
+}
+
+/** Legal approves a drafted document. Not an Appendix B name — extension (registry.ts). */
 export async function approveDocument(id: string) {
   const doc = await getDocument(id);
   if (!doc) throw new Error("not_found");
   if (doc.status !== "draft") throw new Error("not_draft");
-  await db.query(`UPDATE generated_document SET status = 'legal_approved' WHERE id = $1`, [id]);
+  const loc = await docLocation(id);
+  await withTx(undefined, async (t) => {
+    await t.query(`UPDATE generated_document SET status = 'legal_approved' WHERE id = $1`, [id]);
+    await appendEvent(t, {
+      type: "document.approved",
+      entity_type: "generated_document",
+      entity_id: id,
+      project_id: loc.project_id,
+      booking_id: doc.booking_id,
+      unit_id: loc.unit_id,
+      payload: { document_family: doc.document_family },
+    });
+  });
   return getDocument(id);
 }
 
+/** Emits agreement.executed (02 Appendix B). */
 export async function executeDocument(id: string) {
   const doc = await getDocument(id);
   if (!doc) throw new Error("not_found");
   if (doc.status !== "legal_approved") throw new Error("not_approved");
   const sum = checksum(String(doc.body_rendered));
-  await db.query(`UPDATE generated_document SET status = 'executed', checksum = $2 WHERE id = $1`, [id, sum]);
+  const loc = await docLocation(id);
+  await withTx(undefined, async (t) => {
+    await t.query(`UPDATE generated_document SET status = 'executed', checksum = $2 WHERE id = $1`, [id, sum]);
+    await appendEvent(t, {
+      type: "agreement.executed",
+      entity_type: "generated_document",
+      entity_id: id,
+      project_id: loc.project_id,
+      booking_id: doc.booking_id,
+      unit_id: loc.unit_id,
+      payload: { document_family: doc.document_family, checksum: sum },
+    });
+  });
   return getDocument(id);
 }
 
+/** Emits registration.completed (02 Appendix B). */
 export async function completeRegistration(bookingId: string, sroReference: string) {
   const finance = await bookingFinance(bookingId);
   if (!finance.cleared) throw new Error(finance.reason ?? "financial_not_cleared");
@@ -96,16 +147,27 @@ export async function completeRegistration(bookingId: string, sroReference: stri
   );
   if (executed.rows.length === 0) throw new Error("executed_agreement_missing");
   const row = await source(bookingId);
-  await db.query(
-    `INSERT INTO registration_case (id, booking_id, project_id, status, sro_reference, completed_at)
-     VALUES ($1,$2,$3,'completed',$4, now())
-     ON CONFLICT (booking_id) DO UPDATE SET status = 'completed', sro_reference = $4, completed_at = now()`,
-    [randomUUID(), bookingId, row.project_id, sroReference]
-  );
-  await db.query(`UPDATE unit SET sale_status = 'registered' WHERE id = $1 AND sale_status <> 'handed_over'`, [
-    row.unit_id,
-  ]);
-  await db.query(`UPDATE generated_document SET status = 'archived' WHERE id = $1`, [executed.rows[0].id]);
+  await withTx(undefined, async (t) => {
+    await t.query(
+      `INSERT INTO registration_case (id, booking_id, project_id, status, sro_reference, completed_at)
+       VALUES ($1,$2,$3,'completed',$4, now())
+       ON CONFLICT (booking_id) DO UPDATE SET status = 'completed', sro_reference = $4, completed_at = now()`,
+      [randomUUID(), bookingId, row.project_id, sroReference]
+    );
+    await t.query(`UPDATE unit SET sale_status = 'registered' WHERE id = $1 AND sale_status <> 'handed_over'`, [
+      row.unit_id,
+    ]);
+    await t.query(`UPDATE generated_document SET status = 'archived' WHERE id = $1`, [executed.rows[0].id]);
+    await appendEvent(t, {
+      type: "registration.completed",
+      entity_type: "booking",
+      entity_id: bookingId,
+      project_id: row.project_id,
+      booking_id: bookingId,
+      unit_id: row.unit_id,
+      payload: { sro_reference: sroReference },
+    });
+  });
   return { booking_id: bookingId, status: "completed", sro_reference: sroReference };
 }
 

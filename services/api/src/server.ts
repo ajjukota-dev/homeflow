@@ -21,6 +21,7 @@ import {
 import { postReceipt } from "./demands-receipts";
 import { projectCollections, listOverdueReasons } from "./collections-view";
 import { registerLifecycleRoutes } from "./routes-lifecycle";
+import { getAudit } from "./events";
 
 // Local API gateway. Handlers are Lambda-portable; this Express wrapper is the local
 // mirror (architecture.md §6b) — the same handlers run behind API Gateway on AWS.
@@ -164,6 +165,19 @@ app.post("/api/demands/:id/ptp", async (req, res) => {
   } catch (e) {
     res.status(400).json({ errors: [{ code: "bad_request", message: String((e as Error).message) }] });
   }
+});
+
+// --- Audit (02 §API) — paged, masked; the workspace Activity tab reads this ---
+app.get("/api/audit", async (req, res) => {
+  const result = await getAudit({
+    entity_type: req.query.entity_type as string | undefined,
+    entity_id: req.query.entity_id as string | undefined,
+    from: req.query.from as string | undefined,
+    to: req.query.to as string | undefined,
+    page: req.query.page ? Number(req.query.page) : undefined,
+    page_size: req.query.page_size ? Number(req.query.page_size) : undefined,
+  });
+  res.json({ data: result.data, page: result.page, page_size: result.page_size, total: result.total });
 });
 
 registerLifecycleRoutes(app);
