@@ -8,3 +8,6 @@ Chronological record of the autonomous run. One entry per merged lane: what land
 
 ## 06:30 IST — R0 launched
 Amarsh switched session model to Sonnet 5, said GO. Launching 4 lanes: 03 (platform/deploy), 01 (identity), 32 (design system), 02+04 (event log + canonical model). Main thread stays on Sonnet 5 for this run (Amarsh switched it himself).
+
+## 06:45 IST — Amarsh signed off
+Amarsh going to sleep; a friend will monitor GitHub. Set up `Amarsh` branch (mirrors `main`, pushed at every checkpoint) at commit 024c82c. Continuing R0 autonomously: merging lanes as they land, running R0.5 schema reconciliation, then R1+.
