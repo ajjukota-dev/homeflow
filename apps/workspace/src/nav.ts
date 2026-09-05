@@ -32,3 +32,29 @@ export const ADMIN_NAV: { id: View; label: string }[] = [
   { id: "admin-teams", label: "Teams & assignments" },
   { id: "admin-permissions", label: "Permission matrix" },
 ];
+
+// Rule 9: "workspace opens in the user's default Project" implies the role's
+// own home view, not just the first visible tab — MANAGEMENT's home is the
+// control tower ("lands in Management"). SUPER_ADMIN has no single home (it
+// administers everything) so it falls through to the first visible tab.
+const ROLE_HOME: Record<string, View> = {
+  MANAGEMENT: "tower",
+  SALES: "sales",
+  CRM: "crm",
+  ACCOUNTS: "accounts",
+  BANKING: "accounts",
+  LEGAL: "legal",
+  REGISTRATION: "legal",
+  SITE: "site",
+  QA: "qa",
+  CUSTOMISATION: "site",
+  FM: "after",
+};
+
+export function defaultViewFor(roles: string[], visible: View[]): View {
+  for (const role of roles) {
+    const home = ROLE_HOME[role];
+    if (home && visible.includes(home)) return home;
+  }
+  return visible[0] ?? "tower";
+}

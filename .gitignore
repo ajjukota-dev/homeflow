@@ -10,4 +10,5 @@ test-results/
 playwright-report/
 blob-report/
 .data/
+e2e/.auth/
 

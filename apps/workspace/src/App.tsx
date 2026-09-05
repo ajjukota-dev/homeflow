@@ -29,7 +29,7 @@ export function App() {
   const inviteToken = path.match(/^\/invite\/([^/]+)/)?.[1];
   const resetToken = path.match(/^\/reset\/([^/]+)/)?.[1];
 
-  if (inviteToken) return <InviteAccept token={inviteToken} />;
+  if (inviteToken) return <InviteAccept token={inviteToken} onDone={() => navigate("/")} />;
   if (resetToken) return <ResetPassword token={resetToken} onDone={() => navigate("/")} />;
 
   if (status === "loading") {

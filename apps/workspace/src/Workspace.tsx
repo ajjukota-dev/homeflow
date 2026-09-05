@@ -14,7 +14,7 @@ import { AdminUsers } from "./pages/admin/Users";
 import { AdminTeams } from "./pages/admin/Teams";
 import { AdminPermissionMatrix } from "./pages/admin/PermissionMatrix";
 import type { useAuth } from "./auth/AuthContext";
-import { NAV, ADMIN_NAV, type View } from "./nav";
+import { NAV, ADMIN_NAV, defaultViewFor, type View } from "./nav";
 import { api, type Project, type Unit } from "./api";
 import { Button } from "./ui/Button";
 import { cn } from "./lib/utils";
@@ -27,7 +27,7 @@ export function Workspace({ me, onLogout }: { me: NonNullable<ReturnType<typeof 
   const isAdmin = roles.includes("MANAGEMENT") || roles.includes("SUPER_ADMIN");
   const visibleNav = NAV.filter((n) => n.roles.some((r) => roles.includes(r)));
 
-  const [view, setView] = useState<View>(visibleNav[0]?.id ?? "tower");
+  const [view, setView] = useState<View>(defaultViewFor(roles, visibleNav.map((n) => n.id)));
   const [bookingUnit, setBookingUnit] = useState<Unit | null>(null);
   const [dark, setDark] = useState(false);
 

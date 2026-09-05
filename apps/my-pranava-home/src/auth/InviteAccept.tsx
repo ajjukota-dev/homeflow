@@ -6,7 +6,7 @@ const inputCls = "w-full rounded-lg border border-line bg-surface px-3.5 py-2.5 
 const buttonCls = "w-full rounded-lg bg-accent px-4 py-2.5 text-body font-semibold text-accent-fg disabled:opacity-50";
 
 /** /invite/:token (01-identity-access.md Screens, portal) — booking-bound customer invite. */
-export function InviteAccept({ token }: { token: string }) {
+export function InviteAccept({ token, onDone }: { token: string; onDone: () => void }) {
   const { refresh } = useAuth();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -22,6 +22,7 @@ export function InviteAccept({ token }: { token: string }) {
     try {
       await authApi.acceptInvite(token, password);
       await refresh();
+      onDone(); // leave /invite/:token so the app renders the customer's booking
     } catch {
       setError("This invite link is invalid or has expired.");
       setBusy(false);

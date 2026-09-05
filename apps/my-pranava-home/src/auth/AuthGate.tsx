@@ -19,7 +19,16 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const inviteToken = path.match(/^\/invite\/([^/]+)/)?.[1];
   const resetToken = path.match(/^\/reset\/([^/]+)/)?.[1];
 
-  if (inviteToken) return <InviteAccept token={inviteToken} />;
+  if (inviteToken)
+    return (
+      <InviteAccept
+        token={inviteToken}
+        onDone={() => {
+          window.history.pushState({}, "", "/");
+          setPath("/");
+        }}
+      />
+    );
   if (resetToken)
     return (
       <ResetPassword

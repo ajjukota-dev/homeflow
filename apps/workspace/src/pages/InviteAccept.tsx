@@ -8,7 +8,7 @@ const inputCls =
   "w-full rounded-lg border border-line bg-surface px-3.5 py-2.5 text-body outline-none focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/30 disabled:opacity-50";
 
 /** /invite/:token (01-identity-access.md Screens) — the live invite smoke test's set-password step. */
-export function InviteAccept({ token }: { token: string }) {
+export function InviteAccept({ token, onDone }: { token: string; onDone: () => void }) {
   const { refresh } = useAuth();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -23,7 +23,8 @@ export function InviteAccept({ token }: { token: string }) {
     setBusy(true);
     try {
       await authApi.acceptInvite(token, password);
-      await refresh(); // lands in the actor's workspace (e.g. Management)
+      await refresh();
+      onDone(); // leave /invite/:token so the app renders the actor's workspace (e.g. Management)
     } catch {
       setError("This invite link is invalid or has expired.");
       setBusy(false);
