@@ -87,6 +87,9 @@ export const EVENT_TYPES: EventTypeDef[] = [
   { name: "action.cancelled", family: "action", customer_visible: false, built: true },
   { name: "action.reassigned", family: "action", customer_visible: false, built: true },
   { name: "action.evidence_verified", family: "action", customer_visible: false, built: true },
+
+  // --- Policy Studio (25-policy-studio.md) — literal Events section name ---
+  { name: "policy.changed", family: "policy", customer_visible: false, built: true },
 ];
 
 /** Appendix B (p42) names verbatim — the coverage test's universe. Extensions are exempt by design. */
