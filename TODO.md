@@ -10,10 +10,10 @@ Rewritten 2026-09-05 04:20 IST (Amarsh: "the technical specs were vibecoded; mov
 
 ## 0. Status board (updated on every merge — the "where are we" view)
 
-**Position:** R0 complete (5/5 merged), R0.5 (schema reconciliation) done, R0.6 (authorization) merged, R1 code complete (4/4 sub-lanes merged; URL smoke test still outstanding, see R1 row), R2 fully backend-complete — 05 + 06 + 10 + 25 (journey templates + timeline/SLA engine + universal action + policy studio/approval matrix) all merged — all four Studio/dashboard UIs deferred · **Live URL:** https://we947t2rq2.ap-south-1.awsapprunner.com (`/health` → `{"ok":true,"db":true}` against real RDS) · **Last deploy:** 2026-09-05 R0-03 merge — R1/R2 changes are not yet deployed there · **Last updated:** 2026-09-05 18:57 IST
+**Position:** R0 complete (5/5 merged), R0.5 (schema reconciliation) done, R0.6 (authorization) merged, R1 code complete (4/4 sub-lanes merged; URL smoke test still outstanding, see R1 row), R2 fully backend-complete — 05 + 06 + 10 + 25 (journey templates + timeline/SLA engine + universal action + policy studio/approval matrix) all merged — all four Studio/dashboard UIs deferred. R3 underway (cash/collections first, per decision 23's "Q3" priority) — 19 (collections & true risk) backend merged · **Live URL:** https://we947t2rq2.ap-south-1.awsapprunner.com (`/health` → `{"ok":true,"db":true}` against real RDS) · **Last deploy:** 2026-09-05 R0-03 merge — R1/R2/R3 changes are not yet deployed there · **Last updated:** 2026-09-05 19:37 IST
 
 ```
-Specs merged    [██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░]  5 / 33  (+4 backend-only: 05, 06, 10, 25 — UIs deferred)
+Specs merged    [███░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░]  5 / 33  (+5 backend-only: 05, 06, 10, 25, 19 — UIs/dashboards deferred)
 Deployed + E2E  [██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░]  5 / 33
 ```
 

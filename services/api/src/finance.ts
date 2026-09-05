@@ -16,7 +16,7 @@ export async function bookingFinance(bookingId: string) {
   );
   const paidRow = await db.query<{ paid: number }>(
     `SELECT COALESCE(SUM(amount),0)::float8 AS paid FROM receipt
-      WHERE booking_id = $1 AND status IN ('posted','reconciled')`,
+      WHERE booking_id = $1 AND status IN ('posted','reconciled') AND verification != 'DISPUTED'`,
     [bookingId]
   );
   const demands = await listDemands(bookingId);

@@ -72,12 +72,12 @@ export async function seed(db: DbClient) {
   `);
 
   await db.exec(`
-    INSERT INTO overdue_reason (code, label, next_action) VALUES
-      ('customer_delay','Customer asked for more time','Call the customer'),
-      ('loan_stuck','Bank disbursement delayed','Chase the bank'),
-      ('unresponsive','No response to reminders','Escalate to the RM'),
-      ('cheque_bounce','Instrument returned','Request a fresh instrument'),
-      ('dispute_raised','Amount is disputed','Resolve the dispute');
+    INSERT INTO overdue_reason (code, label, next_action, category, default_action_type) VALUES
+      ('customer_delay','Customer asked for more time','Call the customer','CUSTOMER_CASH','exec_simple'),
+      ('loan_stuck','Bank disbursement delayed','Chase the bank','LOAN_DELAY','exec_simple'),
+      ('unresponsive','No response to reminders','Escalate to the RM','COMMUNICATION_GAP','exec_simple'),
+      ('cheque_bounce','Instrument returned','Request a fresh instrument','CUSTOMER_CASH','exec_simple'),
+      ('dispute_raised','Amount is disputed','Resolve the dispute','DISPUTE','exec_simple');
   `);
 
   await seedPlan(db, "plan_standard", null);

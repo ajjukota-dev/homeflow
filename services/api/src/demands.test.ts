@@ -199,3 +199,26 @@ describe("T2 customer payment view", () => {
     expect(blob).not.toMatch(/TRUE_RISK|recovery_probability|PTP|loan_dependent/);
   });
 });
+
+describe("rule 2 — overdue reason auto-creates the reason's default follow-up action", () => {
+  it("setOverdueReason creates the follow-up action, sets next_action_id, and emits demand.reason_recorded", async () => {
+    const { db } = await import("./db");
+    // d_v110_3 (seed.ts) is already overdue with a reason set (customer_delay) — re-recording it
+    // as loan_stuck exercises rule 2's second half without needing a fresh booking.
+    const updated = await setOverdueReason("d_v110_3", "loan_stuck", superAdminCtx, "bank confirmed a delay");
+    expect(updated.overdue_reason_code).toBe("loan_stuck");
+    expect(updated.reason_note).toBe("bank confirmed a delay");
+    expect(updated.next_action_id).toBeTruthy();
+
+    const action = await db.query<{ owner_role: string; source_entity_id: string; type: string }>(
+      `SELECT owner_role, source_entity_id, type FROM action WHERE id = $1`,
+      [updated.next_action_id]
+    );
+    expect(action.rows[0].owner_role).toBe("ACCOUNTS");
+    expect(action.rows[0].source_entity_id).toBe("d_v110_3");
+    expect(action.rows[0].type).toBe("exec_simple"); // loan_stuck's seeded default_action_type
+
+    const evt = await db.query(`SELECT type FROM event WHERE type = 'demand.reason_recorded' AND entity_id = 'd_v110_3'`);
+    expect(evt.rows).toHaveLength(1);
+  });
+});

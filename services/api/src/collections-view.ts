@@ -109,7 +109,7 @@ export async function t2Payments(bookingId: string, progress: Record<string, Pro
   const demands = await listDemands(bookingId);
   const receipts = await db.query<{ id: string; amount: number; received_at: string }>(
     `SELECT id, amount::float8 AS amount, received_at::text AS received_at
-       FROM receipt WHERE booking_id = $1 AND status IN ('posted','reconciled')
+       FROM receipt WHERE booking_id = $1 AND status IN ('posted','reconciled') AND verification != 'DISPUTED'
        ORDER BY received_at`,
     [bookingId]
   );
