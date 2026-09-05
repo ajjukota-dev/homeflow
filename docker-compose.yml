@@ -1,0 +1,32 @@
+# Local Postgres mirror of RDS (03-platform-deploy.md's local/AWS parity principle),
+# P2 of the 2026-09-05 branch-review consolidation (docs/reports/2026-09-05-branch-review.md
+# §8). Demoted from "P1 prerequisite" to "parity check" after P1's own empirical finding
+# that PGlite's SET ROLE already enforces RLS locally — see 0025_rls.sql's header comment
+# and run-log.md's P1 entry. This compose file exists to prove 0025_rls.sql behaves
+# identically on real Postgres, and to give local dev a real-Postgres option; it is not
+# required for the API to run (DATABASE_URL unset -> pglite, unchanged default).
+#
+# Single postgres superuser (no separate owner/app-role split) — matches the codebase's
+# current DATABASE_URL routing (services/api/src/db/index.ts), which connects as one user
+# and lets 0025_rls.sql's own `CREATE ROLE homeflow_app` create the scoped runtime role via
+# migration, exactly as it does against RDS. Scoped to Postgres only: this stack's other
+# ports (files, mailer, llm) already have local-disk/.eml/fake adapters with no Docker
+# dependency (services/api/.env.example) — no minio/mailpit needed here.
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: homeflow
+    ports:
+      - "${POSTGRES_HOST_PORT:-5433}:5432"
+    volumes:
+      - homeflow_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d homeflow"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  homeflow_pg:
