@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { initDb, db } from "../db";
-import { superAdminCtx, ctxWithRoles } from "../authz/test-helpers";
+import { superAdminCtx as fakeSuperAdminCtx, ctxWithRoles } from "../authz/test-helpers";
 import { createBooking, acceptBooking, type BookingInput } from "../bookings";
 import { createProject, createUnit } from "../projects";
 import {
@@ -13,9 +13,28 @@ import {
   getJourneyForBooking,
 } from "./instances";
 import { withTx } from "../events";
+import type { Ctx } from "../authz/types";
+import { startAction, submitForApproval, approveAction, addEvidence, verifyEvidence } from "../actions/core";
+
+// FK'd to a real "user" row now that completeTaskInstance/reopenTaskInstance write
+// action/action_transition rows (10) — seed/users.ts's demo super admin, not the fake
+// "test_user" id test-helpers' superAdminCtx carries. Same fix templates.test.ts already
+// applied for journey_template_version.published_by.
+const superAdminCtx: Ctx = { actor: { ...fakeSuperAdminCtx.actor, user_id: "user_superadmin" } };
 
 let PROJECT_ID: string;
 let unitSeq = 0;
+
+// Real users for T2/T3 (verifier_role CRM, no SUPER_ADMIN bypass on the role-holder check
+// itself — see actions/core.ts) and T6 (approver_role LEGAL, two DIFFERENT people so the
+// self-approve guard doesn't trip completing it end to end).
+let CRM_A: string, LEGAL_A: string, LEGAL_B: string;
+function ctxAs(userId: string, roles: string[]): Ctx {
+  return { actor: { ...ctxWithRoles(roles).actor, user_id: userId } };
+}
+const crmA = () => ctxAs(CRM_A, ["CRM"]);
+const legalA = () => ctxAs(LEGAL_A, ["LEGAL"]);
+const legalB = () => ctxAs(LEGAL_B, ["LEGAL"]);
 
 beforeAll(async () => {
   await initDb();
@@ -24,7 +43,26 @@ beforeAll(async () => {
   // seeded East Crest project only has 3 unbooked villas, not enough for one booking per test.
   const p = await createProject({ code: "jitest", name: "Journey Instances Test Project" }, superAdminCtx);
   PROJECT_ID = p.id;
+
+  const userIds = ["jt_crm_a", "jt_legal_a", "jt_legal_b"];
+  for (const id of userIds) {
+    await db.query(`INSERT INTO "user" (id, email, display_name, status, kind) VALUES ($1,$2,$3,'ACTIVE','STAFF') ON CONFLICT (id) DO NOTHING`, [id, `${id}@test.local`, id]);
+  }
+  [CRM_A, LEGAL_A, LEGAL_B] = userIds;
 });
+
+async function taskInstanceId(journeyId: string, code: string): Promise<string> {
+  const r = await db.query<{ id: string }>(
+    `SELECT ti.id FROM task_instance ti JOIN stage_instance si ON si.id = ti.stage_instance_id WHERE si.journey_id = $1 AND ti.task_code = $2`,
+    [journeyId, code]
+  );
+  return r.rows[0].id;
+}
+
+async function actionIdFor(tiId: string): Promise<string> {
+  const r = await db.query<{ action_id: string | null }>(`SELECT action_id FROM task_instance WHERE id = $1`, [tiId]);
+  return r.rows[0].action_id!;
+}
 
 const fullDocs = [
   { type: "PAN card", received: true },
@@ -187,6 +225,17 @@ describe("journey/instances: rule 7 — reopen resets transitive dependents", ()
     const t1Instance = await db.query<{ id: string }>(`SELECT id FROM task_instance WHERE task_code = 'T1' AND stage_instance_id IN (SELECT id FROM stage_instance WHERE journey_id = $1)`, [journey!.id]);
     await completeTaskInstance(t1Instance.rows[0].id, superAdminCtx);
 
+    // T2 is now actionable (New, with a clock already armed by cascadeActionable/setActionClock)
+    // but not started — the regression case for resetActionForReopen's old `status === "New"`
+    // early return, which skipped clearing a New-but-clocked action's stale sla_clock_id (the
+    // action row, not task_instance — task_instance's own sla_clock_id is unconditionally
+    // nulled by reopenTaskInstance's own loop regardless of this fix, so assert on the action).
+    const t2Id = await taskInstanceId(journey!.id, "T2");
+    const t2ActionIdBefore = await actionIdFor(t2Id);
+    const t2Before = await db.query<{ status: string; sla_clock_id: string | null }>(`SELECT status, sla_clock_id FROM action WHERE id = $1`, [t2ActionIdBefore]);
+    expect(t2Before.rows[0].status).toBe("New");
+    expect(t2Before.rows[0].sla_clock_id).not.toBeNull();
+
     await reopenTaskInstance(pt1Instance.rows[0].id, "wrong evidence uploaded", superAdminCtx);
 
     const after = await getJourneyForBooking(bookingId, superAdminCtx);
@@ -196,6 +245,9 @@ describe("journey/instances: rule 7 — reopen resets transitive dependents", ()
     expect(pt1.clock_status).toBeNull();
     expect(t1.status).toBe("New"); // transitively reset
     expect(t1.clock_status).toBeNull();
+
+    const t2After = await db.query<{ sla_clock_id: string | null }>(`SELECT sla_clock_id FROM action WHERE id = $1`, [t2ActionIdBefore]);
+    expect(t2After.rows[0].sla_clock_id).toBeNull(); // was New-with-a-clock — still must be cleared
   });
 
   it("reopen requires a reason", async () => {
@@ -262,5 +314,51 @@ describe("journey/instances: emits the 06 event types it's registered for", () =
     expect(heldEvt.rows).toHaveLength(1);
     expect(resumedEvt.rows).toHaveLength(1);
     expect(closedEvt.rows).toHaveLength(1);
+  });
+});
+
+// Regression for the 05/10 approve-vs-close mismatch found in review: completeTaskInstance
+// used to call closeAction unconditionally, which always throws for APPROVAL-family actions
+// (checkEvidenceGate's APPROVAL case) — so T6 (Legal approval) could never complete, and every
+// journey got stuck at AGREEMENT forever. completeTaskInstance now branches to approveAction
+// for APPROVAL-family actions instead.
+describe("journey/instances: APPROVAL-family task (T6) closes via completeTaskInstance -> approveAction", () => {
+  it("drives PT1..T6 to completion; AGREEMENT reaches COMPLETED and T9 stays blocked on T8 alone", async () => {
+    const bookingId = await bookAndAccept();
+    const journey = await getJourneyForBooking(bookingId, superAdminCtx);
+    const journeyId = journey!.id;
+
+    await completeTaskInstance(await taskInstanceId(journeyId, "PT1"), superAdminCtx);
+    await completeTaskInstance(await taskInstanceId(journeyId, "T1"), superAdminCtx);
+
+    // T2: VERIFICATION family — the role-holder check has no SUPER_ADMIN bypass (only the
+    // self-verify-owner check does), so this needs a real CRM ctx, not superAdminCtx.
+    await completeTaskInstance(await taskInstanceId(journeyId, "T2"), crmA());
+
+    // T3: EVIDENCE family, VERIFIED_ATTACHMENT gate — upload (SUPER_ADMIN bypasses assertMayAct),
+    // then verify with a real CRM ctx (verifyEvidence's role check has no SA bypass either).
+    const t3Id = await taskInstanceId(journeyId, "T3");
+    const t3ActionId = await actionIdFor(t3Id);
+    const evidenceId = await addEvidence(t3ActionId, "project/test/action/t3/doc.pdf", "PAN", superAdminCtx);
+    await verifyEvidence(evidenceId, "VERIFIED", undefined, crmA());
+    await completeTaskInstance(t3Id, superAdminCtx);
+
+    await completeTaskInstance(await taskInstanceId(journeyId, "T5"), superAdminCtx);
+
+    // T6: APPROVAL family — submit as one LEGAL user, complete (-> approveAction) as another.
+    const t6Id = await taskInstanceId(journeyId, "T6");
+    const t6ActionId = await actionIdFor(t6Id);
+    await startAction(t6ActionId, legalA());
+    await submitForApproval(t6ActionId, legalA());
+    await completeTaskInstance(t6Id, legalB());
+
+    const after = await getJourneyForBooking(bookingId, superAdminCtx);
+    expect(after!.stages.find((s) => s.stage_code === "AGREEMENT")!.status).toBe("COMPLETED");
+    const t6 = after!.stages.flatMap((s) => s.tasks).find((t) => t.task_code === "T6")!;
+    expect(t6.status).toBe("Closed");
+
+    // T9 depends on both T6 and T8 (rule 4) — T6 alone must not make it actionable.
+    const t9 = after!.stages.flatMap((s) => s.tasks).find((t) => t.task_code === "T9")!;
+    expect(t9.clock_status).toBeNull();
   });
 });
