@@ -192,7 +192,7 @@ export function Workspace({ me, onLogout }: { me: NonNullable<ReturnType<typeof 
       <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-line bg-surface px-4 py-3 md:hidden">
         <span className="text-title3 font-bold tracking-tight">HomeFlow</span>
         <div className="flex-1" />
-        <nav className="flex max-w-[55%] gap-1 overflow-x-auto">
+        <nav className="flex max-w-[70%] gap-1 overflow-x-auto">
           {visibleNav.map((n) => (
             <button
               key={n.id}
@@ -207,6 +207,24 @@ export function Workspace({ me, onLogout }: { me: NonNullable<ReturnType<typeof 
               {n.short}
             </button>
           ))}
+          {/* Admin has no mobile home of its own (desktop puts it in the sidebar,
+              below the regular nav) — without this the mobile header had no way
+              to reach it at all (found in review). */}
+          {isAdmin &&
+            ADMIN_NAV.map((n) => (
+              <button
+                key={n.id}
+                onClick={() => go(n.id)}
+                aria-current={view === n.id ? "page" : undefined}
+                className={cn(
+                  "flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-footnote font-semibold transition-colors",
+                  view === n.id ? "bg-fg text-surface" : "bg-surface-2 text-fg-muted"
+                )}
+              >
+                <ShieldCheck className="h-4 w-4" />
+                {n.label}
+              </button>
+            ))}
         </nav>
         <button onClick={onLogout} aria-label="Log out" className="flex h-8 w-8 items-center justify-center rounded-lg text-fg-muted hover:bg-surface-2">
           <LogOut className="h-4 w-4" />
