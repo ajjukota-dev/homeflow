@@ -10,23 +10,24 @@ Rewritten 2026-09-05 04:20 IST (Amarsh: "the technical specs were vibecoded; mov
 
 ## 0. Status board (updated on every merge — the "where are we" view)
 
-**Position:** R0 launched · **Live URL:** none yet · **Last deploy:** — · **Last updated:** 2026-09-05 06:30 IST (Amarsh switched to Sonnet 5, said GO)
+**Position:** R0 nearly done (4/5 merged) · **Live URL:** https://we947t2rq2.ap-south-1.awsapprunner.com (`/health` → `{"ok":true,"db":true}` against real RDS) · **Last deploy:** 2026-09-05 R0-03 merge · **Last updated:** 2026-09-05 08:45 IST
 
 ```
-Specs merged    [░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░]  0 / 33
-Deployed + E2E  [░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░]  0 / 33
+Specs merged    [██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░]  4 / 33 (01 in final verification)
+Deployed + E2E  [██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░]  4 / 33
 ```
 
 Legend: ⬜ not started · 🟨 in progress (branch open) · 🟩 merged to main · 🟦 deployed to URL with journey green · ⛔ blocked (see §9)
 
 | Wave | Spec | Status | Notes |
 |---|---|---|---|
-| R0 | 03 platform & deploy | 🟨 | agent launched 06:30 |
-| R0 | 01 identity & access | 🟨 | agent launched 06:30 |
-| R0 | 32 design system | 🟨 | agent launched 06:30 |
-| R0 | 02 event log | 🟨 | agent launched 06:30 |
-| R0 | 04 canonical model | 🟨 | agent launched 06:30 |
+| R0 | 03 platform & deploy | 🟩 | merged (PR #12 + hotfix #14) — live URL above |
+| R0 | 01 identity & access | 🟨 | PR #13 — e2e re-verifying after merge-conflict + nav-locator fixes (agent af79a733190f00d5b) |
+| R0 | 32 design system | 🟩 | merged (PR #11) — Jost/Geist, tokens, 8 primitives, axe clean |
+| R0 | 02 event log | 🟩 | merged (PR #10) |
+| R0 | 04 canonical model | 🟩 | merged (PR #10) |
 | R0.5 | **schema reconciliation** — generate `docs/specs/SCHEMA.md` from merged 01/02/04 migrations (ground truth), diff against every downstream spec's assumed columns/FKs/enums, fix drift in spec text before R2 starts | ⬜ | gap flagged by Amarsh 06:35 — specs were never cross-checked against each other, only self-consistent |
+| R0.6 | **authorize()/mask()/assertProjectScope() wired into every route** — currently only `/api/admin/*` and the CUSTOMER branch of `/api/me/home` call the permission-matrix check; the other ~21 handlers in `server.ts` rely solely on `requireSession` (any authenticated user, any role, can call them) plus client-side nav filtering | ⬜ | flagged by the PR #13 build agent, confirmed by re-inspection 08:40 — real gap against the "prod-ready" claim (§7 decision 22) and against S2's own spike goal ("middleware on every route"); UI nav filtering means a demo click-through won't surface it, but a direct API call would. Needs: per-route module-name mapping (33-module list, `docs/specs/01-identity-access.md`) + minimum level per verb, then one pass through `server.ts`/`routes-model.ts`/`routes-lifecycle.ts`. Sized ~21 routes — its own lane, run after 01 merges, before or parallel with R2 |
 | R1 | screen migration + journeys + Roadmap page + demo seed | ⬜ | |
 | R2 | 05 journey templates | ⬜ | |
 | R2 | 06 timeline & SLA | ⬜ | |
@@ -281,6 +282,8 @@ Defaults accepted by silence (2026-09-05): staff-entered receipts/loans/SRO slot
 22. **Demo (05:58): today, CEO + CFO, not movable, "complete app, prod-usable after adding the client's Google/mailbox".** Claude stated the dependency-graph estimate (days, not hours, for P0+P1) and the refusal to show mock screens or static numbers; Amarsh: "trust the process and keep going as far and fast as you can". Rule for today: build in dependency order, deploy every merged lane to the URL, demo exactly what is verified end to end at demo time, label the rest "in build" honestly. Amarsh will switch his own session to Sonnet during implementation (forks inherit the parent model).
 23. **Grill-me outcomes (06:05–06:20):** Q2 demo hour → Amarsh tells Claude later; freeze `main` 90 min before, smoke everything against the URL, fixes only inside the freeze. Q3 priority after foundation: cash/collections → Control Tower → portal → My Day → customisation/twin → handover/QA → documents. Q4 demo data extended per feature only where needed, always reconciling. Q5 default App Runner URL (custom domain is a client ask). Q6 Claude Design review non-blocking today. Q7 4 lanes (→6 if no 429s), push often, resume on same branch, two acceptance failures = stop and log. Q8 role accounts `<role>@demo.pranava` / `Demo@2026`, plus a live invite of the CFO in the room (smoke-tested first). Q9 three-line report per merge + `docs/demo/run-log.md` + `docs/demo/click-path.md`. Q10 no dead ends; Management → Roadmap page. Q11 main thread stays on Fable, no forks, Sonnet agents only. Target = everything; if short at demo time, decide together then.
 20. New dependencies approved for 32: `motion` (framer-motion v12), self-hosted Geist Sans/Mono + Newsreader woff2, `@axe-core/playwright`. Any other new dependency still needs a one-line ask.
+
+25. **Authorization gap logged, not silently fixed inline (08:40):** PR #13 (identity/access) wires `authorize()`/`mask()`/`assertProjectScope()` into `/api/admin/*` and the customer branch of `/api/me/home` only — every other existing route enforces authentication (`requireSession`, no route is reachable unauthenticated) but not authorization (any role can call any other route; the workspace UI's nav filtering is the only thing hiding this today). Queued as **R0.6** (§0) rather than patched mid-review: it touches ~21 routes across 3 files, is exactly the kind of change that should be its own reviewed lane, and R0's own definition of done didn't originally require it to block this merge. Decision: merge 01 with the gap open and documented, close R0.6 right after — not carried silently into R2+.
 
 (Earlier Cognito note withdrawn — superseded by 12.)
 
