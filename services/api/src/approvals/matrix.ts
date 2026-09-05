@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { db } from "../db";
-import { appendEvent, withTx, type DbLike } from "../events";
+import { appendEvent, withTx, actorFields, type DbLike } from "../events";
 import { requireRole, POLICY_STUDIO_ROLES } from "../authz/requireRole";
 import { AppError, type Ctx } from "../authz/types";
 
@@ -91,8 +91,8 @@ export async function createApprovalRule(input: ApprovalAuthorityRuleInput, ctx:
       entity_type: "approval_authority_rule",
       entity_id: id,
       project_id: input.project_id ?? null,
-      actor_user_id: ctx.actor.user_id,
       payload: { table_name: "approval_authority_rule", domain: input.domain, metric: input.metric },
+      ...actorFields(ctx),
     });
     return id;
   });

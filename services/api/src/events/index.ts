@@ -4,7 +4,7 @@
 import type { DbClient } from "../db/types";
 import { EVENT_TYPES } from "./registry";
 
-export { appendEvent, withTx, type EventInput, type AppendedEvent, type DbLike } from "./append";
+export { appendEvent, withTx, actorFields, type EventInput, type AppendedEvent, type DbLike } from "./append";
 export { onEvent, clearSubscribers, retryFailedDeliveries, type EventHandler } from "./subscribers";
 export { getAudit, mask, type AuditQuery, type AuditRow } from "./audit";
 export { EVENT_TYPES, APPENDIX_B_NAMES, type EventTypeDef } from "./registry";

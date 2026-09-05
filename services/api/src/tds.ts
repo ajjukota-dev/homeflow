@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { db } from "./db";
-import { appendEvent, withTx } from "./events";
+import { appendEvent, withTx, actorFields } from "./events";
 import { authorize } from "./authz/authorize";
 import type { Ctx } from "./authz/types";
 
@@ -106,8 +106,8 @@ export async function verifyTds(
       entity_type: "tds_record",
       entity_id: id,
       booking_id: existing.booking_id,
-      actor_user_id: ctx.actor.user_id,
       payload: { challan_number: input.challan_number },
+      ...actorFields(ctx),
     });
   });
   return requireTdsRecord(id);
@@ -124,8 +124,8 @@ export async function rejectTds(id: string, reason: string, ctx: Ctx): Promise<T
       entity_type: "tds_record",
       entity_id: id,
       booking_id: existing.booking_id,
-      actor_user_id: ctx.actor.user_id,
       payload: { reason },
+      ...actorFields(ctx),
     });
   });
   return requireTdsRecord(id);

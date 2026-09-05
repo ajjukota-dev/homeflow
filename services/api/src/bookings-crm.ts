@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { db } from "./db";
 import { setupFunding } from "./demands-schedule";
 import { getBooking } from "./bookings";
-import { appendEvent, withTx } from "./events";
+import { appendEvent, withTx, actorFields } from "./events";
 import { nextCode } from "./model/codes";
 import { authorize } from "./authz/authorize";
 import type { Ctx } from "./authz/types";
@@ -43,6 +43,7 @@ export async function acceptBooking(id: string, ctx: Ctx, rm = "Priya Nair") {
       booking_id: id,
       customer_id: custId,
       payload: { display_name: a.display_name },
+      ...actorFields(ctx),
     });
     await t.query(`UPDATE booking_applicant SET customer_id = $1 WHERE id = $2`, [custId, a.id]);
     await t.query(`UPDATE booking SET status = 'active', rm_owner = $1 WHERE id = $2`, [rm, id]);
@@ -54,6 +55,7 @@ export async function acceptBooking(id: string, ctx: Ctx, rm = "Priya Nair") {
       booking_id: id,
       unit_id: unitId,
       payload: { from: "submitted", to: "active" },
+      ...actorFields(ctx),
     });
     await appendEvent(t, {
       type: "sales_handover.accepted",
@@ -63,6 +65,7 @@ export async function acceptBooking(id: string, ctx: Ctx, rm = "Priya Nair") {
       booking_id: id,
       unit_id: unitId,
       payload: { rm_owner: rm },
+      ...actorFields(ctx),
     });
     await t.query(`UPDATE unit SET sale_status = 'booked' WHERE id = $1`, [unitId]);
     await appendEvent(t, {
@@ -72,8 +75,9 @@ export async function acceptBooking(id: string, ctx: Ctx, rm = "Priya Nair") {
       project_id: projectId,
       unit_id: unitId,
       payload: { from: "held", to: "booked" },
+      ...actorFields(ctx),
     });
-    await setupFunding(id, t);
+    await setupFunding(id, ctx, t);
   });
   return { booking: await getBooking(id), customer_id: custId };
 }
@@ -97,6 +101,7 @@ export async function returnBooking(id: string, reason: string, ctx: Ctx) {
       booking_id: id,
       unit_id: unitId,
       payload: { from: "submitted", to: "returned", reason },
+      ...actorFields(ctx),
     });
     await appendEvent(t, {
       type: "sales_handover.returned",
@@ -106,6 +111,7 @@ export async function returnBooking(id: string, reason: string, ctx: Ctx) {
       booking_id: id,
       unit_id: unitId,
       payload: { reason },
+      ...actorFields(ctx),
     });
     await t.query(`UPDATE unit SET sale_status = 'available' WHERE id = $1`, [unitId]);
     await appendEvent(t, {
@@ -115,6 +121,7 @@ export async function returnBooking(id: string, reason: string, ctx: Ctx) {
       project_id: projectId,
       unit_id: unitId,
       payload: { from: "held", to: "available" },
+      ...actorFields(ctx),
     });
   });
   return getBooking(id);

@@ -3,7 +3,8 @@ import { db } from "./db";
 import { progressAtLeast, type ProgressState } from "./gates";
 import { type DemandStatus } from "./collections";
 import { listDemands, today } from "./demands";
-import { appendEvent, withTx, type DbLike } from "./events";
+import { appendEvent, withTx, actorFields, type DbLike } from "./events";
+import type { Ctx } from "./authz/types";
 
 // H3 — booking payment-plan materialization and construction-progress-driven demand release (accounts/spec.md).
 
@@ -13,7 +14,7 @@ import { appendEvent, withTx, type DbLike } from "./events";
  *  Every query below uses the transaction handle (`t`, or the caller's `tx`) — never the
  *  module-level `db` — because a bare `db.query` while this or an outer transaction is open
  *  deadlocks on PGlite's single connection. */
-export async function setupFunding(bookingId: string, tx?: DbLike) {
+export async function setupFunding(bookingId: string, ctx: Ctx, tx?: DbLike) {
   return withTx(tx, async (t) => {
     const existing = await t.query(`SELECT 1 FROM demand WHERE booking_id = $1 LIMIT 1`, [bookingId]);
     if (existing.rows.length > 0) return listDemands(bookingId, t);
@@ -102,6 +103,7 @@ export async function setupFunding(bookingId: string, tx?: DbLike) {
           booking_id: bookingId,
           unit_id: booking.unit_id,
           payload: { milestone_key: m.milestone_key, amount, due_date: dueDate },
+          ...actorFields(ctx),
         });
       }
     }
@@ -121,7 +123,7 @@ function initialStatus(
 
 /** Construction progress can make a scheduled demand due. Emits demand.raised (02 Appendix B)
  *  at the moment a demand's construction trigger fires — the point it first gets a due date. */
-export async function raiseDemandsForUnit(unitId: string) {
+export async function raiseDemandsForUnit(unitId: string, ctx: Ctx) {
   const bookings = await db.query<{ id: string; project_id: string }>(
     `SELECT id, project_id FROM booking WHERE unit_id = $1 AND status = 'active'`,
     [unitId]
@@ -151,6 +153,7 @@ export async function raiseDemandsForUnit(unitId: string) {
             booking_id: bk.id,
             unit_id: unitId,
             payload: { milestone_key: d.milestone_key, amount: d.amount, due_date: dueDate },
+            ...actorFields(ctx),
           });
         });
       }

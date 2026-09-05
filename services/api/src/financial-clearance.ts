@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { db } from "./db";
-import { appendEvent, withTx } from "./events";
+import { appendEvent, withTx, actorFields } from "./events";
 import { bookingFinance } from "./finance";
 import { requireRole, STAFF_ROLES, POLICY_STUDIO_ROLES } from "./authz/requireRole";
 import { AppError, type Ctx } from "./authz/types";
@@ -145,8 +145,8 @@ export async function approveClearance(bookingId: string, purpose: ClearancePurp
       entity_type: "financial_clearance",
       entity_id: row.id,
       booking_id: bookingId,
-      actor_user_id: ctx.actor.user_id,
       payload: { purpose, paid_pct: finance.paid_pct },
+      ...actorFields(ctx),
     });
   });
   return getClearance(bookingId, purpose, ctx); // outside the tx — this itself uses the bare db
@@ -164,8 +164,8 @@ export async function rejectClearance(bookingId: string, purpose: ClearancePurpo
       entity_type: "financial_clearance",
       entity_id: row.id,
       booking_id: bookingId,
-      actor_user_id: ctx.actor.user_id,
       payload: { purpose, reason },
+      ...actorFields(ctx),
     });
   });
   return getClearance(bookingId, purpose, ctx);

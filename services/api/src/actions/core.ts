@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { db } from "../db";
-import { appendEvent, withTx, type DbLike } from "../events";
+import { appendEvent, withTx, actorFields, type DbLike } from "../events";
 import { requireRole, STAFF_ROLES } from "../authz/requireRole";
 import { AppError, type Ctx } from "../authz/types";
 import { nextCode } from "../model/codes";
@@ -175,7 +175,7 @@ async function setStatus(actionId: string, to: ActionStatus, tx: DbLike): Promis
   await tx.query(`UPDATE action SET status = $2 WHERE id = $1`, [actionId, to]);
 }
 
-async function emitStatusChanged(action: ActionRow, to: ActionStatus, tx: DbLike): Promise<void> {
+async function emitStatusChanged(action: ActionRow, to: ActionStatus, ctx: Ctx, tx: DbLike): Promise<void> {
   await appendEvent(tx, {
     type: "action.status_changed",
     entity_type: "action",
@@ -183,6 +183,7 @@ async function emitStatusChanged(action: ActionRow, to: ActionStatus, tx: DbLike
     project_id: action.project_id,
     booking_id: action.booking_id,
     payload: { from: action.status, to },
+    ...actorFields(ctx),
   });
 }
 
@@ -210,7 +211,7 @@ export async function reassignAction(actionId: string, newOwnerUserId: string, c
     if (a.status === "Ready for Approval") throw new AppError("conflict", "cannot reassign while Ready for Approval");
     await tx.query(`UPDATE action SET owner_user_id = $2 WHERE id = $1`, [actionId, newOwnerUserId]);
     await recordTransition(actionId, a.status, a.status, ctx.actor.user_id, `reassigned to ${newOwnerUserId}`, tx);
-    await appendEvent(tx, { type: "action.reassigned", entity_type: "action", entity_id: actionId, project_id: a.project_id, booking_id: a.booking_id, actor_user_id: ctx.actor.user_id, payload: { new_owner_user_id: newOwnerUserId } });
+    await appendEvent(tx, { type: "action.reassigned", entity_type: "action", entity_id: actionId, project_id: a.project_id, booking_id: a.booking_id, payload: { new_owner_user_id: newOwnerUserId }, ...actorFields(ctx) });
   });
 }
 
@@ -224,7 +225,7 @@ export async function startAction(actionId: string, ctx: Ctx): Promise<void> {
     if (!a.owner_user_id) await tx.query(`UPDATE action SET owner_user_id = $2 WHERE id = $1`, [actionId, ctx.actor.user_id]);
     await setStatus(actionId, "In Progress", tx);
     await recordTransition(actionId, a.status, "In Progress", ctx.actor.user_id, null, tx);
-    await emitStatusChanged(a, "In Progress", tx);
+    await emitStatusChanged(a, "In Progress", ctx, tx);
   });
 }
 
@@ -240,7 +241,7 @@ export async function waitAction(actionId: string, target: "Waiting Internal" | 
     }
     await setStatus(actionId, target, tx);
     await recordTransition(actionId, a.status, target, ctx.actor.user_id, reason, tx);
-    await emitStatusChanged(a, target, tx);
+    await emitStatusChanged(a, target, ctx, tx);
   });
 }
 
@@ -254,7 +255,7 @@ export async function blockAction(actionId: string, reason: string, dependsOnAct
     if (a.status === "Closed" || a.status === "Cancelled") throw new AppError("conflict", `cannot block from ${a.status}`);
     await tx.query(`UPDATE action SET status = 'Blocked', blocking_reason = $2, depends_on_action_id = $3 WHERE id = $1`, [actionId, reason, dependsOnActionId]);
     await recordTransition(actionId, a.status, "Blocked", ctx.actor.user_id, reason, tx);
-    await emitStatusChanged(a, "Blocked", tx);
+    await emitStatusChanged(a, "Blocked", ctx, tx);
   });
 }
 
@@ -266,7 +267,7 @@ export async function unblockAction(actionId: string, ctx: Ctx): Promise<void> {
     if (a.status !== "Blocked") throw new AppError("conflict", "action is not Blocked");
     await tx.query(`UPDATE action SET status = 'In Progress', blocking_reason = NULL, depends_on_action_id = NULL WHERE id = $1`, [actionId]);
     await recordTransition(actionId, a.status, "In Progress", ctx.actor.user_id, "unblocked", tx);
-    await emitStatusChanged(a, "In Progress", tx);
+    await emitStatusChanged(a, "In Progress", ctx, tx);
   });
 }
 
@@ -282,7 +283,7 @@ export async function submitForApproval(actionId: string, ctx: Ctx): Promise<voi
     if (a.status !== "In Progress") throw new AppError("conflict", `cannot submit for approval from ${a.status}`);
     await tx.query(`UPDATE action SET status = 'Ready for Approval', submitted_by = $2 WHERE id = $1`, [actionId, ctx.actor.user_id]);
     await recordTransition(actionId, a.status, "Ready for Approval", ctx.actor.user_id, null, tx);
-    await emitStatusChanged(a, "Ready for Approval", tx);
+    await emitStatusChanged(a, "Ready for Approval", ctx, tx);
   });
 }
 
@@ -317,7 +318,7 @@ export async function rejectAction(actionId: string, reason: string, ctx: Ctx): 
     }
     await tx.query(`UPDATE action SET status = 'In Progress', submitted_by = NULL WHERE id = $1`, [actionId]);
     await recordTransition(actionId, a.status, "In Progress", ctx.actor.user_id, reason, tx);
-    await emitStatusChanged(a, "In Progress", tx);
+    await emitStatusChanged(a, "In Progress", ctx, tx);
   });
 }
 
@@ -364,6 +365,7 @@ async function closeActionCore(a: ActionRow, note: string | null, closedBy: stri
     project_id: a.project_id,
     booking_id: a.booking_id,
     actor_user_id: closedBy,
+    actor_kind: "USER", // both callers already require(ctx, STAFF_ROLES) before reaching here
     payload: { close_note: note },
   });
 }
@@ -415,7 +417,7 @@ export async function cancelAction(actionId: string, reason: string, ctx: Ctx): 
     if (a.sla_clock_id) await stopClock(a.sla_clock_id, tx).catch(() => {}); // already-stopped is fine on cancel
     await tx.query(`UPDATE action SET status = 'Cancelled' WHERE id = $1`, [actionId]);
     await recordTransition(actionId, a.status, "Cancelled", ctx.actor.user_id, reason, tx);
-    await appendEvent(tx, { type: "action.cancelled", entity_type: "action", entity_id: actionId, project_id: a.project_id, booking_id: a.booking_id, actor_user_id: ctx.actor.user_id, payload: { reason } });
+    await appendEvent(tx, { type: "action.cancelled", entity_type: "action", entity_id: actionId, project_id: a.project_id, booking_id: a.booking_id, payload: { reason }, ...actorFields(ctx) });
   });
 }
 
@@ -454,7 +456,7 @@ export async function verifyEvidence(evidenceId: string, decision: "VERIFIED" | 
     }
     await tx.query(`UPDATE action_evidence SET verification_status = $2, verified_by = $3, note = $4 WHERE id = $1`, [evidenceId, decision, ctx.actor.user_id, note ?? null]);
     if (decision === "VERIFIED") {
-      await appendEvent(tx, { type: "action.evidence_verified", entity_type: "action_evidence", entity_id: evidenceId, project_id: a.project_id, booking_id: a.booking_id, actor_user_id: ctx.actor.user_id, payload: { action_id: a.id } });
+      await appendEvent(tx, { type: "action.evidence_verified", entity_type: "action_evidence", entity_id: evidenceId, project_id: a.project_id, booking_id: a.booking_id, payload: { action_id: a.id }, ...actorFields(ctx) });
     }
   });
 }

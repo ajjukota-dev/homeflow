@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { db } from "../db";
-import { appendEvent, withTx } from "../events";
+import { appendEvent, withTx, actorFields } from "../events";
 import { requireRole, STAFF_ROLES, POLICY_STUDIO_ROLES } from "../authz/requireRole";
 import { AppError, type Ctx } from "../authz/types";
 
@@ -125,8 +125,8 @@ export async function publishStudioRow(tableName: string, policyVersionId: strin
       type: "policy.changed",
       entity_type: tableName,
       entity_id: rowId,
-      actor_user_id: ctx.actor.user_id,
       payload: { table_name: tableName, version: pv.rows[0].version, note: note ?? null },
+      ...actorFields(ctx),
     });
   });
 }

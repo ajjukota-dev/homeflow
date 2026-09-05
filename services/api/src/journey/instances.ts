@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { db } from "../db";
-import { appendEvent, withTx, type DbLike } from "../events";
+import { appendEvent, withTx, actorFields, type DbLike, type EventInput } from "../events";
 import { requireRole, STAFF_ROLES, POLICY_STUDIO_ROLES } from "../authz/requireRole";
 import { AppError, type Ctx } from "../authz/types";
 import { readVersionContent, type StageInput, type TaskInput } from "./templates";
@@ -94,7 +94,15 @@ async function getTaskSlaPolicy(taskCode: string, tx: DbLike): Promise<SlaPolicy
  *  filter conditional stages/tasks, compute baseline/planned/forecast dates (equal at creation)
  *  along the dependency graph, and start SLA clocks for every task with no unmet predecessor
  *  (rule 5). Idempotent — a booking already has at most one journey_instance. */
-export async function instantiateJourneyForBooking(bookingId: string, tx: DbLike): Promise<string> {
+export async function instantiateJourneyForBooking(
+  bookingId: string,
+  tx: DbLike,
+  // The real caller (journey/subscribers.ts) runs after commit, outside any live Ctx — it
+  // forwards the actor_user_id/actor_kind carried on the triggering sales_handover.accepted
+  // event instead, so "who started this journey" still traces to the CRM user who accepted the
+  // booking, not a synthetic SYSTEM stamp. Defaults to SYSTEM for direct/test callers.
+  actor?: Pick<EventInput, "actor_user_id" | "actor_kind">
+): Promise<string> {
   const existing = await tx.query<{ id: string }>(`SELECT id FROM journey_instance WHERE booking_id = $1`, [bookingId]);
   if (existing.rows[0]) return existing.rows[0].id;
 
@@ -205,6 +213,7 @@ export async function instantiateJourneyForBooking(bookingId: string, tx: DbLike
     booking_id: bookingId,
     unit_id: unitId,
     payload: { template_version_id: versionId, stage_count: stages.length },
+    ...actor,
   });
 
   return journeyId;
@@ -227,7 +236,7 @@ export async function holdJourney(journeyId: string, reason: string, ctx: Ctx): 
     const j = await requireJourney(journeyId, tx);
     if (j.status !== "ACTIVE") throw new AppError("conflict", "only an ACTIVE journey can be held");
     await tx.query(`UPDATE journey_instance SET status = 'ON_HOLD', hold_reason = $2 WHERE id = $1`, [journeyId, reason]);
-    await appendEvent(tx, { type: "journey.held", entity_type: "journey_instance", entity_id: journeyId, project_id: j.project_id, payload: { reason } });
+    await appendEvent(tx, { type: "journey.held", entity_type: "journey_instance", entity_id: journeyId, project_id: j.project_id, payload: { reason }, ...actorFields(ctx) });
   });
 }
 
@@ -238,7 +247,7 @@ export async function resumeJourney(journeyId: string, reason: string, ctx: Ctx)
     const j = await requireJourney(journeyId, tx);
     if (j.status !== "ON_HOLD") throw new AppError("conflict", "only an ON_HOLD journey can be resumed");
     await tx.query(`UPDATE journey_instance SET status = 'ACTIVE', hold_reason = NULL WHERE id = $1`, [journeyId]);
-    await appendEvent(tx, { type: "journey.resumed", entity_type: "journey_instance", entity_id: journeyId, project_id: j.project_id, payload: { reason } });
+    await appendEvent(tx, { type: "journey.resumed", entity_type: "journey_instance", entity_id: journeyId, project_id: j.project_id, payload: { reason }, ...actorFields(ctx) });
   });
 }
 
@@ -249,7 +258,7 @@ export async function closeJourney(journeyId: string, reason: string, ctx: Ctx):
     const j = await requireJourney(journeyId, tx);
     if (j.status === "CLOSED" || j.status === "CANCELLED") throw new AppError("conflict", "journey is already closed");
     await tx.query(`UPDATE journey_instance SET status = 'CLOSED', closed_at = now(), close_reason = $2 WHERE id = $1`, [journeyId, reason]);
-    await appendEvent(tx, { type: "journey.closed", entity_type: "journey_instance", entity_id: journeyId, project_id: j.project_id, payload: { reason } });
+    await appendEvent(tx, { type: "journey.closed", entity_type: "journey_instance", entity_id: journeyId, project_id: j.project_id, payload: { reason }, ...actorFields(ctx) });
   });
 }
 
@@ -309,7 +318,7 @@ async function cascadeActionable(journeyId: string, completedTaskCode: string, c
   }
 }
 
-async function refreshStageAndJourneyRollup(journeyId: string, stageInstanceId: string, tx: DbLike): Promise<void> {
+async function refreshStageAndJourneyRollup(journeyId: string, stageInstanceId: string, ctx: Ctx, tx: DbLike): Promise<void> {
   const tasks = await tx.query<{ status: string }>(`SELECT status FROM task_instance WHERE stage_instance_id = $1`, [stageInstanceId]);
   const total = tasks.rows.length;
   const done = tasks.rows.filter((t) => t.status === "Closed" || t.status === "Cancelled").length;
@@ -321,7 +330,7 @@ async function refreshStageAndJourneyRollup(journeyId: string, stageInstanceId: 
   );
   if (stageDone) {
     const stage = await tx.query<{ stage_code: string }>(`SELECT stage_code FROM stage_instance WHERE id = $1`, [stageInstanceId]);
-    await appendEvent(tx, { type: "stage.completed", entity_type: "stage_instance", entity_id: stageInstanceId, payload: { stage_code: stage.rows[0]?.stage_code } });
+    await appendEvent(tx, { type: "stage.completed", entity_type: "stage_instance", entity_id: stageInstanceId, payload: { stage_code: stage.rows[0]?.stage_code }, ...actorFields(ctx) });
   }
 
   // Rule 9: journey health = worst of its open tasks' statuses.
@@ -374,7 +383,7 @@ export async function completeTaskInstance(taskInstanceId: string, ctx: Ctx): Pr
 
     const calendar = await getCalendar(tx);
     await cascadeActionable(journeyId, t.rows[0].task_code, calendar, tx);
-    await refreshStageAndJourneyRollup(journeyId, t.rows[0].stage_instance_id, tx);
+    await refreshStageAndJourneyRollup(journeyId, t.rows[0].stage_instance_id, ctx, tx);
   });
 }
 
@@ -428,8 +437,9 @@ export async function reopenTaskInstance(taskInstanceId: string, reason: string,
       entity_type: "task_instance",
       entity_id: taskInstanceId,
       payload: { task_code: t.rows[0].task_code, reset_count: toReset.size, reason },
+      ...actorFields(ctx),
     });
-    await refreshStageAndJourneyRollup(journeyId, t.rows[0].stage_instance_id, tx);
+    await refreshStageAndJourneyRollup(journeyId, t.rows[0].stage_instance_id, ctx, tx);
   });
 }
 

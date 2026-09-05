@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { db } from "./db";
 import { DEMAND_SELECT, mapDemands } from "./demands";
 import { type DemandStatus } from "./collections";
-import { appendEvent, withTx } from "./events";
+import { appendEvent, withTx, actorFields } from "./events";
 import { authorize } from "./authz/authorize";
 import type { Ctx } from "./authz/types";
 
@@ -58,6 +58,7 @@ export async function postReceipt(
       booking_id: d.booking_id,
       customer_id: null,
       payload: { demand_id: demandId, amount, mode: input.mode ?? "neft" },
+      ...actorFields(ctx),
     });
     await appendEvent(t, {
       type: "payment.reconciled",
@@ -66,6 +67,7 @@ export async function postReceipt(
       project_id: d.project_id,
       booking_id: d.booking_id,
       payload: { demand_id: demandId, amount },
+      ...actorFields(ctx),
     });
   });
   const row = await db.query<ReceiptRow>(`SELECT * FROM receipt WHERE id = $1`, [id]);
@@ -99,6 +101,7 @@ export async function disputeReceipt(receiptId: string, reason: string, ctx: Ctx
       project_id: r.rows[0].project_id,
       booking_id: r.rows[0].booking_id,
       payload: { demand_id: r.rows[0].demand_id, reason },
+      ...actorFields(ctx),
     });
   });
 }

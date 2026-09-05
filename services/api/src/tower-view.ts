@@ -2,7 +2,7 @@ import { db } from "./db";
 import { pickFive, type TowerCandidate } from "./tower";
 import { projectCollections } from "./collections-view";
 import { projectHandover } from "./qa";
-import { appendEvent, withTx } from "./events";
+import { appendEvent, withTx, actorFields } from "./events";
 import { authorize } from "./authz/authorize";
 import type { Ctx } from "./authz/types";
 
@@ -184,6 +184,7 @@ export async function actIntervention(id: string, ctx: Ctx) {
         booking_id: updated.booking_id,
         unit_id: updated.unit_id,
         payload: { category: updated.category, headline: updated.headline },
+        ...actorFields(ctx),
       });
     }
   });

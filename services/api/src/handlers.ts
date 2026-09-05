@@ -7,7 +7,7 @@ import {
   type ProgressState,
 } from "./gates";
 import { raiseDemandsForUnit } from "./demands-schedule";
-import { appendEvent, withTx, type DbLike } from "./events";
+import { appendEvent, withTx, actorFields, type DbLike } from "./events";
 import { authorize } from "./authz/authorize";
 import { requireRole, STAFF_ROLES } from "./authz/requireRole";
 import type { Ctx } from "./authz/types";
@@ -128,8 +128,9 @@ export async function setProgress(
       entity_id: unitId,
       unit_id: unitId,
       payload: { component, from: before.rows[0]?.state_code ?? null, to: state },
+      ...actorFields(ctx),
     });
   });
-  await raiseDemandsForUnit(unitId);
+  await raiseDemandsForUnit(unitId, ctx);
   return getUnit(unitId);
 }

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { db } from "../db";
-import { appendEvent, withTx, type DbLike } from "../events";
+import { appendEvent, withTx, actorFields, type DbLike } from "../events";
 import { ValidationError } from "./derive";
 import { nextCode } from "./codes";
 import {
@@ -43,6 +43,7 @@ export async function confirmBooking(bookingId: string, ctx: Ctx): Promise<void>
       booking_id: bookingId,
       unit_id: unitId,
       payload: { from: status, to: "CONFIRMED" },
+      ...actorFields(ctx),
     });
   });
 }
@@ -66,6 +67,7 @@ export async function cancelBooking(bookingId: string, reason: string, ctx: Ctx)
       booking_id: bookingId,
       unit_id: unitId,
       payload: { from: status, to: "CANCELLED", reason: reason.trim() },
+      ...actorFields(ctx),
     });
     await t.query(`UPDATE unit SET sale_status = 'available' WHERE id = $1`, [unitId]);
     await appendEvent(t, {
@@ -75,6 +77,7 @@ export async function cancelBooking(bookingId: string, reason: string, ctx: Ctx)
       project_id: projectId,
       unit_id: unitId,
       payload: { to: "AVAILABLE", reason: "booking_cancelled" },
+      ...actorFields(ctx),
     });
   });
 }
@@ -114,6 +117,7 @@ export async function transferBooking(bookingId: string, reason: string, ctx: Ct
       booking_id: bookingId,
       unit_id: unitId,
       payload: { from, to: "TRANSFERRED", reason: reason.trim() },
+      ...actorFields(ctx),
     });
 
     const code = await nextCode(t, "BKG");
@@ -143,6 +147,7 @@ export async function transferBooking(bookingId: string, reason: string, ctx: Ct
       booking_id: successorId,
       unit_id: unitId,
       payload: { booking_number: number, predecessor_booking_id: bookingId },
+      ...actorFields(ctx),
     });
     await appendEvent(t, {
       type: "booking.transferred",
@@ -152,6 +157,7 @@ export async function transferBooking(bookingId: string, reason: string, ctx: Ct
       booking_id: bookingId,
       unit_id: unitId,
       payload: { successor_booking_id: successorId, reason: reason.trim() },
+      ...actorFields(ctx),
     });
     return successorId;
   });
