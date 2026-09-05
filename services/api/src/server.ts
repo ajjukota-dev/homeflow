@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
-import { initDb } from "./db";
+import { initDb, checkHealth } from "./db";
+import { registerStaticRoutes } from "./static";
 import { listUnits, getUnit, setProgress } from "./handlers";
 import {
   MANDATORY_DOCS,
@@ -29,6 +30,13 @@ app.use(cors());
 app.use(express.json());
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
+
+// Container health check (03-platform-deploy.md) — checks the DB, used by
+// App Runner and the deploy smoke test.
+app.get("/health", async (_req, res) => {
+  const dbOk = await checkHealth();
+  res.status(dbOk ? 200 : 503).json({ ok: dbOk, db: dbOk });
+});
 
 app.get("/api/units", async (req, res) => {
   res.json({ data: await listUnits(req.query.project_id as string | undefined) });
@@ -167,6 +175,10 @@ app.post("/api/demands/:id/ptp", async (req, res) => {
 });
 
 registerLifecycleRoutes(app);
+
+// Static SPA hosting (container only — see static.ts) must come after every
+// /api/* route so it never shadows them.
+registerStaticRoutes(app);
 
 const PORT = Number(process.env.PORT ?? 3001);
 initDb().then(() => {

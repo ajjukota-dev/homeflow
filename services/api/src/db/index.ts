@@ -50,3 +50,13 @@ export async function createTestDb(): Promise<DbClient> {
   await seed(testDb);
   return testDb;
 }
+
+// GET /health (03-platform-deploy.md: "checks DB").
+export async function checkHealth(): Promise<boolean> {
+  try {
+    await db.query("SELECT 1");
+    return true;
+  } catch {
+    return false;
+  }
+}
