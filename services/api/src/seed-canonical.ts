@@ -1,11 +1,11 @@
-import type { PGlite } from "@electric-sql/pglite";
+import type { DbClient } from "./db/types";
 import { insertUnit } from "./model/units";
 
 // Second demo project (04 §Rules 7, TODO §7.10: "villa and plot demo units under a second
 // demo project so product-awareness is visible") — East Crest alone can't show a MIXED
 // project or a PLOT unit (no floor/carpet area, plot_area_sqyd instead).
 
-export async function seedCanonicalDemo(db: PGlite): Promise<void> {
+export async function seedCanonicalDemo(db: DbClient): Promise<void> {
   await db.query(
     `INSERT INTO project
        (id, code, name, portfolio_id, product_type, legal_entity, jurisdiction,

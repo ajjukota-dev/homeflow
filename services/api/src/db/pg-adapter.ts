@@ -25,5 +25,32 @@ export function createPgClient(connectionString: string): DbClient {
       await pool.query(sql);
     },
     close: () => pool.end(),
+    async transaction<T>(fn: (tx: DbClient) => Promise<T>): Promise<T> {
+      const client = await pool.connect();
+      const tx: DbClient = {
+        query: async (sql, params) => {
+          const result = await client.query(sql, params as unknown[]);
+          return { rows: result.rows };
+        },
+        exec: async (sql) => {
+          await client.query(sql);
+        },
+        close: async () => {},
+        transaction: () => {
+          throw new Error("nested transactions are not supported");
+        },
+      };
+      try {
+        await client.query("BEGIN");
+        const result = await fn(tx);
+        await client.query("COMMIT");
+        return result;
+      } catch (err) {
+        await client.query("ROLLBACK");
+        throw err;
+      } finally {
+        client.release();
+      }
+    },
   };
 }

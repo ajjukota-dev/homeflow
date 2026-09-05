@@ -11,4 +11,8 @@ export interface DbClient {
   // Multi-statement SQL, no bound params (migrations, seed scripts).
   exec(sql: string): Promise<void>;
   close(): Promise<void>;
+  // Runs `fn` inside one BEGIN/COMMIT (ROLLBACK on throw); `tx` is a DbClient
+  // scoped to that transaction (02 rule 1: events append in the same
+  // transaction as the mutation they record).
+  transaction<T>(fn: (tx: DbClient) => Promise<T>): Promise<T>;
 }
