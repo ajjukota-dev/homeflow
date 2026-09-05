@@ -268,7 +268,9 @@ describe("rule 8 — handover gate integration (replaces PR #7's 'Not verified')
     const gateBefore = before.gates.find((g) => g.type === "commitments")!;
     expect(gateBefore.state).toBe("open");
     expect(gateBefore.blockers).toEqual([`${c.code}: Install a second door lock`]);
-    expect(before.eligible).toBe(true); // soft gate — doesn't block eligibility
+    // 16-handover-gates.md p17 §9 (verbatim from the client PDF): Commitments is HARD, not soft
+    // as this test previously asserted — an open commitment now blocks eligibility.
+    expect(before.eligible).toBe(false);
 
     await fulfilCommitment(c.id, { evidence_file_ids: ["file_1"] }, crm());
     const openAfter = await openCommitmentsForBooking(bookingId);

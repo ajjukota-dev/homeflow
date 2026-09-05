@@ -79,8 +79,11 @@ export const TAB_REGISTRY: TabDef[] = [
   { key: "15.snag_sla", label: "Snag SLA", owner_spec: 15, built: false, edit_roles: ["QA"] },
   { key: "15.contractors", label: "Contractors", owner_spec: 15, built: false, edit_roles: ["QA"] },
 
-  // 16 — handover gates (not built)
-  { key: "16.handover_gate_configuration", label: "Handover gate configuration", owner_spec: 16, built: false, edit_roles: MGMT },
+  // 16 — handover gates (backend built; PUT route is the real edit path, Studio UI deferred like every other spec's)
+  { key: "16.handover_gate_configuration", label: "Handover gate configuration", owner_spec: 16, built: true, edit_roles: [...MGMT, "QA"] },
+  // Digital handover checklist is per-case data (handover_checklist), not a Studio-editable
+  // template — no config table for it exists in 16's own Data section, unlike registration's
+  // checklist template. Left built:false; revisit if a template layer is added later.
   { key: "16.handover_checklist", label: "Handover checklist", owner_spec: 16, built: false, edit_roles: MGMT },
 
   // 17 — sales -> CRM handover (backend built; Studio CRUD UI deferred like every other spec's)

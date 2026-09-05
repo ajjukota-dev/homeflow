@@ -1,5 +1,8 @@
-// Handover hard/soft gates — gates.md Part B + handshake H9.
-// Eligibility requires every hard gate. Safety-critical physical items are never overridable.
+// Handover gates — 16-handover-gates.md p17 §9 (eight dimensions, verbatim from the client
+// PDF; supersedes this file's own earlier six/nine-gate guess). Eligibility requires every hard
+// gate PASSED or OVERRIDDEN. classification is config-driven (handover/store.ts's
+// DEFAULT_GATE_CONFIG, overridable per project via handover_gate_config) rather than hardcoded,
+// so `config` here is the read side of that table — this function stays pure and framework-free.
 
 export type GateType =
   | "financial"
@@ -14,6 +17,27 @@ export type GateType =
 
 export type GateClass = "hard" | "soft";
 export type GateRunState = "open" | "passed";
+
+// p17 §9 table, transcribed exactly: Commitments is HARD (this corrects an earlier guess in
+// this file that called it soft, citing gates.md B.2's hard-gate list — gates.md is the legacy
+// AI-derived draft, docs/specs/ is the authoritative build contract per CLAUDE.md, and 16's own
+// Purpose line lists Commitments as hard). Physical has no override at all (p17 "no override");
+// Financial's "Management only" override is enforced by handover/core.ts's route-level role
+// check, not here. Applies to the 8 gates handover_gate_config's CHECK constraint enumerates —
+// "snags" stays outside that table (see the gate below) since Purpose's own text splits Quality
+// into "hard for critical, soft for minor": one config row (QUALITY) can't carry two
+// classifications, so QUALITY here stays the hard critical+QA+minor-snag check exactly as
+// before, and MAJOR-snag policy breaches keep surfacing on their own always-soft "snags" gate.
+export const DEFAULT_GATE_CLASS: Record<Exclude<GateType, "snags">, GateClass> = {
+  financial: "hard",
+  legal: "hard",
+  registration: "hard",
+  physical: "hard",
+  quality: "hard",
+  commitments: "hard",
+  customer: "soft",
+  fm: "soft",
+};
 
 export interface HandoverInput {
   readiness_value: number;
@@ -30,7 +54,8 @@ export interface HandoverInput {
   // definition (DRAFT/APPROVED/ACTIVE/AT_RISK/BREACHED) blocks; only FULFILLED/WAIVED pass.
   open_commitments: { code: string; description: string }[];
   // 15-qa-evidence-snags.md rule 7: open MAJOR snags above the project's policy count are a SOFT
-  // blocker (CRITICAL stays hard via critical_snags above). Rule 4: PENDING/IN_PROGRESS external
+  // blocker on their own "snags" gate (CRITICAL stays hard via critical_snags above, per
+  // Purpose's "hard for critical, soft for minor"). Rule 4: PENDING/IN_PROGRESS external
   // dependencies on the unit's ancestor nodes surface on the FM/Community gate.
   major_snags?: number;
   major_snag_max?: number;
@@ -53,7 +78,11 @@ function gate(
   return { type, classification, state: passed ? "passed" : "open", blockers: passed ? [] : blockers };
 }
 
-export function evaluateHandover(input: HandoverInput) {
+/** classOverrides lets a caller supply per-project handover_gate_config classification instead
+ *  of DEFAULT_GATE_CLASS — omitted by every existing caller (qa.ts, tests), which get the
+ *  spec-default table unchanged. */
+export function evaluateHandover(input: HandoverInput, classOverrides?: Partial<Record<Exclude<GateType, "snags">, GateClass>>) {
+  const cls = (t: Exclude<GateType, "snags">): GateClass => classOverrides?.[t] ?? DEFAULT_GATE_CLASS[t];
   const physicalBlockers = [
     ...(input.readiness_value >= input.readiness_threshold
       ? []
@@ -68,21 +97,18 @@ export function evaluateHandover(input: HandoverInput) {
   ];
 
   const gates: HandoverGateView[] = [
-    gate("financial", "hard", input.financial_cleared, ["Required consideration not received to the registration threshold"]),
-    gate("legal", "hard", input.legal_executed, ["Executed agreement is missing"]),
-    gate("registration", "hard", input.registered, ["Registration is not complete"]),
-    gate("physical", "hard", physicalBlockers.length === 0, physicalBlockers),
-    gate("quality", "hard", qualityBlockers.length === 0, qualityBlockers),
+    gate("financial", cls("financial"), input.financial_cleared, ["Required consideration not received to the registration threshold"]),
+    gate("legal", cls("legal"), input.legal_executed, ["Executed agreement is missing"]),
+    gate("registration", cls("registration"), input.registered, ["Registration is not complete"]),
+    gate("physical", cls("physical"), physicalBlockers.length === 0, physicalBlockers),
+    gate("quality", cls("quality"), qualityBlockers.length === 0, qualityBlockers),
     // 13-promise-ledger.md rule 8, now real (previously always-open — TODO.md task 6, closed).
-    // Kept "soft": gates.md B.2's own hard-gate list is {financial, legal, registration,
-    // critical-snag, safety-physical} — commitments isn't in it, despite the comment this
-    // replaced claiming otherwise (an unverified premise, corrected here rather than carried
-    // forward). Scoped to ALL open commitments on the booking, not just customer-facing/critical
-    // ones gates.md's own illustrative B.1 text names — 13's rule 8 says "any commitment... →
-    // gate open," and docs/specs/ is the authoritative build contract over docs/spec/ (CLAUDE.md).
-    gate("commitments", "soft", input.open_commitments.length === 0, input.open_commitments.map((c) => `${c.code}: ${c.description}`)),
-    gate("customer", "soft", true, []),
-    gate("fm", "soft", (input.dependency_blockers ?? []).length === 0, input.dependency_blockers ?? []),
+    // Scoped to ALL open commitments on the booking, not just customer-facing/critical ones
+    // gates.md's own illustrative B.1 text names — 13's rule 8 says "any commitment... → gate
+    // open."
+    gate("commitments", cls("commitments"), input.open_commitments.length === 0, input.open_commitments.map((c) => `${c.code}: ${c.description}`)),
+    gate("customer", cls("customer"), true, []),
+    gate("fm", cls("fm"), (input.dependency_blockers ?? []).length === 0, input.dependency_blockers ?? []),
     gate("snags", "soft", (input.major_snags ?? 0) <= (input.major_snag_max ?? 0), [`${input.major_snags ?? 0} major snag(s) open, policy allows ${input.major_snag_max ?? 0}`]),
   ];
 

@@ -11,6 +11,7 @@ import { openCommitmentsForBooking } from "./commitments/core";
 import { appendEvent, withTx, actorFields } from "./events";
 import { authorize } from "./authz/authorize";
 import type { Ctx } from "./authz/types";
+import { nextCode } from "./model/codes";
 
 // QA evidence, snags, and H9 handover eligibility (qa/spec.md).
 
@@ -127,7 +128,11 @@ async function policy(projectId: string) {
   return r.rows[0] ?? { readiness_threshold: 80, minor_snag_max: 2, major_snag_max: 0 };
 }
 
-export async function handoverForBooking(bookingId: string) {
+/** Extracted so 16-handover-gates.md's handover/gates.ts can reuse the exact same live-input
+ *  wiring (unit readiness, snags, finance, legal, registration, commitments, dependencies)
+ *  instead of duplicating this query set — it composes its own config-driven classification on
+ *  top via evaluateHandover's classOverrides param, this function stays untouched. */
+export async function buildHandoverInput(bookingId: string) {
   const b = await db.query<{
     unit_id: string;
     project_id: string;
@@ -167,32 +172,44 @@ export async function handoverForBooking(bookingId: string) {
     row.sale_status === "handed_over";
   const openCommitments = await openCommitmentsForBooking(bookingId);
   const dependencyBlockers = await dependencyBlockersForUnit(row.unit_id);
-  const evald = evaluateHandover({
-    readiness_value: ready.value,
-    readiness_threshold: pol.readiness_threshold,
-    utilities_ready: row.utilities_ready,
-    critical_snags: snags.critical,
-    minor_snags: snags.minor,
-    minor_snag_max: pol.minor_snag_max,
-    major_snags: snags.major,
-    major_snag_max: pol.major_snag_max,
-    dependency_blockers: dependencyBlockers,
-    qa_approved: ready.qa_approved,
-    financial_cleared: finance.cleared,
-    legal_executed: legal.rows.length > 0,
-    registered,
-    open_commitments: openCommitments,
-  });
-  const completed = ho.rows[0]?.status === "completed";
+  return {
+    unitId: row.unit_id,
+    projectId: row.project_id,
+    unitNumber: row.unit_number,
+    customerName: row.customer_name,
+    readiness: ready,
+    legacyCompleted: ho.rows[0]?.status === "completed",
+    input: {
+      readiness_value: ready.value,
+      readiness_threshold: pol.readiness_threshold,
+      utilities_ready: row.utilities_ready,
+      critical_snags: snags.critical,
+      minor_snags: snags.minor,
+      minor_snag_max: pol.minor_snag_max,
+      major_snags: snags.major,
+      major_snag_max: pol.major_snag_max,
+      dependency_blockers: dependencyBlockers,
+      qa_approved: ready.qa_approved,
+      financial_cleared: finance.cleared,
+      legal_executed: legal.rows.length > 0,
+      registered,
+      open_commitments: openCommitments,
+    },
+  };
+}
+
+export async function handoverForBooking(bookingId: string) {
+  const { unitId, unitNumber, customerName, readiness, legacyCompleted, input } = await buildHandoverInput(bookingId);
+  const evald = evaluateHandover(input);
   return {
     booking_id: bookingId,
-    unit_id: row.unit_id,
-    unit_number: row.unit_number,
-    customer_name: row.customer_name,
-    readiness: ready,
+    unit_id: unitId,
+    unit_number: unitNumber,
+    customer_name: customerName,
+    readiness,
     ...evald,
-    lifecycle: completed ? "completed" : evald.lifecycle,
-    eligible: completed ? false : evald.eligible,
+    lifecycle: legacyCompleted ? "completed" : evald.lifecycle,
+    eligible: legacyCompleted ? false : evald.eligible,
   };
 }
 
@@ -221,10 +238,14 @@ export async function completeHandover(bookingId: string, ctx: Ctx) {
   );
   const { unit_id: unitId, project_id: projectId } = b.rows[0];
   await withTx(undefined, async (t) => {
+    // 16-handover-gates.md's migration (0039) made `code` NOT NULL on this pre-existing table —
+    // mint one here the same way legal-docs.ts::completeRegistration does for registration_case.
+    const code = await nextCode(t, "HO");
     await t.query(
-      `INSERT INTO handover_record (id, booking_id, unit_id, project_id, status, completed_at)
-       VALUES ($1,$2,$3,$4,'completed', now())`,
-      [randomUUID(), bookingId, unitId, projectId]
+      `INSERT INTO handover_record (id, code, booking_id, unit_id, project_id, status, completed_at)
+       VALUES ($1,$2,$3,$4,$5,'completed', now())
+       ON CONFLICT (booking_id) DO UPDATE SET status = 'completed', completed_at = now()`,
+      [randomUUID(), code, bookingId, unitId, projectId]
     );
     await t.query(`UPDATE unit SET sale_status = 'handed_over' WHERE id = $1`, [unitId]);
     await appendEvent(t, {

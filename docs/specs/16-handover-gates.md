@@ -47,3 +47,64 @@ Depends on 13, 14, 15, 19, 22, 23, 04, 10. Feeds 26, 27, 30.
 
 ## Not in this feature
 Post-handover cases (30), FM onboarding content (30), readiness math (14).
+
+## Build note (2026-09-06, backend)
+(a) **Commitments corrected to HARD.** The pre-existing `handover.ts` classified Commitments as
+SOFT, citing the legacy `docs/spec/` draft's own hard-gate list as justification and calling the
+opposite claim "an unverified premise, corrected here." This spec's own p17 §9 table (the
+authoritative build contract per CLAUDE.md) lists Commitments as HARD — the same spec-authority
+rule the old comment invoked, resolved the other way once this file's own text was read. Fixed
+`DEFAULT_GATE_CLASS`, and the two pre-existing tests that asserted the old (wrong) behaviour
+(`handover.test.ts`, `commitments/core.test.ts`).
+(b) **Quality/snags stayed nine gates, not eight.** `handover_gate_config`'s CHECK constraint
+enumerates 8 gate values; Purpose's own text splits Quality into "hard for critical, soft for
+minor," which one config row can't carry. Kept the pre-existing structure: `quality` (hard,
+critical+QA+minor-snag) and a separate always-soft `snags` gate (major-snag policy) sitting
+outside `handover_gate_config` entirely — an 8-column config table plus one gate the config layer
+doesn't own, not the 8-vs-9 mismatch it might look like at a glance.
+(c) **ALTER-in-place, two-producer coexistence** — same pattern 23 used for `registration_case`.
+`handover_record` predates this spec (0000_init.sql: `id, booking_id UNIQUE, unit_id, project_id,
+status, completed_at`, written only by `qa.ts`'s legacy `completeHandover`). ALTERed (0039) rather
+than replaced by the Data section's `handover_case`; the legacy writer and this spec's stateful
+`handover/core.ts` read/write the same row and emit the same `handover.completed` event. The
+legacy INSERT needed `ON CONFLICT (booking_id) DO UPDATE` once this module's own
+`loadOrCreateCase` started lazily creating that row on first read (e.g. opening the Handover view
+before the legacy flow ever ran) — caught before landing, with a regression test exercising the
+exact interleaving.
+(d) **`buildHandoverInput` extracted from `qa.ts::handoverForBooking`**, reused by both the legacy
+function and this spec's `evaluateCase`, avoiding ~50 lines of duplicated readiness/snag/finance/
+legal/registration/commitments query logic.
+(e) **Rule 5's DLP window was already built** — `warranty.ts::onHandoverCompleted` (pre-existing,
+predates this spec) already opens the `dlp_window` on handover completion; `completeCase` calls it
+unchanged rather than reimplementing.
+(f) **Flagged, not faked — rule 3's forecast.** Only 23's `registration_case.forecast_date` is a
+real, queryable term; 06 has no construction-completion forecast and 19's `financial_clearance`
+carries no expected-date field. `predictDate` uses the confirmed appointment slot first, then
+23's forecast, then a flat LOW-confidence fallback — the max-over-three-forecasts rule is
+UNCONFIRMED beyond what 23 provides today.
+(g) **Flagged, not faked — rule 6's close gate.** Spec 30 (post-handover onboarding items: FM
+intro, maintenance setup, owner record transfer, warranties shared, snag monitoring) is unbuilt
+and explicitly out of scope for this spec ("Not in this feature"). `closeCase` checks only
+COMPLETED status + a `dlp_window` existing, then lets FM/Management close on judgment — the same
+class of gap 23 left for its own final-step check.
+(h) **`handover_checklist.groups` seeded to the Data row's own skeleton** (property/keys/access/
+utilities/documents, each item `{done, by, at, file_ids}`) rather than shipping empty — a fresh
+case's checklist now shows every item the spec names, defaulted to not-done. Which items beyond
+`keys.all_handed_over` and the two signatures are "required... with photos where configured" for
+rule 5 isn't stated by the spec; `completeCase` still enforces only those three, flagged rather
+than guessed.
+(i) **Approval-matrix integration for `requires_approval` overrides (e.g. FINANCIAL) is unwired.**
+`overrideGate` accepts an `approved_by_user_id` and stores it, but doesn't verify that user via
+25's approval-authority matrix — same flag-don't-fake gap as elsewhere in this build where an
+approvals module exists but per-feature wiring wasn't in scope.
+(j) **`booking.status = 'handed_over'`** is now also set by `completeCase` (the legacy path only
+ever set `unit.sale_status`) — a genuine improvement matching rule 5's own "sets 04
+`booking.status = HANDED_OVER`" text, which the legacy flow had never implemented.
+(k) `handover.gate_overridden` and `handover.closed` are internal governance/audit events, not
+customer-visible (p31 §26's "visible on every later screen" reads as internal screens + the audit
+log) — `customer_visible: false`, same call as 23's `registration.readiness_changed`.
+`handover.appointment_confirmed/rescheduled` stay customer-visible (the customer's own
+appointment); `handover.scheduled`/`handover.completed` are Appendix B's own canonical set.
+(l) `handover_gate_run` now persists only on a `(state, override_id)` change per gate, not on
+every read — otherwise every GET/pipeline row would write 8 identical rows, burying rule 7's
+"history visible" in noise (same precedent as 23's `refresh()`).
