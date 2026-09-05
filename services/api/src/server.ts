@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import { initDb, checkHealth } from "./db";
 import { registerStaticRoutes } from "./static";
+import { registerLocalFileRoutes } from "./ports/files";
 import { listUnits, getUnit, setProgress } from "./handlers";
 import {
   MANDATORY_DOCS,
@@ -175,6 +176,10 @@ app.post("/api/demands/:id/ptp", async (req, res) => {
 });
 
 registerLifecycleRoutes(app);
+
+// files port: local-disk adapter serves its own presigned-URL routes; the
+// s3 adapter needs no server route (real presigned URLs hit S3 directly).
+if (!process.env.FILES_BUCKET) registerLocalFileRoutes(app);
 
 // Static SPA hosting (container only — see static.ts) must come after every
 // /api/* route so it never shadows them.
