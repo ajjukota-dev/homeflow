@@ -130,6 +130,12 @@ export async function firstActiveBooking() {
 // to their OWN booking via customer_login — never firstActiveBooking(),
 // which would leak another customer's data to whoever is signed in.
 export async function bookingForCustomerUser(userId: string) {
-  const r = await db.query<{ booking_id: string }>(`SELECT booking_id FROM customer_login WHERE user_id = $1`, [userId]);
+  // A customer_login binds one booking today (single-booking-per-login is a
+  // known simplification — see PR notes); ORDER BY makes that pick stable
+  // rather than depending on row insertion order if that ever changes.
+  const r = await db.query<{ booking_id: string }>(
+    `SELECT booking_id FROM customer_login WHERE user_id = $1 ORDER BY booking_id LIMIT 1`,
+    [userId]
+  );
   return r.rows[0]?.booking_id ?? null;
 }

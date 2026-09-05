@@ -90,7 +90,7 @@ export function Workspace({ me, onLogout }: { me: NonNullable<ReturnType<typeof 
   const pages: Partial<Record<View, ReactNode>> = {
     site: <SiteProgress projectId={projectId} />,
     sales: <SalesInventory projectId={projectId} onBook={setBookingUnit} />,
-    crm: <CrmQueue />,
+    crm: <CrmQueue roles={roles} />,
     accounts: <Collections projectId={projectId} />,
     legal: <LegalFactory projectId={projectId} />,
     qa: <QaHandover projectId={projectId} />,

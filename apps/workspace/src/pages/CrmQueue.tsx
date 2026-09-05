@@ -6,8 +6,15 @@ import { Button } from "../ui/Button";
 import { MoneyFigure } from "../ui/MoneyFigure";
 import { Customer360 } from "./Customer360";
 
+// Rule 7: the acceptance queue is sales_handover (NONE for CUSTOMISATION,
+// which only has this page for its customer_overview/customer_journey READ —
+// see nav.ts). No route enforces this server-side yet, so hide the section
+// itself (not just its buttons) the same way nav.ts hides a whole tab.
+const CAN_ACCEPT_BOOKINGS = new Set(["MANAGEMENT", "SALES", "CRM", "SUPER_ADMIN"]);
+
 /** CRM / RM — booking acceptance gate (H2) + the Customer Twins it births. */
-export function CrmQueue() {
+export function CrmQueue({ roles }: { roles: string[] }) {
+  const canAccept = roles.some((r) => CAN_ACCEPT_BOOKINGS.has(r));
   const [queue, setQueue] = useState<Booking[]>([]);
   const [customers, setCustomers] = useState<CustomerRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,6 +71,7 @@ export function CrmQueue() {
         </Card>
       )}
 
+      {canAccept && (
       <section className="mb-8">
         <h2 className="mb-3 text-title3 font-semibold">Acceptance queue</h2>
         {loading ? (
@@ -127,6 +135,7 @@ export function CrmQueue() {
           </div>
         )}
       </section>
+      )}
 
       <section>
         <h2 className="mb-3 text-title3 font-semibold">Active customers</h2>

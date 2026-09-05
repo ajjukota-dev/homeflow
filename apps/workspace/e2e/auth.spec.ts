@@ -75,6 +75,20 @@ for (const [email, heading] of ROLE_LANDINGS) {
   });
 }
 
+// CUSTOMISATION is seeded READ-only on customer_overview/customer_journey
+// (no sales_handover grant) but its home view is the CRM tab, which also
+// carries the booking Accept/Return controls — those are hidden client-side
+// (CrmQueue.tsx canAccept) since no route enforces this server-side yet.
+test("CUSTOMISATION sees Active customers but no booking Accept/Return controls", async ({ page }) => {
+  await login(page, "customisation@demo.pranava", "Demo@2026");
+  await expect(page.getByRole("heading", { name: "CRM · Relationship" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Active customers" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Acceptance queue" })).toHaveCount(0);
+  // exact: the sidebar's own CRM nav button is named "CRM / RM Accepts, owns
+  // customers" — a substring match on "Accept" would false-positive on it.
+  await expect(page.getByRole("button", { name: "Accept", exact: true })).toHaveCount(0);
+});
+
 test("wrong password shows an error and does not sign in", async ({ page }) => {
   await login(page, "sales@demo.pranava", "wrong-password");
   await expect(page.getByRole("alert")).toContainText(/incorrect email or password/i);
