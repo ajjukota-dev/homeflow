@@ -235,3 +235,10 @@ Amarsh: "dont stop - this was supposed to be an autonomous run." Continuing with
 - Real scope cuts, flagged not faked: rule 2's approver resolution is a direct in-code default rather than `approvals/matrix.ts`'s `requiredApprovers("COMMITMENT",...)` — that lookup fails closed with zero seeded rows, which would block every approval until Policy Studio is configured; named as the real upgrade once a band exists. Rule 6 (auto-create from a sales handover packet) has no real source since 17 isn't built. Rule 5's `depends_on` only resolves ACTION/DEMAND facts for real (CHANGE_REQUEST/PROGRESS score neutral). Rule 7 analytics deferred (no consumer, 27, exists yet).
 - `commitment` carries project_id but no RLS policy — same flagged gap as loan_case (21)/escalation (12); sweep all three together when P1b resumes.
 - No frontend changes this slice. Next: 14 (readiness scores).
+
+## 22:56 IST — R3: readiness scores backend merged (14-readiness-scores.md) — R3 complete
+
+- `0029_scores.sql`, `scores/contract.ts` (shared Score type), `scores/{unit,booking,handover}-readiness.ts`, `scores/store.ts`, `routes-scores.ts`. 3 new tests, tsc clean, full suite 77/77 files, 469/469 tests.
+- Unit readiness reuses the existing binary QA-verified engine (flagged: not rule 1's full weighted state model, needs 07). Booking readiness is a real weighted blend (payments/TDS/loan/agreement/registration/waiting-customer-actions); documents component flagged unavailable (17/22). Handover readiness reuses `evaluateHandover` with a real commitment-count penalty (13); FM component flagged unavailable (16).
+- Score weights are in-code constants, not read from `score_weight` (schema exists, unwired — Studio can populate it later).
+- R3 (CFO-first) is now fully backend-complete: 19, 21, 12, 13, 14 all merged. 20 (cash forecast) remains deliberately skipped pending 23/registration or Amarsh's sign-off to stub it.
