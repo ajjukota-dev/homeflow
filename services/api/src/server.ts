@@ -21,14 +21,21 @@ import {
 import { postReceipt } from "./demands-receipts";
 import { projectCollections, listOverdueReasons } from "./collections-view";
 import { registerLifecycleRoutes } from "./routes-lifecycle";
+import { registerAuthRoutes } from "./auth/routes";
+import { requireSession } from "./auth/middleware";
 
 // Local API gateway. Handlers are Lambda-portable; this Express wrapper is the local
 // mirror (architecture.md §6b) — the same handlers run behind API Gateway on AWS.
 const app = express();
-app.use(cors());
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
+
+// 01-identity-access.md API: auth routes are public/self-gated; requireSession
+// below covers every other route ("on every non-auth route").
+registerAuthRoutes(app);
+app.use(requireSession);
 
 app.get("/api/units", async (req, res) => {
   res.json({ data: await listUnits(req.query.project_id as string | undefined) });
