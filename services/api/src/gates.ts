@@ -2,12 +2,15 @@
 // Pure functions: given a unit's component progress + configured rules, derive the
 // per-category gate state. No hard-coded units here — everything comes from data.
 
-export type ProgressState = "not_started" | "in_progress" | "complete" | "verified";
+export type ProgressState = "not_started" | "in_progress" | "complete" | "verified" | "rework";
 export type GateState = "OPEN" | "CLOSING" | "CONDITIONAL" | "EXCEPTION_ONLY" | "HARD_CLOSED";
 
+// rework (07 rule 3: VERIFIED → REWORK) ranks with in_progress — physically the work is open
+// again, so a gate that closed on "complete" reopens. UNCONFIRMED until 08 owns gate semantics.
 const progressRank: Record<ProgressState, number> = {
   not_started: 0,
   in_progress: 1,
+  rework: 1,
   complete: 2,
   verified: 3,
 };

@@ -1,57 +1,17 @@
 import { db } from "./db";
-import {
-  deriveGate,
-  changeabilityScore,
-  type ChangeGateRule,
-  type GateState,
-  type ProgressState,
-} from "./gates";
-import { raiseDemandsForUnit } from "./demands-schedule";
-import { appendEvent, withTx, actorFields, type DbLike } from "./events";
-import { authorize } from "./authz/authorize";
+import type { ProgressState } from "./gates";
+import type { DbLike } from "./events";
 import { requireRole, STAFF_ROLES } from "./authz/requireRole";
 import type { Ctx } from "./authz/types";
+import { loadGateCategories, loadGateRules, loadProgressMap, gatesFromProgress } from "./progress/gate-inputs";
+import { updateProgress } from "./progress/core";
 
-// Pure-ish handlers (portable to Lambda). Each reads/writes the DB and derives gates.
-
-async function rules(): Promise<ChangeGateRule[]> {
-  const r = await db.query<ChangeGateRule>(
-    `SELECT category_code, trigger_component_code, min_state, resulting_state FROM change_gate_rule`
-  );
-  return r.rows;
-}
-
-async function categories() {
-  const r = await db.query<{ code: string; customer_label: string; customer_visible: boolean; sort_order: number }>(
-    `SELECT code, customer_label, customer_visible, sort_order FROM change_category ORDER BY sort_order`
-  );
-  return r.rows;
-}
-
-async function progressFor(unitId: string): Promise<Record<string, ProgressState>> {
-  const r = await db.query<{ component_code: string; state_code: ProgressState }>(
-    `SELECT component_code, state_code FROM unit_progress WHERE unit_id=$1`,
-    [unitId]
-  );
-  const map: Record<string, ProgressState> = {};
-  for (const row of r.rows) map[row.component_code] = row.state_code;
-  return map;
-}
+// Pure-ish handlers (portable to Lambda). Each reads/writes the DB and derives gates. The gate
+// input loaders moved to progress/gate-inputs.ts when 07 needed them for dry-run previews.
 
 async function gatesForUnit(unitId: string) {
-  const [cats, rls, progress] = await Promise.all([categories(), rules(), progressFor(unitId)]);
-  const gates = cats.map((c) => {
-    const { state, reason } = deriveGate(c.code, progress, rls);
-    return {
-      category_code: c.code,
-      customer_label: c.customer_label,
-      customer_visible: c.customer_visible,
-      state,
-      reason,
-    };
-  });
-  const score = changeabilityScore(gates.map((g) => g.state as GateState));
-  return { gates, score };
+  const [cats, rls, progress] = await Promise.all([loadGateCategories(), loadGateRules(), loadProgressMap(unitId)]);
+  return gatesFromProgress(progress, cats, rls);
 }
 
 /** Sales inventory — every available unit with live gates + score (optionally by project).
@@ -102,7 +62,9 @@ export async function getUnit(unitId: string, ctx?: Ctx) {
   return { ...u.rows[0], score, components: comps.rows, gates };
 }
 
-/** Project/Site writes progress → gates re-derive (the H1 loop). Emits progress.updated (02 Appendix B). */
+/** Project/Site writes progress → gates re-derive (the H1 loop). Kept as the compatible entry
+ *  point for the original `PUT /api/units/:id/progress` route and its callers; the real write
+ *  (rules 1–4, 7, 8 of 07, plus the milestone-demand chain) lives in progress/core.ts. */
 export async function setProgress(
   unitId: string,
   component: string,
@@ -110,27 +72,6 @@ export async function setProgress(
   ctx: Ctx,
   tx?: DbLike
 ) {
-  await authorize(ctx, "unit_readiness", "WRITE");
-  const valid: ProgressState[] = ["not_started", "in_progress", "complete", "verified"];
-  if (!valid.includes(state)) throw new Error(`invalid state ${state}`);
-  const before = await db.query<{ state_code: ProgressState }>(
-    `SELECT state_code FROM unit_progress WHERE unit_id=$1 AND component_code=$2`,
-    [unitId, component]
-  );
-  await withTx(tx, async (t) => {
-    await t.query(
-      `UPDATE unit_progress SET state_code=$1, updated_at=now() WHERE unit_id=$2 AND component_code=$3`,
-      [state, unitId, component]
-    );
-    await appendEvent(t, {
-      type: "progress.updated",
-      entity_type: "unit",
-      entity_id: unitId,
-      unit_id: unitId,
-      payload: { component, from: before.rows[0]?.state_code ?? null, to: state },
-      ...actorFields(ctx),
-    });
-  });
-  await raiseDemandsForUnit(unitId, ctx);
+  await updateProgress(unitId, component, { state_code: state }, ctx, { tx });
   return getUnit(unitId);
 }

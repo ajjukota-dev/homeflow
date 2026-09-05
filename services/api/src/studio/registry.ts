@@ -43,7 +43,7 @@ export const TAB_REGISTRY: TabDef[] = [
   { key: "06.calendars", label: "Calendars", owner_spec: 6, built: true, edit_roles: MGMT },
   { key: "06.delay_reasons", label: "Delay reasons", owner_spec: 6, built: true, edit_roles: MGMT },
 
-  // 07 — unit progress control (not built)
+  // 07 — unit progress control (backend built; Studio CRUD UI deferred like every other spec's)
   { key: "07.progress_components", label: "Progress components", owner_spec: 7, built: false, edit_roles: ["SITE"] },
   { key: "07.freshness_thresholds", label: "Freshness thresholds", owner_spec: 7, built: false, edit_roles: ["SITE"] },
 

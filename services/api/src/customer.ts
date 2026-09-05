@@ -19,7 +19,7 @@ const CUSTOMER_STAGES: { label: string; component: string; min_state: ProgressSt
   { label: "Ready", component: "finishing", min_state: "verified" },
 ];
 
-const rank: Record<ProgressState, number> = { not_started: 0, in_progress: 1, complete: 2, verified: 3 };
+const rank: Record<ProgressState, number> = { not_started: 0, in_progress: 1, rework: 1, complete: 2, verified: 3 };
 
 async function progressFor(unitId: string): Promise<Record<string, ProgressState>> {
   const r = await db.query<{ component_code: string; state_code: ProgressState }>(
