@@ -79,6 +79,14 @@ export const EVENT_TYPES: EventTypeDef[] = [
   // Not a literal 06 name — rule 7 ("reopening requires a reason ... logs why") needs a real
   // emit site, same class of sanctioned extension as 05's 3.
   { name: "task_instance.reopened", family: "task_instance", customer_visible: false, built: true },
+
+  // --- Universal Action (10-universal-action.md) — literal Events section names ---
+  { name: "action.created", family: "action", customer_visible: false, built: true },
+  { name: "action.status_changed", family: "action", customer_visible: false, built: true },
+  { name: "action.closed", family: "action", customer_visible: false, built: true },
+  { name: "action.cancelled", family: "action", customer_visible: false, built: true },
+  { name: "action.reassigned", family: "action", customer_visible: false, built: true },
+  { name: "action.evidence_verified", family: "action", customer_visible: false, built: true },
 ];
 
 /** Appendix B (p42) names verbatim — the coverage test's universe. Extensions are exempt by design. */

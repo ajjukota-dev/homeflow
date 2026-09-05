@@ -8,7 +8,9 @@ import { evaluateCondition } from "./dsl";
 import { computeStageSchedule, deriveStageEdges, deriveStatus, type ClockStatus } from "./engine";
 import type { CalendarRow } from "./calendar";
 import { asDateStr } from "./calendar";
-import { startClock, stopClock, type SlaPolicyRow } from "./sla";
+import { startClock, type SlaPolicyRow } from "./sla";
+import { createAction, closeAction, approveAction, actionIsApprovalFamily, setActionClock, resetActionForReopen } from "../actions/core";
+import { EXECUTION_TYPE_TO_ACTION_TYPE } from "../seed/action-types";
 
 // Journey instantiation + lifecycle (06-timeline-sla-engine.md). Not in this slice (deliberate
 // scope cut, logged in TODO.md): timeline_plan_revision/timeline_forecast_revision endpoints
@@ -17,7 +19,17 @@ import { startClock, stopClock, type SlaPolicyRow } from "./sla";
 // none built), conditional re-evaluation on customer.residency_changed/change_request.created
 // (rule 1's "improves on E §2.5" — only the at-creation evaluation is done here),
 // ProjectJourneyControl dashboard, Policy Studio SLA/Calendar/DelayReason CRUD screens.
-// completeTaskInstance is a stand-in for Universal Action's real close flow (10, not built).
+// completeTaskInstance now delegates to actions/core.ts's closeAction/approveAction (10) for the
+// real evidence-gated close (APPROVAL-family tasks, e.g. T6, close via approveAction — closeAction
+// always refuses that family) — every task_instance gets a real action row at creation (rule 2's
+// one wired Source), kept in sync at the two other divergence points: cascadeActionable's new SLA
+// clock (setActionClock) and reopenTaskInstance's transitive reset (resetActionForReopen).
+// KNOWN GAP: this is task_instance -> action mirroring only. A caller who hits a task-backed
+// action's own routes directly (POST /api/actions/:id/approve|close|cancel) closes the action
+// without updating task_instance/cascading/rolling up — unreachable today since 10's UI
+// (ActionDrawer/Queues.tsx) isn't built, so nothing calls those routes for a task-backed action
+// yet, but must be fixed (event subscriber on action.closed, rule 7's original plan, is the
+// natural fix) before that UI ships.
 
 async function getCalendar(tx: DbLike): Promise<CalendarRow> {
   const r = await tx.query<{ working_days: unknown; holidays: unknown }>(
@@ -154,6 +166,34 @@ export async function instantiateJourneyForBooking(bookingId: string, tx: DbLike
          VALUES ($1,$2,$3,$4,$5,$4,$5,$4,$5,$6)`,
         [taskInstanceId, stageInstanceId, task.code, window.start, window.end, slaClockId]
       );
+
+      // Rule 2 (10): the task row references its own action, created here regardless of whether
+      // it's immediately actionable (an un-actionable task's action just starts New, no clock).
+      const actionId = await createAction(
+        {
+          type: EXECUTION_TYPE_TO_ACTION_TYPE[task.execution_type],
+          title: task.title,
+          project_id: projectId,
+          source_module: "journey",
+          source_entity_type: "task_instance",
+          source_entity_id: taskInstanceId,
+          booking_id: bookingId,
+          unit_id: unitId,
+          owner_role: task.owner_role,
+          // No due_at duplication here — sla_clock.due_at (joined via sla_clock_id) is the one
+          // source of truth, same as task_instance's own read model already does.
+          priority: task.priority,
+          sla_clock_id: slaClockId,
+          customer_visible: task.customer_visible,
+          customer_title: task.customer_title ?? null,
+          approver_role: task.approver_role ?? null,
+          verifier_role: task.verifier_role ?? null,
+          checklist: (task.checklist_items ?? []).map((label) => ({ label: String(label) })),
+          origin: "AUTO",
+        },
+        tx
+      );
+      await tx.query(`UPDATE task_instance SET action_id = $2 WHERE id = $1`, [taskInstanceId, actionId]);
     }
   }
 
@@ -219,6 +259,7 @@ interface TaskInstanceRow {
   stage_instance_id: string;
   status: string;
   sla_clock_id: string | null;
+  action_id: string | null;
 }
 
 /** Rule 5 cascade: once a task completes, any dependent task whose every predecessor is now
@@ -234,7 +275,7 @@ async function cascadeActionable(journeyId: string, completedTaskCode: string, c
 
   for (const dep of dependents.rows) {
     const target = await tx.query<TaskInstanceRow>(
-      `SELECT ti.id, ti.task_code, ti.stage_instance_id, ti.status, ti.sla_clock_id FROM task_instance ti
+      `SELECT ti.id, ti.task_code, ti.stage_instance_id, ti.status, ti.sla_clock_id, ti.action_id FROM task_instance ti
          JOIN stage_instance si ON si.id = ti.stage_instance_id
         WHERE si.journey_id = $1 AND ti.task_code = $2`,
       [journeyId, dep.to_task_code]
@@ -262,6 +303,9 @@ async function cascadeActionable(journeyId: string, completedTaskCode: string, c
     if (!policy) continue;
     const clockId = await startClock({ subject_type: "task_instance", subject_id: target.rows[0].id, policy, calendar }, tx);
     await tx.query(`UPDATE task_instance SET sla_clock_id = $2 WHERE id = $1`, [target.rows[0].id, clockId]);
+    // Keep the action's own clock reference in sync (10) — same clock, two pointers, not a
+    // second clock started (see actions/core.ts's setActionClock doc comment).
+    if (target.rows[0].action_id) await setActionClock(target.rows[0].action_id, clockId, tx);
   }
 }
 
@@ -301,22 +345,31 @@ async function refreshStageAndJourneyRollup(journeyId: string, stageInstanceId: 
   await tx.query(`UPDATE journey_instance SET health = $2 WHERE id = $1`, [journeyId, worst]);
 }
 
-/** Stand-in for Universal Action's real close flow (10 not built) — closes the task, stops its
- *  SLA clock, cascades actionability to dependents (rule 5), refreshes stage/journey rollups. */
+/** Closes the task's Action (10's evidence-gated close — the real close path now that Universal
+ *  Action exists), then cascades actionability to dependents (rule 5) and refreshes stage/journey
+ *  rollups. task_instance.status still tracks its own copy of the same Appendix A status (06's
+ *  Data table models it that way); closeAction is the source of truth, this just mirrors it. */
 export async function completeTaskInstance(taskInstanceId: string, ctx: Ctx): Promise<void> {
   requireRole(ctx, STAFF_ROLES);
   await withTx(undefined, async (tx) => {
-    const t = await tx.query<{ task_code: string; stage_instance_id: string; status: string; sla_clock_id: string | null }>(
-      `SELECT task_code, stage_instance_id, status, sla_clock_id FROM task_instance WHERE id = $1`,
+    const t = await tx.query<{ task_code: string; stage_instance_id: string; status: string; action_id: string | null }>(
+      `SELECT task_code, stage_instance_id, status, action_id FROM task_instance WHERE id = $1`,
       [taskInstanceId]
     );
     if (!t.rows[0]) throw new AppError("not_found", "task instance not found");
     if (t.rows[0].status === "Closed") throw new AppError("conflict", "task already closed");
+    if (!t.rows[0].action_id) throw new AppError("conflict", "task instance has no action (not yet actionable?)");
 
     const stage = await tx.query<{ journey_id: string }>(`SELECT journey_id FROM stage_instance WHERE id = $1`, [t.rows[0].stage_instance_id]);
     const journeyId = stage.rows[0].journey_id;
 
-    if (t.rows[0].sla_clock_id) await stopClock(t.rows[0].sla_clock_id, tx);
+    // APPROVAL-family actions close via approveAction (they must already be Ready for Approval —
+    // closeAction always refuses APPROVAL-family, see actions/core.ts's checkEvidenceGate).
+    if (await actionIsApprovalFamily(t.rows[0].action_id, tx)) {
+      await approveAction(t.rows[0].action_id, undefined, ctx, tx);
+    } else {
+      await closeAction(t.rows[0].action_id, undefined, ctx, tx); // evidence gate (rule 4) throws here if unmet
+    }
     await tx.query(`UPDATE task_instance SET status = 'Closed', actual_end = CURRENT_DATE WHERE id = $1`, [taskInstanceId]);
 
     const calendar = await getCalendar(tx);
@@ -354,8 +407,8 @@ export async function reopenTaskInstance(taskInstanceId: string, reason: string,
     }
 
     for (const code of toReset) {
-      const instance = await tx.query<{ id: string; sla_clock_id: string | null }>(
-        `SELECT ti.id, ti.sla_clock_id FROM task_instance ti
+      const instance = await tx.query<{ id: string; sla_clock_id: string | null; action_id: string | null }>(
+        `SELECT ti.id, ti.sla_clock_id, ti.action_id FROM task_instance ti
            JOIN stage_instance si ON si.id = ti.stage_instance_id
           WHERE si.journey_id = $1 AND ti.task_code = $2`,
         [journeyId, code]
@@ -365,6 +418,9 @@ export async function reopenTaskInstance(taskInstanceId: string, reason: string,
         `UPDATE task_instance SET status = 'New', actual_start = NULL, actual_end = NULL, sla_clock_id = NULL WHERE id = $1`,
         [instance.rows[0].id]
       );
+      // Mirror-image reset on the action side (10) — otherwise a reopened task's action stays
+      // stuck Closed while task_instance goes back to New (see actions/core.ts's doc comment).
+      if (instance.rows[0].action_id) await resetActionForReopen(instance.rows[0].action_id, reason, tx);
     }
 
     await appendEvent(tx, {

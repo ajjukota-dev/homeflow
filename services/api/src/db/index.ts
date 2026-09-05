@@ -8,6 +8,7 @@ import { seedUsers } from "../seed/users";
 import { seedJourneyStandard } from "../seed/journey-standard";
 import { seedDefaultCalendar } from "../seed/calendar";
 import { seedSlaPolicies } from "../seed/sla-policies";
+import { seedActionTypes } from "../seed/action-types";
 import { registerJourneySubscribers } from "../journey/subscribers";
 import type { DbClient } from "./types";
 
@@ -71,6 +72,9 @@ export function initDb(): Promise<void> {
       // demo data, so none of this waits on seedAllowed below.
       await seedDefaultCalendar(db);
       await seedSlaPolicies(db);
+      // 10 config: action_type rows (execution-type-keyed, see seed/action-types.ts header) —
+      // every environment needs these before any task instance can get its action.
+      await seedActionTypes(db);
       registerJourneySubscribers();
       const seedAllowed = process.env.NODE_ENV !== "production" || process.env.SEED_DEMO === "1";
       if (!seedAllowed) return;
