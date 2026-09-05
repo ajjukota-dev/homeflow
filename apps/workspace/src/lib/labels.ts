@@ -127,3 +127,51 @@ const INTERVENTION_CATEGORY: Record<InterventionCategory, string> = {
   margin: "Margin",
 };
 export const interventionCategoryLabel = (v: string) => lookup(INTERVENTION_CATEGORY, v);
+
+// Event log plain-language rendering (spec 02 Screens: "Activity tab ... rendering events in
+// plain language via labels.ts"). Falls back to a readable version of the dotted type name
+// for any event not covered here yet.
+export interface ActivityEvent {
+  type: string;
+  payload: Record<string, unknown>;
+}
+
+function fmtMoney(v: unknown): string {
+  const n = Number(v);
+  return Number.isFinite(n) ? `₹${n.toLocaleString("en-IN")}` : String(v ?? "");
+}
+
+const EVENT_DESCRIBERS: Record<string, (p: Record<string, unknown>) => string> = {
+  "booking.created": (p) => `Booking ${p.booking_number ?? ""} created for ${fmtMoney(p.total_consideration)}`.trim(),
+  "sales_handover.submitted": () => "Submitted to CRM for review",
+  "sales_handover.returned": (p) => `Returned by CRM${p.reason ? `: ${p.reason}` : ""}`,
+  "sales_handover.accepted": (p) => `Accepted by CRM${p.rm_owner ? ` — RM ${p.rm_owner}` : ""}`,
+  "demand.raised": (p) => `Demand raised for ${fmtMoney(p.amount)}${p.due_date ? ` due ${p.due_date}` : ""}`,
+  "payment.received": (p) => `Payment of ${fmtMoney(p.amount)} received`,
+  "payment.reconciled": (p) => `Payment of ${fmtMoney(p.amount)} reconciled`,
+  "agreement.generated": (p) => `${p.document_family ?? "Agreement"} drafted (v${p.version ?? 1})`,
+  "agreement.executed": (p) => `${p.document_family ?? "Agreement"} executed`,
+  "document.approved": (p) => `${p.document_family ?? "Document"} approved`,
+  "registration.completed": (p) => `Registration completed${p.sro_reference ? ` (${p.sro_reference})` : ""}`,
+  "progress.updated": (p) => `${p.component ?? "Component"} moved from ${p.from ?? "—"} to ${p.to ?? "—"}`,
+  "qa.inspection_passed": (p) => `${p.component ?? "Component"} passed QA inspection`,
+  "snag.closed": () => "Snag closed with before/after evidence",
+  "handover.completed": () => "Handover completed",
+  "warranty.case_closed": () => "Warranty case closed",
+  "action.acted": (p) => `Action taken on "${p.headline ?? "intervention"}"`,
+  "checkin.captured": (p) => `Check-in captured — satisfaction ${p.satisfaction_score ?? "—"}/5`,
+  "unit.created": (p) => `Unit ${p.unit_number ?? ""} created`.trim(),
+  "unit.sale_status_changed": (p) => `Sale status changed from ${p.from ?? "—"} to ${p.to ?? "—"}`,
+  "customer.created": (p) => `Customer ${p.display_name ?? ""} created`.trim(),
+  "booking.status_changed": (p) => `Booking status changed from ${p.from ?? "—"} to ${p.to ?? "—"}`,
+};
+
+export function eventDescription(event: ActivityEvent): string {
+  const describer = EVENT_DESCRIBERS[event.type];
+  if (describer) return describer(event.payload ?? {});
+  return titleCase(event.type.replace(/\./g, " "));
+}
+
+export function eventFamily(type: string): string {
+  return type.split(".")[0];
+}

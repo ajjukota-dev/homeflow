@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { Building2, Store, Users, Plus, Moon, Sun, Banknote, Scale, ClipboardCheck, HeartHandshake, Landmark } from "lucide-react";
+import { Building2, Store, Users, Plus, Moon, Sun, Banknote, Scale, ClipboardCheck, HeartHandshake, Landmark, Settings } from "lucide-react";
 import { SiteProgress } from "./pages/SiteProgress";
 import { SalesInventory } from "./pages/SalesInventory";
 import { CrmQueue } from "./pages/CrmQueue";
@@ -10,11 +10,12 @@ import { LegalFactory } from "./pages/LegalFactory";
 import { QaHandover } from "./pages/QaHandover";
 import { PostHandover } from "./pages/PostHandover";
 import { ControlTower } from "./pages/ControlTower";
+import { Admin } from "./pages/admin/Admin";
 import { api, type Project, type Unit } from "./api";
 import { Button } from "./ui/Button";
 import { cn } from "./lib/utils";
 
-type View = "site" | "sales" | "crm" | "accounts" | "legal" | "qa" | "after" | "tower";
+type View = "site" | "sales" | "crm" | "accounts" | "legal" | "qa" | "after" | "tower" | "admin";
 
 const NAV: { id: View; label: string; role: string; short: string; Icon: typeof Building2 }[] = [
   { id: "site", label: "Project / Site", role: "Owns unit progress", short: "Site", Icon: Building2 },
@@ -25,6 +26,7 @@ const NAV: { id: View; label: string; role: string; short: string; Icon: typeof 
   { id: "qa", label: "QA / Handover", role: "Evidence, then keys", short: "QA", Icon: ClipboardCheck },
   { id: "after", label: "After keys", role: "Warranty & DLP", short: "After", Icon: HeartHandshake },
   { id: "tower", label: "Management", role: "Five interventions", short: "Tower", Icon: Landmark },
+  { id: "admin", label: "Admin", role: "Projects, units, customers", short: "Admin", Icon: Settings },
 ];
 
 const inputCls = "w-full rounded-lg border border-line bg-surface px-3 py-2 text-subhead outline-none focus:border-accent";
@@ -87,6 +89,7 @@ export function App() {
     qa: <QaHandover projectId={projectId} />,
     after: <PostHandover projectId={projectId} />,
     tower: <ControlTower projectId={projectId} />,
+    admin: <Admin />,
   };
 
   const content = bookingUnit ? (

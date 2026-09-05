@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { db } from "./db";
+import { appendEvent, withTx } from "./events";
 
 // H12 consumer — DLP, passport, check-ins, service history (post-handover/spec.md).
 // Durations come from handover_policy, never a hard-coded East Crest month count.
@@ -148,22 +149,33 @@ export async function serviceHistory(unitId: string) {
   return r.rows;
 }
 
+/** Emits warranty.case_closed (02 Appendix B). */
 export async function closeWarranty(id: string) {
-  const w = await db.query<{ unit_id: string; coverage: string; description: string }>(
-    `SELECT unit_id, coverage, description FROM warranty_case WHERE id = $1`,
+  const w = await db.query<{ unit_id: string; project_id: string; coverage: string; description: string }>(
+    `SELECT unit_id, project_id, coverage, description FROM warranty_case WHERE id = $1`,
     [id]
   );
   if (w.rows.length === 0) throw new Error("not_found");
   const chargeable = w.rows[0].coverage === "out_of_coverage";
-  await db.query(
-    `UPDATE warranty_case SET status = 'closed', chargeable_amount = $2 WHERE id = $1`,
-    [id, chargeable ? 1 : 0]
-  );
-  await db.query(
-    `INSERT INTO service_history (id, unit_id, event_type, warranty_case_id, description, actor)
-     VALUES ($1,$2,'warranty.case.resolved',$3,$4,'service')`,
-    [randomUUID(), w.rows[0].unit_id, id, `Closed: ${w.rows[0].description}`]
-  );
+  await withTx(undefined, async (t) => {
+    await t.query(`UPDATE warranty_case SET status = 'closed', chargeable_amount = $2 WHERE id = $1`, [
+      id,
+      chargeable ? 1 : 0,
+    ]);
+    await t.query(
+      `INSERT INTO service_history (id, unit_id, event_type, warranty_case_id, description, actor)
+       VALUES ($1,$2,'warranty.case.resolved',$3,$4,'service')`,
+      [randomUUID(), w.rows[0].unit_id, id, `Closed: ${w.rows[0].description}`]
+    );
+    await appendEvent(t, {
+      type: "warranty.case_closed",
+      entity_type: "warranty_case",
+      entity_id: id,
+      project_id: w.rows[0].project_id,
+      unit_id: w.rows[0].unit_id,
+      payload: { chargeable_amount: chargeable ? 1 : 0 },
+    });
+  });
   return db
     .query<{ id: string; unit_id: string; status: string; chargeable_amount: string }>(
       `SELECT * FROM warranty_case WHERE id = $1`,
@@ -172,8 +184,12 @@ export async function closeWarranty(id: string) {
     .then((r) => r.rows[0]);
 }
 
+/** Emits checkin.captured (extension — check-ins aren't named in Appendix B). */
 export async function captureCheckin(id: string, satisfactionScore: number) {
-  const existing = await db.query(`SELECT id FROM checkin_record WHERE id = $1`, [id]);
+  const existing = await db.query<{ id: string; booking_id: string }>(
+    `SELECT id, booking_id FROM checkin_record WHERE id = $1`,
+    [id]
+  );
   if (existing.rows.length === 0) throw new Error("not_found");
   if (!Number.isInteger(satisfactionScore) || satisfactionScore < 1 || satisfactionScore > 5) {
     const err = new Error("validation_failed") as Error & {
@@ -182,10 +198,25 @@ export async function captureCheckin(id: string, satisfactionScore: number) {
     err.errors = [{ code: "validation", field: "satisfaction_score", message: "must be an integer from 1 to 5" }];
     throw err;
   }
-  await db.query(
-    `UPDATE checkin_record SET status = 'captured', satisfaction_score = $2, captured_at = now() WHERE id = $1`,
-    [id, satisfactionScore]
+  const bk = await db.query<{ project_id: string; unit_id: string }>(
+    `SELECT project_id, unit_id FROM booking WHERE id = $1`,
+    [existing.rows[0].booking_id]
   );
+  await withTx(undefined, async (t) => {
+    await t.query(
+      `UPDATE checkin_record SET status = 'captured', satisfaction_score = $2, captured_at = now() WHERE id = $1`,
+      [id, satisfactionScore]
+    );
+    await appendEvent(t, {
+      type: "checkin.captured",
+      entity_type: "checkin_record",
+      entity_id: id,
+      project_id: bk.rows[0]?.project_id ?? null,
+      booking_id: existing.rows[0].booking_id,
+      unit_id: bk.rows[0]?.unit_id ?? null,
+      payload: { satisfaction_score: satisfactionScore },
+    });
+  });
   return db
     .query<{ id: string; booking_id: string; day: number; status: string; satisfaction_score: number | null }>(
       `SELECT * FROM checkin_record WHERE id = $1`,
