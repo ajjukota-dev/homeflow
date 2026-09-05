@@ -73,6 +73,9 @@ export async function seedLifecycleDemo(db: DbClient) {
   await db.exec(`
     INSERT INTO code_sequence (prefix, next_value) VALUES ('REG', 4)
     ON CONFLICT (prefix) DO UPDATE SET next_value = GREATEST(code_sequence.next_value, 4);
+    -- 16-handover-gates.md: same trap, same fix — 'ho_v113' above bypasses nextCode.
+    INSERT INTO code_sequence (prefix, next_value) VALUES ('HO', 2)
+    ON CONFLICT (prefix) DO UPDATE SET next_value = GREATEST(code_sequence.next_value, 2);
   `);
 }
 
@@ -159,8 +162,8 @@ async function seedHandedOverVilla(db: DbClient) {
     INSERT INTO registration_case (id, code, booking_id, unit_id, project_id, status, sro_reference, completed_at)
     VALUES ('reg_v113','REG-000003','b_v113','u_v113','p_eastcrest','completed','SRO/BNG/2026/3301', now() - interval '45 days');
 
-    INSERT INTO handover_record (id, booking_id, unit_id, project_id, status, completed_at)
-    VALUES ('ho_v113','b_v113','u_v113','p_eastcrest','completed', now() - interval '20 days');
+    INSERT INTO handover_record (id, code, booking_id, unit_id, project_id, status, completed_at)
+    VALUES ('ho_v113','HO-000001','b_v113','u_v113','p_eastcrest','completed', now() - interval '20 days');
     INSERT INTO dlp_window (id, unit_id, booking_id, project_id, dlp_start, dlp_end, status, policy_months)
     VALUES ('dlp_v113','u_v113','b_v113','p_eastcrest', (CURRENT_DATE - 20), (CURRENT_DATE - 20) + interval '12 months', 'active', 12);
 

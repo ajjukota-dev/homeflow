@@ -55,13 +55,13 @@ describe("commitments gate (13-promise-ledger.md rule 8, real since 13 merged)",
     expect(commitments?.blockers).toEqual([]);
   });
 
-  it("opens with the commitment's own code and description as the blocker, but stays soft — doesn't block eligibility", () => {
+  it("opens with the commitment's own code and description as the blocker, and is HARD — blocks eligibility (16-handover-gates.md p17 §9, verbatim from the client PDF)", () => {
     const result = evaluateHandover({ ...READY, open_commitments: [{ code: "CMT-000001", description: "Free modular kitchen upgrade" }] });
     const commitments = result.gates.find((g) => g.type === "commitments");
     expect(commitments?.state).toBe("open");
-    expect(commitments?.classification).toBe("soft");
+    expect(commitments?.classification).toBe("hard");
     expect(commitments?.blockers).toEqual(["CMT-000001: Free modular kitchen upgrade"]);
-    expect(result.eligible).toBe(true); // soft gate — surfaced, not blocking (gates.md B.2)
+    expect(result.eligible).toBe(false);
   });
 
   it("still leaves a booking not eligible when a hard gate fails, independent of commitments", () => {
