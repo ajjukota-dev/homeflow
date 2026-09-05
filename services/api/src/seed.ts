@@ -1,6 +1,7 @@
 import type { DbClient } from "./db/types";
 import { seedLifecycleDemo } from "./seed-lifecycle";
 import { seedCanonicalDemo } from "./seed-canonical";
+import { seedEastCrestJourney } from "./seed/demo-east-crest";
 import { nextCode } from "./model/codes";
 
 // Configuration + sample project data (not hard-coded UI values).
@@ -205,4 +206,6 @@ async function seedMoneyDemo(db: DbClient) {
     INSERT INTO promise_to_pay (id, demand_id, expected_date, expected_amount)
     VALUES ('ptp_v111_3','d_v111_3',CURRENT_DATE + 12,1600000);
   `);
+
+  await seedEastCrestJourney(db);
 }

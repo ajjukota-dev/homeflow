@@ -64,6 +64,11 @@ export const EVENT_TYPES: EventTypeDef[] = [
   { name: "applicant.removed", family: "applicant", customer_visible: false, built: true },
   { name: "booking.status_changed", family: "booking", customer_visible: true, built: true },
   { name: "booking.transferred", family: "booking", customer_visible: true, built: true },
+
+  // --- Journey Template Studio (05-journey-templates.md) ---
+  { name: "template.version_published", family: "template", customer_visible: false, built: true },
+  { name: "template.assigned_to_project", family: "template", customer_visible: false, built: true },
+  { name: "journey.migration_offered", family: "journey", customer_visible: false, built: true },
 ];
 
 /** Appendix B (p42) names verbatim — the coverage test's universe. Extensions are exempt by design. */

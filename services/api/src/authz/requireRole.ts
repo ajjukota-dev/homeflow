@@ -25,3 +25,8 @@ export const SITE_SETUP_ROLES = ["SITE", "MANAGEMENT", "SUPER_ADMIN"];
 // Booking-lifecycle admin (confirm/cancel/transfer) beyond the sales_handover
 // submit/accept/return steps the matrix already governs.
 export const BOOKING_ADMIN_ROLES = ["SALES", "CRM", "MANAGEMENT", "SUPER_ADMIN"];
+
+// Journey Template Studio / Policy Studio (05-journey-templates.md, 25-policy-studio.md
+// rule 3): "SUPER_ADMIN edits everything; MANAGEMENT edits business policy" — no dedicated
+// permission_matrix module exists for this (it predates 05, same gap class as above).
+export const POLICY_STUDIO_ROLES = ["MANAGEMENT", "SUPER_ADMIN"];
