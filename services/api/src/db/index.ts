@@ -2,6 +2,7 @@ import { createPgliteClient } from "./pglite-adapter";
 import { createPgClient } from "./pg-adapter";
 import { migrate } from "./migrate";
 import { seed } from "../seed";
+import { seedEventTypes } from "../events";
 import type { DbClient } from "./types";
 
 export type { DbClient } from "./types";
@@ -35,6 +36,7 @@ export function initDb(): Promise<void> {
   if (!ready) {
     ready = (async () => {
       await migrate(db);
+      await seedEventTypes(db);
       const seedAllowed = process.env.NODE_ENV !== "production" || process.env.SEED_DEMO === "1";
       if (!seedAllowed) return;
       const { rows } = await db.query<{ count: number }>(`SELECT count(*)::int AS count FROM project`);
@@ -51,6 +53,7 @@ export function initDb(): Promise<void> {
 export async function createTestDb(): Promise<DbClient> {
   const testDb = createPgliteClient();
   await migrate(testDb);
+  await seedEventTypes(testDb);
   await seed(testDb);
   return testDb;
 }
