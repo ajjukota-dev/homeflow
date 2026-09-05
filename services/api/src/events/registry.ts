@@ -69,6 +69,16 @@ export const EVENT_TYPES: EventTypeDef[] = [
   { name: "template.version_published", family: "template", customer_visible: false, built: true },
   { name: "template.assigned_to_project", family: "template", customer_visible: false, built: true },
   { name: "journey.migration_offered", family: "journey", customer_visible: false, built: true },
+
+  // --- Journey instances & SLA engine (06-timeline-sla-engine.md) ---
+  { name: "journey.started", family: "journey", customer_visible: true, built: true },
+  { name: "journey.held", family: "journey", customer_visible: false, built: true },
+  { name: "journey.resumed", family: "journey", customer_visible: false, built: true },
+  { name: "journey.closed", family: "journey", customer_visible: false, built: true },
+  { name: "stage.completed", family: "stage", customer_visible: true, built: true },
+  // Not a literal 06 name — rule 7 ("reopening requires a reason ... logs why") needs a real
+  // emit site, same class of sanctioned extension as 05's 3.
+  { name: "task_instance.reopened", family: "task_instance", customer_visible: false, built: true },
 ];
 
 /** Appendix B (p42) names verbatim — the coverage test's universe. Extensions are exempt by design. */

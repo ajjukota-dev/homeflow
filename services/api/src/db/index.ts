@@ -6,6 +6,9 @@ import { seedEventTypes } from "../events";
 import { seedIdentity } from "../seed/permissions";
 import { seedUsers } from "../seed/users";
 import { seedJourneyStandard } from "../seed/journey-standard";
+import { seedDefaultCalendar } from "../seed/calendar";
+import { seedSlaPolicies } from "../seed/sla-policies";
+import { registerJourneySubscribers } from "../journey/subscribers";
 import type { DbClient } from "./types";
 
 export type { DbClient } from "./types";
@@ -63,6 +66,12 @@ export function initDb(): Promise<void> {
       // Pranava Standard journey template is config too (05-journey-templates.md) — every
       // environment needs a PUBLISHED template before any project can be assigned one.
       await seedJourneyStandard(db);
+      // 06 config: default calendar + per-task SLA policies, and the rule-1 subscriber that
+      // instantiates a journey on sales_handover.accepted — all real production wiring, not
+      // demo data, so none of this waits on seedAllowed below.
+      await seedDefaultCalendar(db);
+      await seedSlaPolicies(db);
+      registerJourneySubscribers();
       const seedAllowed = process.env.NODE_ENV !== "production" || process.env.SEED_DEMO === "1";
       if (!seedAllowed) return;
       const { rows } = await db.query<{ count: number }>(`SELECT count(*)::int AS count FROM project`);
