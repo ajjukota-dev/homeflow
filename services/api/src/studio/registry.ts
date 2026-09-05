@@ -87,8 +87,9 @@ export const TAB_REGISTRY: TabDef[] = [
   { key: "17.sales_handover_checklist_rules", label: "Sales handover checklist rules", owner_spec: 17, built: false, edit_roles: ["CRM"] },
   { key: "17.return_reasons", label: "Return reasons", owner_spec: 17, built: false, edit_roles: ["CRM"] },
 
-  // 18 — change requests (not built)
-  { key: "18.customisation_policy", label: "Customisation policy", owner_spec: 18, built: false, edit_roles: MGMT },
+  // 18 — change requests (backend built; Studio CRUD UI deferred like every other spec's)
+  { key: "18.cr_approval_rule", label: "Variation approval matrix", owner_spec: 18, built: true, edit_roles: MGMT },
+  { key: "18.customisation_policy", label: "Customisation policy", owner_spec: 18, built: true, edit_roles: MGMT },
 
   // 19 — collections & true risk (not built)
   { key: "19.payment_plans", label: "Payment plans", owner_spec: 19, built: false, edit_roles: ["ACCOUNTS"] },

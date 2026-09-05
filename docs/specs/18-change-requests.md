@@ -53,3 +53,73 @@ Depends on 08, 09, 10, 15, 19 (receipts/demand for CR), 22 (quotation PDF), 25, 
 
 ## Not in this feature
 Gate engine (08), catalogue master (09), receipts (19), document rendering (22).
+
+## Build note (2026-09-06, backend)
+
+Built once 22 landed — 08, 09, 10, 15, 19, 22, 25 were all already merged; 26 (customer portal) is
+the one unbuilt dependency, and rule 5's own text names a fallback that doesn't need it
+("quotation issued... portal 26 or signed copy"), so the backend is built with the SIGNED_COPY
+acceptance channel only, portal UI deferred like every other spec's Studio/screen UI this run.
+
+Migration `0037_change_requests.sql`: the 6 tables the Data section names, plus two real
+additions (flagged below) and one FK that closes a gap 08's own migration comment flagged
+("18, not built — no FK") on `unit_gate_exception.change_request_id`.
+
+Files: `services/api/src/change-requests/{store,capture,costing,approvals,quotation,release,
+execution,cancellation,economics,policy}.ts`, `routes-change-requests.ts`,
+`seed/change-requests.ts`. 4 integration tests (11 assertions across rules 1–12), tsc clean, full
+suite 90 files / 568 tests (re-verified with bounded worker concurrency after unrelated
+resource-contention flakiness on the first parallel run — see TODO.md §9).
+
+Findings, flagged not faked:
+(a) rule 1's routing text ("a request in a category whose gate is HARD_CLOSED/EXCEPTION_ONLY") reads
+per-item, but the state machine puts FEASIBILITY_REVIEW before any `change_request_item` exists
+(items are added at COSTING) — resolved via the Screens section's own "category picker" detail:
+added `change_request.primary_category_code` (not in the spec's own Data list) so capture has
+something to route on immediately, matching the portal's described raise flow;
+(b) `change_request_approval` (a new table) tracks one APPROVAL action per required role — the
+spec's own Data table has a singular `approval_action_id`, but rule 4's text ("an APPROVAL action
+per approver", "MANAGEMENT + second approver" for POST_FREEZE) genuinely needs more than one when
+several rules match; `cr_approval_rule` is its own dedicated table (not 25's generic
+`approval_authority_rule`) per the spec's own Data section, same "own bespoke versioning, stays
+outside the generic envelope" call 25's build already made for 05/06's tables;
+(c) real gap caught before writing any test: nothing in the Data table's transitions ever writes
+`change_request.exception_id`, so rule 1's "EXCEPTION_ONLY requires an exception before COSTING"
+could never actually be satisfied — added `costing.ts::linkGateException` as the missing link a
+staff member calls after granting one via 08's `grantException`;
+(d) the quotation PDF is rendered directly via the `pdf` port, not through 22's
+`doc_factory_template`/clause machinery — that system's merge-field context is booking-scoped
+only (`documents/source.ts::buildSourceContext`), with no hook for a caller to inject ad hoc
+per-call data like one quotation's own line items; widening it is real, separate work;
+`quotation.document_id` (the spec's named 22-integration column) stays null;
+(e) rule 6's payment-waiver-authority is UNCONFIRMED — the Data table names
+`payment_waiver_authority` as a column on `change_request` (who waived it) but
+`customisation_policy` has no configured field for who is *allowed* to waive; defaulted to
+MANAGEMENT/SUPER_ADMIN, same class of judgment call as 12/13's own seeded placeholders;
+(f) rule 9's post-release cancellation raises a refund via 19's `requestWaiver`, which fails
+closed (25's own documented gap: zero seeded `approval_authority_rule` rows) — cancellation
+itself still succeeds when that happens; the refund is flagged on the CR's own event log as
+needing a manual waiver, not silently swallowed or forced through an unconfigured matrix;
+(g) rule 8's QA link is manual, not auto-selected: 08's four `change_category` codes
+(kitchen_layout/electrical/flooring_selection/structural) and 07's four `component_definition`
+codes (structure/mep_first_fix/flooring/finishing) don't correspond 1:1 — same mismatched-
+vocabulary class of gap 15 already flagged for its own T11→component mapping;
+(h) rule 12 ("first CR on a booking activates the conditional Customisation stage") is 06's own
+already-documented gap — `journey/instances.ts`'s header names `change_request.created` by name as
+an event conditional-stage re-evaluation would need, and confirms it isn't wired (06 only
+evaluates conditional stages at journey creation). This build fires the event; wiring 06's
+consumer is separate work;
+(i) no PROJECTS_HEAD role exists in the 12-role seeded list for rule 4's "schedule impact →
+PROJECTS head" — seeded rule maps it to SITE, same class of call 15/21 already made;
+(j) real bug caught before running anything: nesting `submitForApproval`/`approveAction`/
+`rejectAction` (each open their own `withTx`) inside `submitCrForApproval`'s/`decideCrApproval`'s
+own open transaction would hang forever on this codebase's single-connection PGlite (the 17/22
+lesson, hit a second time in new code) — fixed by doing the action's "submitted" transition via
+direct SQL inside the existing transaction instead of the ctx-gated wrapper, and composing the
+remaining cross-module calls sequentially between transactions;
+(k) `acceptQuotation` was initially gated to CUSTOMISATION_DESK_ROLES only — caught by a test:
+rule 5 explicitly allows CRM to record a signed-copy acceptance on the customer's behalf; fixed;
+(l) UNCONFIRMED: `cr_approval_rule`'s seeded VALUE/MARGIN/SCHEDULE thresholds (₹200,000 / 10% /
+14 days) and the FREEZE second-approver role (SUPER_ADMIN) — p12 names the mechanism, not real
+numbers; `customisation_policy.payment_gate_pct` default (100%) is the spec's own TODO §8 client
+question, unresolved here as elsewhere.
