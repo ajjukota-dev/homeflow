@@ -1,4 +1,4 @@
-import { db, setState } from "./db";
+import { db } from "./db";
 import {
   deriveGate,
   changeabilityScore,
@@ -7,6 +7,7 @@ import {
   type ProgressState,
 } from "./gates";
 import { raiseDemandsForUnit } from "./demands-schedule";
+import { appendEvent, withTx, type DbLike } from "./events";
 
 // Pure-ish handlers (portable to Lambda). Each reads/writes the DB and derives gates.
 
@@ -92,11 +93,27 @@ export async function getUnit(unitId: string) {
   return { ...u.rows[0], score, components: comps.rows, gates };
 }
 
-/** Project/Site writes progress → gates re-derive (the H1 loop). */
-export async function setProgress(unitId: string, component: string, state: ProgressState) {
+/** Project/Site writes progress → gates re-derive (the H1 loop). Emits progress.updated (02 Appendix B). */
+export async function setProgress(unitId: string, component: string, state: ProgressState, tx?: DbLike) {
   const valid: ProgressState[] = ["not_started", "in_progress", "complete", "verified"];
   if (!valid.includes(state)) throw new Error(`invalid state ${state}`);
-  await setState(unitId, component, state);
+  const before = await db.query<{ state_code: ProgressState }>(
+    `SELECT state_code FROM unit_progress WHERE unit_id=$1 AND component_code=$2`,
+    [unitId, component]
+  );
+  await withTx(tx, async (t) => {
+    await t.query(
+      `UPDATE unit_progress SET state_code=$1, updated_at=now() WHERE unit_id=$2 AND component_code=$3`,
+      [state, unitId, component]
+    );
+    await appendEvent(t, {
+      type: "progress.updated",
+      entity_type: "unit",
+      entity_id: unitId,
+      unit_id: unitId,
+      payload: { component, from: before.rows[0]?.state_code ?? null, to: state },
+    });
+  });
   await raiseDemandsForUnit(unitId);
   return getUnit(unitId);
 }

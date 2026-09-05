@@ -6,6 +6,7 @@ import { bookingFinance } from "./finance";
 import { onHandoverCompleted } from "./warranty";
 import { componentsFor } from "./qa-evidence";
 import { listSnagsForUnit, snagCounts, type SnagRow } from "./qa-snags";
+import { appendEvent, withTx } from "./events";
 
 // QA evidence, snags, and H9 handover eligibility (qa/spec.md).
 
@@ -52,28 +53,55 @@ export async function projectReadiness(projectId: string) {
   return out;
 }
 
+/** Site/QA declares a component evidence-verified. Emits qa.inspection_passed (02 Appendix B). */
 export async function verifyComponent(unitId: string, component: string, evidenceNote: string) {
   if (!evidenceNote?.trim()) throw new Error("evidence_required");
   const exists = await db.query<{ code: string }>(`SELECT code FROM component_definition WHERE code = $1`, [component]);
   if (exists.rows.length === 0) throw new Error("unknown_component");
-  await db.query(
-    `INSERT INTO qa_evidence (unit_id, component_code, qa_verified, evidence_note, verified_at)
-     VALUES ($1,$2,true,$3,now())
-     ON CONFLICT (unit_id, component_code)
-     DO UPDATE SET qa_verified = true, evidence_note = $3, verified_at = now()`,
-    [unitId, component, evidenceNote.trim()]
-  );
+  const u = await db.query<{ project_id: string }>(`SELECT project_id FROM unit WHERE id = $1`, [unitId]);
+  await withTx(undefined, async (t) => {
+    await t.query(
+      `INSERT INTO qa_evidence (unit_id, component_code, qa_verified, evidence_note, verified_at)
+       VALUES ($1,$2,true,$3,now())
+       ON CONFLICT (unit_id, component_code)
+       DO UPDATE SET qa_verified = true, evidence_note = $3, verified_at = now()`,
+      [unitId, component, evidenceNote.trim()]
+    );
+    await appendEvent(t, {
+      type: "qa.inspection_passed",
+      entity_type: "unit",
+      entity_id: unitId,
+      project_id: u.rows[0]?.project_id ?? null,
+      unit_id: unitId,
+      payload: { component, evidence_note: evidenceNote.trim() },
+    });
+  });
   return unitReadiness(unitId);
 }
 
+/** QA closes a snag with before/after evidence. Emits snag.closed (02 Appendix B). */
 export async function closeSnag(id: string, beforeNote: string, afterNote: string) {
   if (!beforeNote?.trim() || !afterNote?.trim()) throw new Error("before_after_evidence_required");
-  const s = await db.query<{ id: string }>(`SELECT id FROM snag WHERE id = $1`, [id]);
-  if (s.rows.length === 0) throw new Error("not_found");
-  await db.query(
-    `UPDATE snag SET status = 'closed', before_note = $2, after_note = $3 WHERE id = $1`,
-    [id, beforeNote.trim(), afterNote.trim()]
+  const s = await db.query<{ id: string; unit_id: string; project_id: string }>(
+    `SELECT id, unit_id, project_id FROM snag WHERE id = $1`,
+    [id]
   );
+  if (s.rows.length === 0) throw new Error("not_found");
+  await withTx(undefined, async (t) => {
+    await t.query(`UPDATE snag SET status = 'closed', before_note = $2, after_note = $3 WHERE id = $1`, [
+      id,
+      beforeNote.trim(),
+      afterNote.trim(),
+    ]);
+    await appendEvent(t, {
+      type: "snag.closed",
+      entity_type: "snag",
+      entity_id: id,
+      project_id: s.rows[0].project_id,
+      unit_id: s.rows[0].unit_id,
+      payload: { before_note: beforeNote.trim(), after_note: afterNote.trim() },
+    });
+  });
   return db.query<SnagRow>(`SELECT * FROM snag WHERE id = $1`, [id]).then((r) => r.rows[0]);
 }
 
@@ -162,6 +190,7 @@ export async function projectHandover(projectId: string) {
   return rows.sort((a, b) => a.unit_number.localeCompare(b.unit_number));
 }
 
+/** QA/RM completes the gated handover. Emits handover.completed (02 Appendix B). */
 export async function completeHandover(bookingId: string) {
   const view = await handoverForBooking(bookingId);
   if (view.lifecycle === "completed") return view;
@@ -170,12 +199,32 @@ export async function completeHandover(bookingId: string) {
     `SELECT unit_id, project_id FROM booking WHERE id = $1`,
     [bookingId]
   );
-  await db.query(
-    `INSERT INTO handover_record (id, booking_id, unit_id, project_id, status, completed_at)
-     VALUES ($1,$2,$3,$4,'completed', now())`,
-    [randomUUID(), bookingId, b.rows[0].unit_id, b.rows[0].project_id]
-  );
-  await db.query(`UPDATE unit SET sale_status = 'handed_over' WHERE id = $1`, [b.rows[0].unit_id]);
+  const { unit_id: unitId, project_id: projectId } = b.rows[0];
+  await withTx(undefined, async (t) => {
+    await t.query(
+      `INSERT INTO handover_record (id, booking_id, unit_id, project_id, status, completed_at)
+       VALUES ($1,$2,$3,$4,'completed', now())`,
+      [randomUUID(), bookingId, unitId, projectId]
+    );
+    await t.query(`UPDATE unit SET sale_status = 'handed_over' WHERE id = $1`, [unitId]);
+    await appendEvent(t, {
+      type: "handover.completed",
+      entity_type: "booking",
+      entity_id: bookingId,
+      project_id: projectId,
+      booking_id: bookingId,
+      unit_id: unitId,
+      payload: { readiness_value: view.readiness.value },
+    });
+    await appendEvent(t, {
+      type: "unit.sale_status_changed",
+      entity_type: "unit",
+      entity_id: unitId,
+      project_id: projectId,
+      unit_id: unitId,
+      payload: { from: "registered", to: "handed_over" },
+    });
+  });
   await onHandoverCompleted(bookingId);
   return handoverForBooking(bookingId);
 }

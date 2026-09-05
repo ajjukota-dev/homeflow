@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { db } from "./db";
 import { DEMAND_SELECT, mapDemands } from "./demands";
 import { type DemandStatus } from "./collections";
+import { appendEvent, withTx } from "./events";
 
 // Receipt posting — idempotent payment capture against a demand (accounts/spec.md H3 receipts).
 
@@ -34,14 +35,35 @@ export async function postReceipt(
   if (amount > d.remaining) throw new Error("exceeds_remaining");
 
   const id = randomUUID();
-  await db.query(
-    `INSERT INTO receipt (id, booking_id, project_id, demand_id, amount, mode, status, idempotency_key, request_hash)
-     VALUES ($1,$2,$3,$4,$5,$6,'reconciled',$7,$8)`,
-    [id, d.booking_id, d.project_id, demandId, amount, input.mode ?? "neft", key, hash]
-  );
   const remaining = d.remaining - amount;
   const status: DemandStatus = remaining <= 0 ? "settled" : "part_paid";
-  await db.query(`UPDATE demand SET status = $1 WHERE id = $2`, [status, demandId]);
+  // Current flow reconciles at post time (no separate bank-statement matching step yet), so
+  // payment.received and payment.reconciled (both Appendix B) fire together here.
+  await withTx(undefined, async (t) => {
+    await t.query(
+      `INSERT INTO receipt (id, booking_id, project_id, demand_id, amount, mode, status, idempotency_key, request_hash)
+       VALUES ($1,$2,$3,$4,$5,$6,'reconciled',$7,$8)`,
+      [id, d.booking_id, d.project_id, demandId, amount, input.mode ?? "neft", key, hash]
+    );
+    await t.query(`UPDATE demand SET status = $1 WHERE id = $2`, [status, demandId]);
+    await appendEvent(t, {
+      type: "payment.received",
+      entity_type: "receipt",
+      entity_id: id,
+      project_id: d.project_id,
+      booking_id: d.booking_id,
+      customer_id: null,
+      payload: { demand_id: demandId, amount, mode: input.mode ?? "neft" },
+    });
+    await appendEvent(t, {
+      type: "payment.reconciled",
+      entity_type: "receipt",
+      entity_id: id,
+      project_id: d.project_id,
+      booking_id: d.booking_id,
+      payload: { demand_id: demandId, amount },
+    });
+  });
   const row = await db.query<ReceiptRow>(`SELECT * FROM receipt WHERE id = $1`, [id]);
   return { ...row.rows[0], amount, project_id: d.project_id };
 }
