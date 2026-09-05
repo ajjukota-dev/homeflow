@@ -9,6 +9,8 @@ import {
   toSpecBookingStatus,
   type BookingStatus,
 } from "./status";
+import { requireRole, BOOKING_ADMIN_ROLES } from "../authz/requireRole";
+import type { Ctx } from "../authz/types";
 
 // Booking lifecycle beyond create/accept/return (which predate this spec, in ../bookings.ts
 // and ../bookings-crm.ts): confirm/cancel/transfer (04 §API, rule 3).
@@ -27,7 +29,8 @@ async function currentStatus(bookingId: string, handle: DbLike = db): Promise<{
 }
 
 /** DRAFT → CONFIRMED (04 §API `POST /bookings/:id/confirm`). */
-export async function confirmBooking(bookingId: string): Promise<void> {
+export async function confirmBooking(bookingId: string, ctx: Ctx): Promise<void> {
+  requireRole(ctx, BOOKING_ADMIN_ROLES);
   const { status, project_id: projectId, unit_id: unitId } = await currentStatus(bookingId);
   assertBookingTransition(status, "CONFIRMED");
   await withTx(undefined, async (t) => {
@@ -45,7 +48,8 @@ export async function confirmBooking(bookingId: string): Promise<void> {
 }
 
 /** CANCELLED from any non-terminal state; requires a reason (04 rule 3). Unit → AVAILABLE. */
-export async function cancelBooking(bookingId: string, reason: string): Promise<void> {
+export async function cancelBooking(bookingId: string, reason: string, ctx: Ctx): Promise<void> {
+  requireRole(ctx, BOOKING_ADMIN_ROLES);
   if (!reason?.trim()) throw new ValidationError("cancellation reason required", "reason");
   const { status, project_id: projectId, unit_id: unitId } = await currentStatus(bookingId);
   assertBookingTransition(status, "CANCELLED");
@@ -79,7 +83,8 @@ export async function cancelBooking(bookingId: string, reason: string): Promise<
  *  predecessor_booking_id (04 rule 3), continuing the sale under a new customer. The unit
  *  keeps its sale_status (still booked/registered under the new owner); only the booking
  *  and its applicants change — the caller sets applicants via PUT /bookings/:id/applicants. */
-export async function transferBooking(bookingId: string, reason: string): Promise<string> {
+export async function transferBooking(bookingId: string, reason: string, ctx: Ctx): Promise<string> {
+  requireRole(ctx, BOOKING_ADMIN_ROLES);
   if (!reason?.trim()) throw new ValidationError("transfer reason required", "reason");
   const b = await db.query<{
     status: string;

@@ -7,6 +7,8 @@ import { onHandoverCompleted } from "./warranty";
 import { componentsFor } from "./qa-evidence";
 import { listSnagsForUnit, snagCounts, type SnagRow } from "./qa-snags";
 import { appendEvent, withTx } from "./events";
+import { authorize } from "./authz/authorize";
+import type { Ctx } from "./authz/types";
 
 // QA evidence, snags, and H9 handover eligibility (qa/spec.md).
 
@@ -26,7 +28,8 @@ export async function unitReadiness(unitId: string) {
   };
 }
 
-export async function projectReadiness(projectId: string) {
+export async function projectReadiness(projectId: string, ctx: Ctx) {
+  await authorize(ctx, "unit_readiness", "READ");
   const units = await db.query<{
     id: string;
     unit_number: string;
@@ -54,7 +57,8 @@ export async function projectReadiness(projectId: string) {
 }
 
 /** Site/QA declares a component evidence-verified. Emits qa.inspection_passed (02 Appendix B). */
-export async function verifyComponent(unitId: string, component: string, evidenceNote: string) {
+export async function verifyComponent(unitId: string, component: string, evidenceNote: string, ctx: Ctx) {
+  await authorize(ctx, "unit_readiness", "WRITE");
   if (!evidenceNote?.trim()) throw new Error("evidence_required");
   const exists = await db.query<{ code: string }>(`SELECT code FROM component_definition WHERE code = $1`, [component]);
   if (exists.rows.length === 0) throw new Error("unknown_component");
@@ -80,7 +84,8 @@ export async function verifyComponent(unitId: string, component: string, evidenc
 }
 
 /** QA closes a snag with before/after evidence. Emits snag.closed (02 Appendix B). */
-export async function closeSnag(id: string, beforeNote: string, afterNote: string) {
+export async function closeSnag(id: string, beforeNote: string, afterNote: string, ctx: Ctx) {
+  await authorize(ctx, "snagging", "WRITE");
   if (!beforeNote?.trim() || !afterNote?.trim()) throw new Error("before_after_evidence_required");
   const s = await db.query<{ id: string; unit_id: string; project_id: string }>(
     `SELECT id, unit_id, project_id FROM snag WHERE id = $1`,
@@ -180,7 +185,10 @@ export async function handoverForBooking(bookingId: string) {
   };
 }
 
-export async function projectHandover(projectId: string) {
+// `ctx` optional: also called internally by tower-view.ts's controlTower, which is
+// itself gated (escalations READ) before reaching here.
+export async function projectHandover(projectId: string, ctx?: Ctx) {
+  if (ctx) await authorize(ctx, "handovers", "READ");
   const bks = await db.query<{ id: string }>(
     `SELECT id FROM booking WHERE project_id = $1 AND status = 'active'`,
     [projectId]
@@ -191,7 +199,8 @@ export async function projectHandover(projectId: string) {
 }
 
 /** QA/RM completes the gated handover. Emits handover.completed (02 Appendix B). */
-export async function completeHandover(bookingId: string) {
+export async function completeHandover(bookingId: string, ctx: Ctx) {
+  await authorize(ctx, "handovers", "WRITE");
   const view = await handoverForBooking(bookingId);
   if (view.lifecycle === "completed") return view;
   if (!view.eligible) throw new Error("handover_not_eligible");

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { initDb } from "./db";
 import { listUnits, getUnit, setProgress } from "./handlers";
+import { superAdminCtx } from "./authz/test-helpers";
 
 // Integration tests against a fresh in-memory PGlite DB (real SQL).
 beforeAll(async () => {
@@ -9,7 +10,7 @@ beforeAll(async () => {
 
 describe("handlers (integration)", () => {
   it("lists seeded units with derived gates + score", async () => {
-    const units = await listUnits();
+    const units = await listUnits(undefined, superAdminCtx);
     expect(units.length).toBeGreaterThanOrEqual(3);
     const v101 = units.find((u) => u.unit_number === "V101");
     expect(v101?.score).toBe(100); // early-stage villa: everything open
@@ -21,16 +22,16 @@ describe("handlers (integration)", () => {
     const before = await getUnit("u_v101");
     expect(before?.gates.find((g) => g.category_code === "electrical")?.state).toBe("OPEN");
 
-    const after = await setProgress("u_v101", "mep_first_fix", "in_progress");
+    const after = await setProgress("u_v101", "mep_first_fix", "in_progress", superAdminCtx);
     expect(after?.gates.find((g) => g.category_code === "electrical")?.state).toBe("CLOSING");
 
-    await setProgress("u_v101", "mep_first_fix", "not_started"); // reset
+    await setProgress("u_v101", "mep_first_fix", "not_started", superAdminCtx); // reset
   });
 
   it("rejects an invalid progress state", async () => {
     await expect(
       // @ts-expect-error — deliberately invalid
-      setProgress("u_v101", "mep_first_fix", "banana")
+      setProgress("u_v101", "mep_first_fix", "banana", superAdminCtx)
     ).rejects.toThrow();
   });
 });

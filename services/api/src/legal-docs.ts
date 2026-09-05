@@ -10,6 +10,8 @@ import {
 import { bookingFinance } from "./finance";
 import { checksum, getDocument, liveSnapshot, source } from "./legal-docs-source";
 import { appendEvent, withTx } from "./events";
+import { authorize } from "./authz/authorize";
+import type { Ctx } from "./authz/types";
 
 // Appendix B names only agreement.generated/executed for this factory. AOS is the only
 // template that exists today (seed-lifecycle.ts); once spec 22's Document Factory lands with
@@ -17,7 +19,8 @@ import { appendEvent, withTx } from "./events";
 
 // Legal Document Factory + registration (legal/spec.md, H4 / H7 / H8).
 
-export async function generateDocument(bookingId: string, documentFamily = "AOS") {
+export async function generateDocument(bookingId: string, documentFamily: string, ctx: Ctx) {
+  await authorize(ctx, "legal", "WRITE");
   const row = await source(bookingId);
   const tpl = await db.query<{ id: string; body: string; mandatory_fields: MergeField[] | string }>(
     `SELECT id, body, mandatory_fields FROM document_template
@@ -95,7 +98,8 @@ async function docLocation(id: string): Promise<{ project_id: string; unit_id: s
 }
 
 /** Legal approves a drafted document. Not an Appendix B name — extension (registry.ts). */
-export async function approveDocument(id: string) {
+export async function approveDocument(id: string, ctx: Ctx) {
+  await authorize(ctx, "legal", "WRITE");
   const doc = await getDocument(id);
   if (!doc) throw new Error("not_found");
   if (doc.status !== "draft") throw new Error("not_draft");
@@ -116,7 +120,8 @@ export async function approveDocument(id: string) {
 }
 
 /** Emits agreement.executed (02 Appendix B). */
-export async function executeDocument(id: string) {
+export async function executeDocument(id: string, ctx: Ctx) {
+  await authorize(ctx, "legal", "WRITE");
   const doc = await getDocument(id);
   if (!doc) throw new Error("not_found");
   if (doc.status !== "legal_approved") throw new Error("not_approved");
@@ -138,7 +143,8 @@ export async function executeDocument(id: string) {
 }
 
 /** Emits registration.completed (02 Appendix B). */
-export async function completeRegistration(bookingId: string, sroReference: string) {
+export async function completeRegistration(bookingId: string, sroReference: string, ctx: Ctx) {
+  await authorize(ctx, "registrations", "WRITE");
   const finance = await bookingFinance(bookingId);
   if (!finance.cleared) throw new Error(finance.reason ?? "financial_not_cleared");
   const executed = await db.query<{ id: string }>(
@@ -171,7 +177,8 @@ export async function completeRegistration(bookingId: string, sroReference: stri
   return { booking_id: bookingId, status: "completed", sro_reference: sroReference };
 }
 
-export async function listLegalQueue(projectId: string) {
+export async function listLegalQueue(projectId: string, ctx: Ctx) {
+  await authorize(ctx, "legal", "READ");
   const bookings = await db.query<{
     id: string;
     unit_id: string;

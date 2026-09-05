@@ -3,6 +3,8 @@ import { db } from "./db";
 import { DEMAND_SELECT, mapDemands } from "./demands";
 import { type DemandStatus } from "./collections";
 import { appendEvent, withTx } from "./events";
+import { authorize } from "./authz/authorize";
+import type { Ctx } from "./authz/types";
 
 // Receipt posting — idempotent payment capture against a demand (accounts/spec.md H3 receipts).
 
@@ -14,8 +16,10 @@ export type ReceiptRow = {
 
 export async function postReceipt(
   demandId: string,
-  input: { amount?: number | string; mode?: string; idempotency_key?: string }
+  input: { amount?: number | string; mode?: string; idempotency_key?: string },
+  ctx: Ctx
 ) {
+  await authorize(ctx, "collections", "WRITE");
   const amount = typeof input.amount === "string" ? Number(input.amount) : input.amount;
   const key = input.idempotency_key ?? randomUUID();
   const hash = JSON.stringify({ amount, mode: input.mode ?? "neft" });

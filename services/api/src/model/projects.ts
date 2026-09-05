@@ -1,6 +1,8 @@
 import { db } from "../db";
 import type { DbLike } from "../events";
 import { ValidationError } from "./derive";
+import { requireRole, SITE_SETUP_ROLES, STAFF_ROLES } from "../authz/requireRole";
+import type { Ctx } from "../authz/types";
 
 // Project master fields (04 §Data) — extends the existing services/api/src/projects.ts
 // (list/create/unit-creation) which predates this spec. Kept separate to respect the
@@ -46,7 +48,9 @@ export async function defaultPortfolioId(handle: DbLike = db): Promise<string> {
   return r.rows[0].id;
 }
 
-export async function getProjectMaster(id: string): Promise<ProjectMaster | null> {
+// `ctx` optional: also called internally by updateProject (existing check + return-fresh-state).
+export async function getProjectMaster(id: string, ctx?: Ctx): Promise<ProjectMaster | null> {
+  if (ctx) requireRole(ctx, STAFF_ROLES);
   const r = await db.query<ProjectMaster>(
     `SELECT id, code, name, portfolio_id, product_type, legal_entity, jurisdiction, rera_reg_no,
             escrow_account_ref, location,
@@ -58,7 +62,12 @@ export async function getProjectMaster(id: string): Promise<ProjectMaster | null
   return r.rows[0] ?? null;
 }
 
-export async function updateProject(id: string, patch: Partial<Record<Patchable, string>>): Promise<ProjectMaster> {
+export async function updateProject(
+  id: string,
+  patch: Partial<Record<Patchable, string>>,
+  ctx: Ctx
+): Promise<ProjectMaster> {
+  requireRole(ctx, SITE_SETUP_ROLES);
   const existing = await getProjectMaster(id);
   if (!existing) throw new ValidationError("project_not_found");
   const fields = Object.keys(patch).filter((k): k is Patchable => (PATCHABLE as readonly string[]).includes(k));

@@ -4,18 +4,22 @@ import { getUnit } from "./handlers";
 import { withTx, type DbLike } from "./events";
 import { defaultPortfolioId } from "./model/projects";
 import { defaultHierarchyNodeId, insertUnit, type UnitInput } from "./model/units";
+import { requireRole, SITE_SETUP_ROLES, STAFF_ROLES } from "./authz/requireRole";
+import type { Ctx } from "./authz/types";
 
 // Project/Site master-data creation. Project owns unit creation (data-model.md §2).
 // New units seed a progress row per component (all not_started) so gates derive immediately.
 
-export async function listProjects() {
+export async function listProjects(ctx: Ctx) {
+  requireRole(ctx, STAFF_ROLES);
   const r = await db.query<{ id: string; code: string; name: string }>(
     `SELECT id, code, name FROM project ORDER BY name`
   );
   return r.rows;
 }
 
-export async function createProject(input: { code: string; name: string }) {
+export async function createProject(input: { code: string; name: string }, ctx: Ctx) {
+  requireRole(ctx, SITE_SETUP_ROLES);
   if (!input.code?.trim() || !input.name?.trim()) throw new Error("code and name required");
   const id = "p_" + randomUUID().slice(0, 8);
   const portfolioId = await defaultPortfolioId();
@@ -34,8 +38,10 @@ export async function createProject(input: { code: string; name: string }) {
 export async function createUnit(
   projectId: string,
   input: Omit<UnitInput, "product_type"> & { hierarchy_node_id?: string; product_type?: UnitInput["product_type"] },
+  ctx: Ctx,
   tx?: DbLike
 ) {
+  requireRole(ctx, SITE_SETUP_ROLES);
   const p = await db.query(`SELECT id FROM project WHERE id = $1`, [projectId]);
   if (p.rows.length === 0) throw new Error("project_not_found");
 

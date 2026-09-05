@@ -3,6 +3,8 @@ import { db } from "./db";
 import { clock } from "./ports/clock";
 import { type DemandStatus } from "./collections";
 import type { DbLike } from "./events";
+import { authorize } from "./authz/authorize";
+import type { Ctx } from "./authz/types";
 
 // Accounts money handlers — H3 demand rows, overdue reasons, PTP (accounts/spec.md).
 // Portable: no Express/AWS types. Schedule creation lives in demands-schedule.ts, receipt posting in demands-receipts.ts.
@@ -68,11 +70,16 @@ export async function mapDemands(sql: string, params: unknown[] = [], handle: Db
   }));
 }
 
-export async function listDemands(bookingId: string, handle: DbLike = db) {
+// `ctx` is only supplied at the route entry point (GET /api/bookings/:id/demands) —
+// internal reentrant callers (t2Payments, postReceipt) skip it; their own outer
+// handler already authorized before reaching here.
+export async function listDemands(bookingId: string, handle: DbLike = db, ctx?: Ctx) {
+  if (ctx) await authorize(ctx, "collections", "READ");
   return mapDemands(`${DEMAND_SELECT} WHERE d.booking_id = $1 ORDER BY d.sequence`, [bookingId], handle);
 }
 
-export async function setOverdueReason(demandId: string, reasonCode: string) {
+export async function setOverdueReason(demandId: string, reasonCode: string, ctx: Ctx) {
+  await authorize(ctx, "collections", "WRITE");
   const ok = await db.query(`SELECT next_action FROM overdue_reason WHERE code = $1`, [reasonCode]);
   if (ok.rows.length === 0) throw new Error("unknown_reason");
   await db.query(`UPDATE demand SET overdue_reason_code = $1 WHERE id = $2`, [reasonCode, demandId]);
@@ -81,8 +88,10 @@ export async function setOverdueReason(demandId: string, reasonCode: string) {
 
 export async function recordPtp(
   demandId: string,
-  input: { expected_date: string; expected_amount: number }
+  input: { expected_date: string; expected_amount: number },
+  ctx: Ctx
 ) {
+  await authorize(ctx, "collections", "WRITE");
   const d = (await mapDemands(`${DEMAND_SELECT} WHERE d.id = $1`, [demandId]))[0];
   if (!d) throw new Error("not_found");
   await db.query(

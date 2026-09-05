@@ -4,13 +4,16 @@ import { setupFunding } from "./demands-schedule";
 import { getBooking } from "./bookings";
 import { appendEvent, withTx } from "./events";
 import { nextCode } from "./model/codes";
+import { authorize } from "./authz/authorize";
+import type { Ctx } from "./authz/types";
 
 // CRM decisions on a submitted booking — split out of bookings.ts to respect the 200-line
 // rule (Sales → CRM handoff, handshakes.md H2).
 
 /** CRM accepts → Customer Twin is created and linked; unit becomes booked.
  *  Emits sales_handover.accepted (Appendix B) plus the canonical-model events (04 rule 8). */
-export async function acceptBooking(id: string, rm = "Priya Nair") {
+export async function acceptBooking(id: string, ctx: Ctx, rm = "Priya Nair") {
+  await authorize(ctx, "sales_handover", "WRITE");
   const b = await db.query<{ unit_id: string; status: string; project_id: string }>(
     `SELECT unit_id, status, project_id FROM booking WHERE id = $1`,
     [id]
@@ -76,7 +79,8 @@ export async function acceptBooking(id: string, rm = "Priya Nair") {
 }
 
 /** CRM returns an incomplete file. Emits sales_handover.returned (Appendix B). */
-export async function returnBooking(id: string, reason: string) {
+export async function returnBooking(id: string, reason: string, ctx: Ctx) {
+  await authorize(ctx, "sales_handover", "WRITE");
   const b = await db.query<{ unit_id: string; project_id: string }>(
     `SELECT unit_id, project_id FROM booking WHERE id = $1`,
     [id]

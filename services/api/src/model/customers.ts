@@ -2,13 +2,16 @@ import { db } from "../db";
 import type { CustomerListRow, CustomerRow } from "../bookings-types";
 import { appendEvent, withTx, type DbLike } from "../events";
 import { ValidationError } from "./derive";
+import { authorize } from "../authz/authorize";
+import type { Ctx } from "../authz/types";
 
 // Customer directory (CRM-side) — split out of bookings.ts to respect the 200-line rule.
 // Portal-facing projection (My Pranava Home) lives in ../customer.ts; this is the workspace view.
 
 export type Residency = "RESIDENT" | "NRI" | "OCI";
 
-export async function listCustomers() {
+export async function listCustomers(ctx: Ctx) {
+  await authorize(ctx, "customer_overview", "READ");
   const r = await db.query<CustomerListRow>(
     `SELECT c.id, c.display_name, c.primary_phone, c.kyc_status, b.booking_number, u.unit_number
        FROM customer c
@@ -20,7 +23,9 @@ export async function listCustomers() {
   return r.rows;
 }
 
-export async function getCustomer(id: string) {
+// `ctx` optional: also called internally by mergePreview (already authorized above it).
+export async function getCustomer(id: string, ctx?: Ctx) {
+  if (ctx) await authorize(ctx, "customer_overview", "READ");
   const c = await db.query<CustomerRow>(`SELECT * FROM customer WHERE id = $1`, [id]);
   if (c.rows.length === 0) return null;
   const bookings = await db.query<{
@@ -43,7 +48,8 @@ export async function getCustomer(id: string) {
 }
 
 /** Merge preview — what a merge would change, shown before the customer confirms it. */
-export async function mergePreview(fromId: string, intoId: string) {
+export async function mergePreview(fromId: string, intoId: string, ctx: Ctx) {
+  await authorize(ctx, "customer_overview", "READ");
   const [from, into] = await Promise.all([getCustomer(fromId), getCustomer(intoId)]);
   if (!from) throw new ValidationError("from customer not found");
   if (!into) throw new ValidationError("into customer not found");
@@ -52,7 +58,8 @@ export async function mergePreview(fromId: string, intoId: string) {
 
 /** POST /customers/:id/merge — dedupe preserving history (04 rule 5, p27 §22).
  *  `fromId` is marked merged_into_customer_id = intoId; both codes survive. */
-export async function mergeCustomer(fromId: string, intoId: string): Promise<void> {
+export async function mergeCustomer(fromId: string, intoId: string, ctx: Ctx): Promise<void> {
+  await authorize(ctx, "customer_overview", "WRITE");
   if (fromId === intoId) throw new ValidationError("cannot merge a customer into itself");
   const rows = await db.query<{ id: string; merged_into_customer_id: string | null }>(
     `SELECT id, merged_into_customer_id FROM customer WHERE id IN ($1, $2)`,
@@ -80,7 +87,13 @@ export async function mergeCustomer(fromId: string, intoId: string): Promise<voi
 }
 
 /** Changing residency after CRM acceptance emits customer.residency_changed (04 rule 6). */
-export async function updateCustomerResidency(customerId: string, residency: Residency, handle?: DbLike): Promise<void> {
+export async function updateCustomerResidency(
+  customerId: string,
+  residency: Residency,
+  ctx: Ctx,
+  handle?: DbLike
+): Promise<void> {
+  await authorize(ctx, "customer_overview", "WRITE");
   const current = await db.query<{ residency: string }>(`SELECT residency FROM customer WHERE id = $1`, [
     customerId,
   ]);
