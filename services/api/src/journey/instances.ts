@@ -291,8 +291,11 @@ async function refreshStageAndJourneyRollup(journeyId: string, stageInstanceId: 
   let worst: "ON_TRACK" | "DUE_SOON" | "AT_RISK" | "OVERDUE" = "ON_TRACK";
   for (const t of openTasks.rows) {
     if (!t.sla_clock_id) continue; // not yet actionable — no clock, no health contribution
-    const clock = await tx.query<{ due_at: string }>(`SELECT due_at FROM sla_clock WHERE id = $1`, [t.sla_clock_id]);
-    const status = deriveStatus({ now: new Date().toISOString(), dueAt: clock.rows[0].due_at, stoppedAt: null, outcome: null, dueSoonLeadDays: 2, atRisk: false });
+    const clock = await tx.query<{ due_at: string; due_soon_lead_days: number }>(
+      `SELECT sc.due_at, sp.due_soon_lead_days FROM sla_clock sc JOIN sla_policy sp ON sp.id = sc.policy_id WHERE sc.id = $1`,
+      [t.sla_clock_id]
+    );
+    const status = deriveStatus({ now: new Date().toISOString(), dueAt: clock.rows[0].due_at, stoppedAt: null, outcome: null, dueSoonLeadDays: clock.rows[0].due_soon_lead_days, atRisk: false });
     if (severity[status] > severity[worst]) worst = status as typeof worst;
   }
   await tx.query(`UPDATE journey_instance SET health = $2 WHERE id = $1`, [journeyId, worst]);
@@ -432,12 +435,12 @@ export async function getJourneyForBooking(bookingId: string, ctx: Ctx): Promise
         taskRows.push({ task_code: t.task_code, status: t.status, clock_status: null, due_at: null });
         continue;
       }
-      const clock = await db.query<{ due_at: string; stopped_at: string | null; outcome: "ON_TIME" | "LATE" | null }>(
-        `SELECT due_at, stopped_at, outcome FROM sla_clock WHERE id = $1`,
+      const clock = await db.query<{ due_at: string; stopped_at: string | null; outcome: "ON_TIME" | "LATE" | null; due_soon_lead_days: number }>(
+        `SELECT sc.due_at, sc.stopped_at, sc.outcome, sp.due_soon_lead_days FROM sla_clock sc JOIN sla_policy sp ON sp.id = sc.policy_id WHERE sc.id = $1`,
         [t.sla_clock_id]
       );
       const c = clock.rows[0];
-      const status = deriveStatus({ now: new Date().toISOString(), dueAt: c.due_at, stoppedAt: c.stopped_at, outcome: c.outcome, dueSoonLeadDays: 2, atRisk: false });
+      const status = deriveStatus({ now: new Date().toISOString(), dueAt: c.due_at, stoppedAt: c.stopped_at, outcome: c.outcome, dueSoonLeadDays: c.due_soon_lead_days, atRisk: false });
       taskRows.push({ task_code: t.task_code, status: t.status, clock_status: status, due_at: new Date(c.due_at).toISOString() });
     }
     result.push({
