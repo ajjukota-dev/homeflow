@@ -200,6 +200,11 @@ export function evaluateCategory(categoryCode: string, input: GateEvaluationInpu
   };
 }
 
+/** True when `a` is a more closed gate state than `b` (OPEN < CLOSING < CONDITIONAL < EXCEPTION_ONLY < HARD_CLOSED). */
+export function isMoreClosed(a: GateState, b: GateState): boolean {
+  return gateRank[a] > gateRank[b];
+}
+
 export function evaluateGates(categories: GateCategoryInput[], input: GateEvaluationInput): EvaluatedGate[] {
   return categories.map((c) => evaluateCategory(c.code, input));
 }

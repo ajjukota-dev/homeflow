@@ -16,6 +16,7 @@ import { registerJourneySubscribers } from "../journey/subscribers";
 import { registerNotificationSubscribers } from "../notifications/subscribers";
 import { registerEscalationSubscribers } from "../escalations/subscribers";
 import { registerChangeabilitySubscribers } from "../changeability/subscribers";
+import { registerSalesSubscribers } from "../sales/subscribers";
 import type { DbClient } from "./types";
 
 export type { DbClient } from "./types";
@@ -94,6 +95,7 @@ export function initDb(): Promise<void> {
       registerNotificationSubscribers();
       registerEscalationSubscribers();
       registerChangeabilitySubscribers();
+      registerSalesSubscribers();
       const seedAllowed = process.env.NODE_ENV !== "production" || process.env.SEED_DEMO === "1";
       if (!seedAllowed) return;
       const { rows } = await db.query<{ count: number }>(`SELECT count(*)::int AS count FROM project`);

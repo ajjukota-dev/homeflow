@@ -112,7 +112,7 @@ export const TAB_REGISTRY: TabDef[] = [
   { key: "23.sro_offices", label: "SRO offices", owner_spec: 23, built: false, edit_roles: ["REGISTRATION"] },
 
   // 24 — holds (not built)
-  { key: "24.hold_policy", label: "Hold policy", owner_spec: 24, built: false, edit_roles: MGMT },
+  { key: "24.hold_policy", label: "Hold policy", owner_spec: 24, built: true, edit_roles: MGMT }, // GET/PUT /api/hold-policy (routes-sales.ts); UI deferred
   { key: "24.filter_thresholds", label: "Filter thresholds", owner_spec: 24, built: false, edit_roles: MGMT },
 
   // 25 — policy studio itself
