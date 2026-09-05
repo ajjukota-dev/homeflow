@@ -1,29 +1,20 @@
+/*
+ * My Pranava Home global stylesheet.
+ *
+ * The token declarations moved to packages/ui/src/tokens.css under
+ * [data-skin="customer"] — the one place colours, spacing, radii and type are
+ * defined (technical/09 §1). Values are unchanged. `@homeflow/ui/ui.css` is
+ * imported from src/main.tsx ahead of this file.
+ */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* Apple-homely tokens — warm neutral, one accent, no glass (shared brand). */
-:root {
-  --bg: #f6f5f3;
-  --surface: #ffffff;
-  --surface-2: #f2f1ef;
-  --border: #e8e5e0;
-  --fg: #1c1c1e;
-  --fg-muted: #6c6a68;
-  --fg-subtle: #a3a09c;
-  --accent: #0a6cff;
-  --accent-fg: #ffffff;
-  --on-track: #2fa45a;
-  --due: #bd8524;
-  --at-risk: #c26a34;
-  --radius: 16px;
-}
 
 @layer base {
   html, body, #root { height: 100%; }
   body {
     @apply bg-bg text-fg font-sans antialiased;
-    font-size: 17px;
+    font-size: var(--body-size);
   }
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 }

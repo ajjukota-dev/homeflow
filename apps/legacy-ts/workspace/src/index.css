@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Apple-homely semantic tokens — warm neutrals, one accent, no glass. */
+:root {
+  --bg: #f6f5f3;
+  --surface: #ffffff;
+  --surface-2: #f2f1ef;
+  --border: #e8e5e0;
+  --fg: #1c1c1e;
+  --fg-muted: #6c6a68;
+  --fg-subtle: #a3a09c;
+  --accent: #0a6cff;
+  --accent-fg: #ffffff;
+  --on-track: #2fa45a;
+  --due: #bd8524;
+  --at-risk: #c26a34;
+  --overdue: #c23b30;
+  --radius: 12px;
+}
+
+[data-theme="dark"] {
+  --bg: #0b0b0c;
+  --surface: #1c1c1e;
+  --surface-2: #232325;
+  --border: #38383a;
+  --fg: #f5f5f7;
+  --fg-muted: #a1a1a6;
+  --fg-subtle: #6b6b70;
+  --accent: #4f9dff;
+  --accent-fg: #0b0b0c;
+  --on-track: #46c07a;
+  --due: #d7a13f;
+  --at-risk: #dd8551;
+  --overdue: #e56a5f;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    @apply bg-bg text-fg font-sans antialiased;
+    font-size: 17px;
+  }
+  * {
+    border-color: var(--border);
+  }
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}

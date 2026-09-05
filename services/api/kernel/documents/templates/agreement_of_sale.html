@@ -1,0 +1,59 @@
+{% extends "_base.html" %}
+{% block body %}
+<div class="section">
+  <h2>Preamble</h2>
+  <p class="recital">
+    This Agreement of Sale is entered into on {{ dates.agreement_date }} between
+    <strong>Pranava Group</strong>, hereinafter referred to as the "Developer", represented
+    by its authorised signatory {{ signatory.name }} ({{ signatory.designation }}),
+    of the ONE PART; and <strong>{{ customer.primary_name }}</strong>, hereinafter referred
+    to as the "Purchaser", of the OTHER PART. Both parties are jointly referred to as the
+    "Parties" and severally as a "Party".
+  </p>
+</div>
+
+<div class="section">
+  <h2>Agreement to Sell</h2>
+  <p class="recital">
+    The Developer, upon the strength of its clear and marketable title to the said unit at
+    {{ project.name }}, {{ project.location }}, hereby agrees to sell, and the Purchaser
+    hereby agrees to purchase, the unit described under "Unit &amp; Property Particulars" on
+    a freehold basis, together with the undivided share in the land and common facilities
+    appurtenant thereto, for the total consideration set out under "Commercial Terms".
+  </p>
+</div>
+
+<div class="section">
+  <h2>Payment Terms &amp; Milestones</h2>
+  <p class="recital">
+    The Purchaser has paid to the Developer the Booking Amount of
+    {{ money.booking_amount }} on {{ dates.booking_date }}, receipt whereof the Developer
+    doth hereby acknowledge. The balance of the Agreement Value shall be paid by the
+    Purchaser to the Developer against progressive construction milestones, in accordance
+    with the Payment Plan noted above. Delay in payment beyond the grace period set out in
+    the Payment Plan shall attract interest at the rate defined therein, and repeated delay
+    may entitle the Developer to invoke the cancellation clause.
+  </p>
+</div>
+
+<div class="section">
+  <h2>Possession &amp; Handover</h2>
+  <p class="recital">
+    Subject to receipt of the full consideration, execution of the Sale Deed and registration
+    thereof, the Developer shall hand over vacant, peaceful and legal possession of the said
+    unit to the Purchaser on or about {{ dates.possession_date }}, together with the
+    Handover Kit and completion of any critical snags identified during the joint inspection.
+  </p>
+</div>
+
+<div class="section">
+  <h2>General Covenants</h2>
+  <p class="recital">
+    The Parties agree to abide by all applicable laws, rules and regulations governing the
+    sale, possession and occupation of the said unit. Any dispute arising out of or in
+    connection with this Agreement shall be resolved in accordance with the dispute
+    resolution mechanism agreed between the Parties, and, failing amicable resolution, before
+    the courts having territorial jurisdiction over {{ project.location }}.
+  </p>
+</div>
+{% endblock %}

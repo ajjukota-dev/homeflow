@@ -1,0 +1,288 @@
+# HomeFlow CI (technical/10 §5, 12 §5).
+#
+# Everything a reviewer would otherwise have to take on trust: types, lint, the
+# real database, the real image, the contract, and the screens at three widths.
+# `scripts/ci-local.sh` runs the same commands in the same order on a laptop.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "22"
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  # ---------------------------------------------------------------- backend --
+  backend:
+    name: backend (ruff, mypy, pytest)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports: ["5434:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+      minio:
+        image: bitnami/minio:latest
+        env:
+          MINIO_ROOT_USER: homeflow
+          MINIO_ROOT_PASSWORD: homeflow123
+          MINIO_DEFAULT_BUCKETS: homeflow-files
+        ports: ["9000:9000"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create the two database roles
+        # The same script docker-compose runs as the postgres init hook. Service
+        # containers cannot mount it, so it is piped in instead — one source of truth.
+        run: PGPASSWORD=postgres psql -h localhost -p 5434 -U postgres -d postgres -v ON_ERROR_STOP=1 -f docker/postgres-init/01-roles.sql
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+
+      - name: Install
+        working-directory: services/api
+        run: uv sync --frozen
+
+      - name: ruff (2.0 code only)
+        run: |
+          . scripts/ci-targets.sh
+          cd services/api && uv run ruff check $RUFF_TARGETS
+
+      - name: mypy --strict (2.0 kernel only)
+        run: |
+          . scripts/ci-targets.sh
+          cd services/api && uv run mypy $MYPY_TARGETS
+
+      - name: pytest
+        working-directory: services/api
+        env:
+          POSTGRES_HOST_PORT: "5434"
+          S3_ENDPOINT_URL: http://localhost:9000
+          S3_PUBLIC_ENDPOINT_URL: http://localhost:9000
+        run: uv run pytest -q
+
+  # --------------------------------------------------------------- frontend --
+  frontend:
+    name: frontend (tsc, eslint, vitest, build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: tsc --noEmit (packages/ui, workspace, customer)
+        run: npm run typecheck
+      - name: eslint
+        run: npm run lint
+      - name: vitest
+        run: npm test
+      - name: build both apps
+        run: npm run build
+
+  # ------------------------------------------------------------------ image --
+  image:
+    name: image (build, health, schemathesis, playwright)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports: ["5434:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+      minio:
+        image: bitnami/minio:latest
+        env:
+          MINIO_ROOT_USER: homeflow
+          MINIO_ROOT_PASSWORD: homeflow123
+          MINIO_DEFAULT_BUCKETS: homeflow-files
+        ports: ["9000:9000"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+
+      - name: Create the two database roles
+        run: PGPASSWORD=postgres psql -h localhost -p 5434 -U postgres -d postgres -v ON_ERROR_STOP=1 -f docker/postgres-init/01-roles.sql
+
+      - name: Build the image (no push)
+        run: docker build -t homeflow-api:ci -f services/api/Dockerfile .
+
+      - name: Run the image against the service containers
+        run: |
+          docker run -d --name homeflow-api --network host \
+            -e ENV=local \
+            -e HOMEFLOW_DEV_LOGIN=1 \
+            -e SESSION_SECRET=ci-only-not-a-real-secret \
+            -e HOMEFLOW_DEMO=1 \
+            -e DATABASE_URL=postgresql+asyncpg://homeflow_app:homeflow_app@127.0.0.1:5434/homeflow \
+            -e OWNER_DATABASE_URL=postgresql+asyncpg://homeflow_owner:homeflow_owner@127.0.0.1:5434/homeflow \
+            -e S3_ENDPOINT_URL=http://127.0.0.1:9000 \
+            -e S3_PUBLIC_ENDPOINT_URL=http://127.0.0.1:9000 \
+            -e AWS_ACCESS_KEY_ID=homeflow -e AWS_SECRET_ACCESS_KEY=homeflow123 \
+            homeflow-api:ci
+
+      - name: Wait for /health
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:8001/health; then echo; exit 0; fi
+            sleep 2
+          done
+          docker logs homeflow-api
+          exit 1
+
+      - name: The container serves both apps by Host
+        run: |
+          curl -fsS -H 'Host: localhost:8001'    http://localhost:8001/ | grep -q 'Pranava HomeFlow'
+          curl -fsS -H 'Host: my.localhost:8001' http://localhost:8001/ | grep -q 'My Pranava Home'
+
+      - run: npm ci --no-audit --no-fund
+
+      - name: OpenAPI types are not stale
+        # `npm run gen:api` regenerates packages/ui/src/api/types.ts from the
+        # running API. A diff means someone changed a route and did not run it.
+        run: |
+          npm run gen:api
+          git diff --exit-code packages/ui/src/api/types.ts \
+            || { echo "::error::packages/ui/src/api/types.ts is stale. Run 'npm run gen:api' and commit."; exit 1; }
+
+      - name: schemathesis — no 5xx anywhere in the contract
+        working-directory: services/api
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          uv sync --frozen
+          curl -sS -c /tmp/hf.jar -o /dev/null "http://localhost:8001/auth/dev-login?user=aarti.rao@pranava.local"
+          COOKIE=$(grep -i hf_session /tmp/hf.jar | awk '{print $7}')
+          test -n "$COOKIE" || { echo "dev-login did not set a session"; exit 1; }
+          uv run schemathesis run http://localhost:8001/api/openapi.json \
+            --url http://localhost:8001 \
+            --include-path-regex '^/(api/v1|auth|me/session|health)' \
+            --exclude-path-regex '(dev-login|dev-otp|logout|google)' \
+            -H "X-Requested-With: HomeFlow" -H "Cookie: hf_session=$COOKIE" \
+            --checks not_a_server_error --max-examples 20
+
+      - name: Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Playwright — workspace, 1440 / 768 / 375
+        env:
+          VITE_DEV_LOGIN: "1"
+        run: |
+          npm run dev -w @homeflow/workspace &
+          npx wait-on http://localhost:5173 --timeout 120000
+          npm run e2e -w @homeflow/workspace
+
+      - name: Playwright — My Pranava Home, 1440 / 768 / 375
+        run: |
+          npm run dev -w @homeflow/my-pranava-home &
+          npx wait-on http://localhost:5174 --timeout 120000
+          npm run e2e -w @homeflow/my-pranava-home
+
+      - name: Screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: |
+            apps/*/e2e/__screenshots__/**
+            apps/*/test-results/**
+          if-no-files-found: warn
+
+      - name: Container logs on failure
+        if: failure()
+        run: docker logs homeflow-api
+
+  # ------------------------------------------------------------------ infra --
+  infra:
+    name: infra (cdk test, cdk synth)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: CDK assertions
+        run: npm test -w @homeflow/infra
+      - name: cdk synth (no credentials, no account)
+        run: npm run synth
+      - name: cdk synth (staging shape)
+        working-directory: infra
+        run: npx cdk synth -c stage=staging
+
+  # ------------------------------------------------------------ api-surface --
+  api-surface:
+    name: API surface diff
+    needs: [image]
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Diff the generated API types against main
+        id: diff
+        # packages/ui/src/api/types.ts is generated 1:1 from openapi.json and is
+        # committed, so it is the reviewable form of the API surface. It becomes
+        # a diff of openapi.json itself once that file is committed (TASKS Amarsh 12).
+        run: |
+          git fetch origin ${{ github.base_ref }} --depth=1
+          if git diff --quiet origin/${{ github.base_ref }} -- packages/ui/src/api/types.ts; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            {
+              echo 'body<<DIFF_EOF'
+              echo '### API surface changed'
+              echo
+              echo 'Generated from `openapi.json`. Check that every new route has `require()`, a `{data, meta}` envelope and a test.'
+              echo
+              echo '```diff'
+              git diff origin/${{ github.base_ref }} -- packages/ui/src/api/types.ts | head -c 55000
+              echo '```'
+              echo DIFF_EOF
+            } >> "$GITHUB_OUTPUT"
+          fi
+      - name: Comment on the pull request
+        if: steps.diff.outputs.changed == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: process.env.BODY,
+            });
+        env:
+          BODY: ${{ steps.diff.outputs.body }}

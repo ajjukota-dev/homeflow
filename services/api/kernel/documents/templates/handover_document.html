@@ -1,0 +1,52 @@
+{% extends "_base.html" %}
+{% block body %}
+<div class="section">
+  <h2>Confirmation of Handover</h2>
+  <p class="recital">
+    The Developer, Pranava Group, hereby confirms that on {{ dates.possession_date }}, the
+    unit described under "Unit &amp; Property Particulars" was formally handed over to the
+    Purchaser <strong>{{ customer.primary_name }}</strong>, and the Purchaser has taken
+    physical, peaceful and legal possession of the said unit, together with its appurtenant
+    rights and access to the common facilities of the project.
+  </p>
+</div>
+
+<div class="section">
+  <h2>Handover Kit — Contents Acknowledged</h2>
+  <p class="recital">
+    The Purchaser acknowledges receipt of the complete Handover Kit, comprising the
+    following components, and confirms that each item has been physically verified and found
+    to be in order:
+  </p>
+  <table class="details">
+    <tr><th>Keys &amp; Access</th><td>Main door keys (2 sets), bedroom keys, utility keys, RFID / access cards where applicable.</td></tr>
+    <tr><th>Utilities</th><td>Electricity meter reading, water meter reading, gas connection reference, DG backup allocation.</td></tr>
+    <tr><th>Property Documents</th><td>Copy of registered Sale Deed, encumbrance certificate, property tax assessment, occupancy certificate copy.</td></tr>
+    <tr><th>Warranty &amp; Manuals</th><td>Appliance warranties, sanitary &amp; electrical fitting warranties, user manuals, contractor contacts.</td></tr>
+    <tr><th>Association &amp; Common Facilities</th><td>Association welcome pack, bye-laws, maintenance charge schedule, contact directory.</td></tr>
+    <tr><th>Snag Sign-off</th><td>Joint inspection report signed by both parties; all critical items closed as verified by QA.</td></tr>
+  </table>
+</div>
+
+<div class="section">
+  <h2>Purchaser's Declaration</h2>
+  <p class="recital">
+    The Purchaser hereby declares that the said unit has been inspected and accepted in its
+    present condition; that the Handover Kit set out above has been received in full; and
+    that the Purchaser has no outstanding claim against the Developer in respect of the
+    unit's construction quality, finishes or specifications save for such items as may be
+    covered under the applicable defect liability period, which shall be honoured by the
+    Developer in accordance with its published policy.
+  </p>
+</div>
+
+<div class="section">
+  <h2>Developer's Declaration</h2>
+  <p class="recital">
+    The Developer confirms that all statutory dues, taxes and levies pertaining to the said
+    unit have been discharged up to the date of this handover, and that the Purchaser shall
+    henceforth be solely responsible for the maintenance charges, utilities consumption and
+    property tax obligations attributable to the said unit as an owner-occupant.
+  </p>
+</div>
+{% endblock %}

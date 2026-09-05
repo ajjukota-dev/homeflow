@@ -1,0 +1,186 @@
+/*
+ * HomeFlow design tokens — the ONLY place colours, spacing, radii and type sizes
+ * are defined (technical/09 §1, CLAUDE.md "Design tokens only").
+ *
+ * Two skins, one system (foundation/design-language.md §2):
+ *   - default / [data-skin="workspace"] — v1's density and palette, carried
+ *     verbatim from Pranava-V2/HomeFlow/frontend/src/index.css. The design
+ *     decision at the top of design-language.md is still open, so these values
+ *     must not drift until it lands.
+ *   - [data-skin="customer"]            — My Pranava Home's Apple-homely skin,
+ *     carried verbatim from apps/my-pranava-home/src/index.css.
+ *
+ * Tailwind themes in both apps reference these variables. No arbitrary values.
+ */
+
+:root {
+  /* ---- Shared scales (both skins) ---- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+
+  /* Control heights — 44px is the design-language touch target. */
+  --control-h: 44px;
+  --control-h-sm: 32px;
+
+  /* Semantic status hues — status is never colour-alone, but when a colour is
+     used to reinforce an icon+label it comes from here. */
+  --status-ok: #157347;
+  --status-ok-bg: #e7f4ec;
+  --status-warn: #8a5a00;
+  --status-warn-bg: #fdf3e0;
+  --status-risk: #a5361b;
+  --status-risk-bg: #fdece7;
+  --status-neutral: #475569;
+  --status-neutral-bg: #eef1f5;
+  --status-blocked: #7a1f1f;
+  --status-blocked-bg: #f7e5e5;
+}
+
+/* ---------------------------------------------------------------- workspace */
+:root,
+[data-skin="workspace"] {
+  /* Brand (v1) */
+  --brand: #e8431a;
+  --brand-hover: #c4331a;
+  --brand-fg: #ffffff;
+
+  --sidebar-bg: #0d1b3d;
+  --sidebar-bg-hover: #182b5c;
+  --sidebar-fg: #f8fafc;
+  --sidebar-fg-muted: #94a3b8;
+
+  --content-bg: #fbf9f5;
+  --card-bg: #ffffff;
+  --card-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --divider-warm: #efe9df;
+
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+
+  /* shadcn HSL tokens (v1, warm palette) */
+  --background: 40 40% 97%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --primary: 13 82% 51%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 30 33% 91%;
+  --secondary-foreground: 222 47% 11%;
+  --muted: 30 25% 94%;
+  --muted-foreground: 215 20% 45%;
+  --accent: 13 82% 51%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 32 25% 88%;
+  --input: 32 25% 88%;
+  --ring: 13 82% 51%;
+  --chart-1: 13 82% 51%;
+  --chart-2: 227 55% 30%;
+  --chart-3: 173 58% 39%;
+  --chart-4: 197 37% 24%;
+  --chart-5: 43 74% 55%;
+  --radius: 0.5rem;
+
+  --font-sans: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", sans-serif;
+  --font-heading: "Chivo", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --body-size: 15px;
+
+  /* Semantic aliases: the names shared @homeflow/ui components render against.
+     Each skin fills them from its own palette, so one component set serves both. */
+  --ui-bg: var(--content-bg);
+  --ui-surface: var(--card-bg);
+  --ui-surface-2: hsl(var(--muted));
+  --ui-border: hsl(var(--border));
+  --ui-fg: var(--text-primary);
+  --ui-fg-muted: var(--text-secondary);
+  --ui-fg-subtle: var(--text-muted);
+  --ui-accent: var(--brand);
+  --ui-accent-hover: var(--brand-hover);
+  --ui-accent-fg: var(--brand-fg);
+  --ui-radius: var(--radius);
+  --ui-font: var(--font-sans);
+  --ui-shadow: var(--card-shadow);
+}
+
+:root.dark,
+[data-skin="workspace"].dark,
+.dark {
+  --background: 224 20% 8%;
+  --foreground: 0 0% 96%;
+  --card: 224 20% 10%;
+  --card-foreground: 0 0% 96%;
+  --popover: 224 20% 10%;
+  --popover-foreground: 0 0% 96%;
+  --primary: 13 82% 55%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 224 15% 15%;
+  --secondary-foreground: 0 0% 96%;
+  --muted: 224 15% 15%;
+  --muted-foreground: 220 10% 65%;
+  --accent: 13 82% 55%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 62.8% 45%;
+  --destructive-foreground: 0 0% 96%;
+  --border: 224 15% 18%;
+  --input: 224 15% 18%;
+  --ring: 13 82% 55%;
+}
+
+/* ----------------------------------------------------------------- customer */
+/* The customer skin re-declares --border / --accent / --radius as solid values;
+   it never feeds them to hsl(), so it does not share the workspace's shadcn
+   triplet convention. Setting data-skin="customer" on <html> is what selects it. */
+[data-skin="customer"] {
+  --bg: #f6f5f3;
+  --surface: #ffffff;
+  --surface-2: #f2f1ef;
+  --border: #e8e5e0;
+  --fg: #1c1c1e;
+  --fg-muted: #6c6a68;
+  --fg-subtle: #a3a09c;
+  --accent: #0a6cff;
+  --accent-fg: #ffffff;
+  --on-track: #2fa45a;
+  --due: #bd8524;
+  --at-risk: #c26a34;
+  /* Hero wash — the two ends of the home photograph placeholder. */
+  --hero-sand: #e7ddd0;
+  --hero-sage: #cdd6cb;
+  --radius: 16px;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", Inter, system-ui, sans-serif;
+  --body-size: 17px;
+
+  --ui-bg: var(--bg);
+  --ui-surface: var(--surface);
+  --ui-surface-2: var(--surface-2);
+  --ui-border: var(--border);
+  --ui-fg: var(--fg);
+  --ui-fg-muted: var(--fg-muted);
+  --ui-fg-subtle: var(--fg-subtle);
+  --ui-accent: var(--accent);
+  --ui-accent-hover: #0a5ad6;
+  --ui-accent-fg: var(--accent-fg);
+  --ui-radius: var(--radius);
+  --ui-font: var(--font-sans);
+  --ui-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 6px 20px rgba(0, 0, 0, 0.05);
+}

@@ -1,0 +1,382 @@
+/*
+ * Shared component styles for @homeflow/ui. Plain CSS on the `--ui-*` aliases
+ * from tokens.css, so one component set renders correctly in both skins without
+ * either app's Tailwind theme having to agree on class names. Every value is a
+ * token; there are no literals here except the neutral overlays.
+ */
+@import "./tokens.css";
+
+.hf-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--control-h);
+  padding: 0 var(--space-5);
+  border-radius: var(--ui-radius);
+  border: 1px solid transparent;
+  font-family: var(--ui-font);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background-color 150ms ease-out, border-color 150ms ease-out, opacity 150ms ease-out;
+}
+.hf-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.hf-btn:focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 2px;
+}
+.hf-btn--primary {
+  background: var(--ui-accent);
+  color: var(--ui-accent-fg);
+}
+.hf-btn--primary:hover:not(:disabled) {
+  background: var(--ui-accent-hover);
+}
+.hf-btn--secondary {
+  background: var(--ui-surface);
+  color: var(--ui-fg);
+  border-color: var(--ui-border);
+}
+.hf-btn--secondary:hover:not(:disabled) {
+  background: var(--ui-surface-2);
+}
+.hf-btn--ghost {
+  background: transparent;
+  color: var(--ui-fg-muted);
+}
+.hf-btn--ghost:hover:not(:disabled) {
+  color: var(--ui-fg);
+  background: var(--ui-surface-2);
+}
+.hf-btn--sm {
+  min-height: var(--control-h-sm);
+  padding: 0 var(--space-3);
+  font-size: 0.875rem;
+}
+.hf-btn--block {
+  width: 100%;
+}
+
+.hf-spin {
+  width: 1rem;
+  height: 1rem;
+  animation: hf-rotate 900ms linear infinite;
+}
+@keyframes hf-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hf-spin {
+    animation: none;
+  }
+}
+
+.hf-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.hf-field {
+  display: block;
+  margin-bottom: var(--space-4);
+}
+.hf-field__label {
+  display: block;
+  margin-bottom: var(--space-2);
+  font-family: var(--ui-font);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--ui-fg-muted);
+}
+.hf-field__control {
+  width: 100%;
+  min-height: var(--control-h);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  background: var(--ui-surface);
+  color: var(--ui-fg);
+  font-family: var(--ui-font);
+  font-size: 0.9375rem;
+}
+.hf-field__control:focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 1px;
+  border-color: var(--ui-accent);
+}
+.hf-field__control[aria-invalid="true"] {
+  border-color: var(--status-risk);
+}
+.hf-field__hint {
+  display: block;
+  margin-top: var(--space-2);
+  font-size: 0.8125rem;
+  color: var(--ui-fg-muted);
+}
+.hf-field__error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  font-size: 0.8125rem;
+  color: var(--status-risk);
+}
+
+.hf-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  background: var(--ui-surface);
+}
+.hf-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--ui-font);
+  font-size: 0.875rem;
+  color: var(--ui-fg);
+}
+.hf-table th,
+.hf-table td {
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  border-bottom: 1px solid var(--ui-border);
+  vertical-align: top;
+}
+.hf-table thead th {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ui-fg-muted);
+  background: var(--ui-surface-2);
+}
+.hf-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+.hf-table td.hf-num,
+.hf-table th.hf-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.hf-skeleton {
+  display: block;
+  border-radius: var(--radius-md);
+  background: var(--ui-surface-2);
+  animation: hf-pulse 1.4s ease-in-out infinite;
+}
+@keyframes hf-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hf-skeleton {
+    animation: none;
+  }
+}
+
+.hf-state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-8) var(--space-6);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  background: var(--ui-surface);
+  font-family: var(--ui-font);
+  color: var(--ui-fg);
+}
+.hf-state__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+.hf-state__body {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--ui-fg-muted);
+  max-width: 52ch;
+}
+.hf-state__meta {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.75rem;
+  color: var(--ui-fg-subtle);
+}
+
+.hf-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-full);
+  border: 1px solid transparent;
+  font-family: var(--ui-font);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.hf-chip svg {
+  width: 0.875rem;
+  height: 0.875rem;
+  flex: none;
+}
+.hf-chip--ok {
+  color: var(--status-ok);
+  background: var(--status-ok-bg);
+}
+.hf-chip--warn {
+  color: var(--status-warn);
+  background: var(--status-warn-bg);
+}
+.hf-chip--risk {
+  color: var(--status-risk);
+  background: var(--status-risk-bg);
+}
+.hf-chip--blocked {
+  color: var(--status-blocked);
+  background: var(--status-blocked-bg);
+}
+.hf-chip--neutral {
+  color: var(--status-neutral);
+  background: var(--status-neutral-bg);
+}
+
+.hf-money {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Sign-in — the only screen both realms share a layout for. */
+.hf-signin {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+  background: var(--ui-bg);
+  font-family: var(--ui-font);
+  color: var(--ui-fg);
+}
+.hf-signin__card {
+  width: 100%;
+  max-width: 26rem;
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--ui-shadow);
+  padding: var(--space-8);
+}
+.hf-signin__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+}
+.hf-signin__mark {
+  width: var(--space-10);
+  height: var(--space-10);
+  border-radius: var(--radius-md);
+  background: var(--ui-accent);
+  color: var(--ui-accent-fg);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.hf-signin__wordmark {
+  font-size: 0.75rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--ui-fg-muted);
+}
+.hf-signin h1 {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-heading, var(--ui-font));
+  font-size: 1.5rem;
+  line-height: 1.25;
+  font-weight: 600;
+  color: var(--ui-fg);
+}
+.hf-signin__lede {
+  margin: 0 0 var(--space-6);
+  font-size: 0.9375rem;
+  color: var(--ui-fg-muted);
+}
+.hf-signin__divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--space-6) 0 var(--space-4);
+  font-size: 0.6875rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ui-fg-subtle);
+}
+.hf-signin__divider::before,
+.hf-signin__divider::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid var(--ui-border);
+}
+.hf-signin__devlist {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.hf-signin__devuser {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  width: 100%;
+  min-height: var(--control-h-sm);
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--radius-md);
+  background: var(--ui-surface);
+  color: var(--ui-fg);
+  font-family: var(--ui-font);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.hf-signin__devuser:hover {
+  background: var(--ui-surface-2);
+}
+.hf-signin__devuser:focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 2px;
+}
+.hf-signin__devuser small {
+  color: var(--ui-fg-muted);
+  font-size: 0.75rem;
+}
+.hf-signin__foot {
+  margin: var(--space-6) 0 0;
+  font-size: 0.8125rem;
+  color: var(--ui-fg-subtle);
+}

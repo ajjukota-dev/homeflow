@@ -1,0 +1,80 @@
+{
+  "operation": "POST /api/v1/auth/logout",
+  "method": "POST",
+  "path_template": "/api/v1/auth/logout",
+  "fingerprint": "142828e0",
+  "case_id": "X8vSAX",
+  "code_sample": "curl -X POST -H 'X-Requested-With: HomeFlow' -H 'Cookie: [Filtered]' http://localhost:8001/api/v1/auth/logout",
+  "sequence": [
+    {
+      "method": "POST",
+      "url": "http://localhost:8001/api/v1/auth/logout",
+      "url_template": "http://localhost:8001/api/v1/auth/logout",
+      "headers": {
+        "User-Agent": "schemathesis/4.25.2",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Accept": "*/*",
+        "Connection": "keep-alive",
+        "X-Requested-With": "HomeFlow",
+        "Cookie": "[Filtered]",
+        "X-Schemathesis-TestCaseId": "X8vSAX",
+        "Content-Length": "0"
+      },
+      "response": {
+        "status_code": 204,
+        "headers": {
+          "date": "Sat, 05 Sep 2026 10:45:22 GMT",
+          "server": "uvicorn",
+          "set-cookie": "[Filtered]",
+          "x-request-id": "5d617cb1-5ef7-4dbb-85e9-26636eed9ddc"
+        },
+        "body": ""
+      },
+      "link": null,
+      "checks": [
+        {
+          "name": "status_code_conformance",
+          "status": "failure",
+          "message": "Undocumented HTTP status code\n\nReceived: 204\nDocumented: 200"
+        }
+      ],
+      "meta": {
+        "generation": {
+          "time": 0.00022799998987466097,
+          "mode": "positive"
+        },
+        "components": {},
+        "phase": {
+          "name": "fuzzing",
+          "data": {
+            "type": "FuzzingPhaseData",
+            "description": "Positive test case",
+            "location": null,
+            "parameter": null,
+            "parameter_location": null,
+            "mutations": []
+          }
+        },
+        "pool_draws": [],
+        "pool_misses": [],
+        "semantic_draws": [],
+        "dictionary_draws": [],
+        "constants_draws": [],
+        "raw_containers": {}
+      },
+      "path": "/api/v1/auth/logout",
+      "path_parameters": {},
+      "query": {},
+      "case_headers": {
+        "X-Requested-With": "HomeFlow",
+        "Cookie": "[Filtered]"
+      },
+      "cookies": {},
+      "case_body": {
+        "encoding": "none"
+      },
+      "media_type": null,
+      "parent_index": null
+    }
+  ]
+}

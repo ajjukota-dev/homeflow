@@ -1,5 +1,7 @@
 # Foundation · Design Language
 
+> **Decision pending (5 Sep 2026).** v1's `design_guidelines.json` records a *locked* enterprise look (Operational Navy `#1E1B4B`, Chivo + IBM Plex Sans, dense tables) that this file bans. See [`../00-REVIEW.md`](../00-REVIEW.md) → Design. Recommended resolution: **customer skin = this file as written; workspace skin = v1's density and IA on this file's shared tokens.** Until Vivek/Rambabu confirm, do not restyle v1's workspace screens.
+
 HomeFlow's UI follows an **Apple-inspired, homely** system: clean, calm, neutral, with subtle black-and-white surfaces, restrained colour, and soft **filled ("covered") buttons**. It draws structure from Apple's Human Interface Guidelines — SF Pro type, adaptive system colours, capsule buttons, 44pt targets, hairline separators — but stays *warm* so a family buying a home feels cared for, not processed. **No glassmorphism / Liquid Glass** — surfaces are solid with hairline borders and gentle shadows.
 
 > **The feeling:** opening HomeFlow should feel like a beautifully made Apple app that happens to be about *your home* — quiet, precise, and reassuring. Clarity over decoration. One clear thing per view. Warmth comes from photography, generous whitespace, and human language — not loud colour.

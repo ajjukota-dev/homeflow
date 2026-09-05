@@ -28,7 +28,8 @@ export function Home() {
       {/* Hero */}
       <header className="pt-10">
         <p className="text-footnote font-medium text-fg-muted">{home.project_name}</p>
-        <div className="mt-3 flex h-44 items-end overflow-hidden rounded-xl bg-gradient-to-br from-[#e7ddd0] to-[#cdd6cb] p-5">
+        {/* Hero wash: two named tokens, not two literals (TASKS Vivek 8 ⟲ "hex gradient → tokens"). */}
+        <div className="mt-3 flex h-44 items-end overflow-hidden rounded-xl bg-gradient-to-br from-hero-sand to-hero-sage p-5">
           <span className="text-5xl">🏡</span>
         </div>
         <h1 className="mt-5 text-hero font-bold">Hello, {firstName}.</h1>

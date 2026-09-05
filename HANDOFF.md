@@ -2,6 +2,8 @@
 
 This file is for the next engineer (or agent) picking up the repo. **Start here, then follow the spec — do not invent a second product.**
 
+> **5 Sep 2026:** the target architecture in this file (Cognito, API Gateway, Lambda, Aurora, EventBridge) is superseded by [`docs/spec/foundation/architecture.md`](docs/spec/foundation/architecture.md) — ECS Fargate + RDS Postgres + S3, Google OIDC + customer OTP, events/jobs/sessions in Postgres. Where this file and that one disagree, that one wins.
+
 HomeFlow is a real product we will operate, not a prototype. The local demo is intentionally seeded so you can see the UI and the domain. Production means real people, real bookings, login, and AWS — not East Crest sample customers living in memory.
 
 ---

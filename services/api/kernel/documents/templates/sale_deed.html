@@ -1,0 +1,50 @@
+{% extends "_base.html" %}
+{% block body %}
+<div class="section">
+  <h2>Recitals</h2>
+  <p class="recital">
+    WHEREAS the Developer is the absolute and legal owner of the premises described in the
+    "Unit &amp; Property Particulars" section below, forming part of the project titled
+    <strong>{{ project.name }}</strong> at {{ project.location }}, having developed the same in
+    accordance with the sanctioned building plans and applicable statutory approvals;
+  </p>
+  <p class="recital">
+    AND WHEREAS the Purchaser having inspected the said unit and being satisfied as to the
+    developer's title and quality of construction, has agreed to purchase the said unit for a
+    consideration set out under "Commercial Terms" and on the terms and conditions recorded
+    herein, executed pursuant to and in furtherance of the Agreement of Sale dated
+    {{ dates.agreement_date }} entered into between the parties;
+  </p>
+  <p class="recital">
+    NOW THIS DEED WITNESSETH that in consideration of the payments received or to be received
+    by the Developer from the Purchaser under the terms of the said Agreement of Sale, the
+    Developer hereby transfers, conveys and assures unto the Purchaser, all right, title and
+    interest in the said unit together with its appurtenant rights, undivided share in the
+    common areas and facilities of the project, and the right to peaceful possession and
+    enjoyment thereof, subject to the covenants recorded hereunder.
+  </p>
+</div>
+
+<div class="section">
+  <h2>Covenants of the Developer</h2>
+  <p class="recital">
+    The Developer covenants that the title of the said unit is clear, marketable and free
+    from any encumbrance save as disclosed, that all statutory dues in respect of the said
+    unit have been paid up to the date of registration, and that the Developer shall, upon
+    such registration, hand over vacant, peaceful and legal possession of the said unit to
+    the Purchaser subject to receipt of the full consideration and completion of the snagging
+    process to the reasonable satisfaction of the Purchaser.
+  </p>
+</div>
+
+<div class="section">
+  <h2>Covenants of the Purchaser</h2>
+  <p class="recital">
+    The Purchaser covenants that all payments towards the consideration shall be made in
+    accordance with the Payment Plan; that the Purchaser shall bear all applicable taxes,
+    stamp duty, registration charges and incidental expenses; that the Purchaser shall abide
+    by the association bye-laws, maintenance obligations and rules governing the common
+    areas of the project.
+  </p>
+</div>
+{% endblock %}

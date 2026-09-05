@@ -1,7 +1,11 @@
-/** My Pranava Home — same Apple-homely tokens as the workspace, customer skin. */
+/**
+ * My Pranava Home Tailwind theme. Every value below is a reference to a CSS
+ * variable declared in packages/ui/src/tokens.css under [data-skin="customer"]
+ * (technical/09 §1-2). This file declares no colours of its own.
+ */
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: ["./index.html", "./src/**/*.{ts,tsx}"],
+  content: ["./index.html", "./src/**/*.{ts,tsx}", "../../packages/ui/src/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
@@ -13,6 +17,7 @@ export default {
         ontrack: "var(--on-track)",
         due: "var(--due)",
         atrisk: "var(--at-risk)",
+        hero: { sand: "var(--hero-sand)", sage: "var(--hero-sage)" },
       },
       fontFamily: {
         sans: ["-apple-system", "BlinkMacSystemFont", "SF Pro Text", "SF Pro Display", "Inter", "system-ui", "sans-serif"],

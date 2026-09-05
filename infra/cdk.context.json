@@ -3,10 +3,5 @@
     "ap-south-1a",
     "ap-south-1b",
     "ap-south-1c"
-  ],
-  "availability-zones:account=975050032697:region=ap-south-1": [
-    "ap-south-1a",
-    "ap-south-1b",
-    "ap-south-1c"
   ]
 }

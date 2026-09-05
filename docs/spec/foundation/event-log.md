@@ -23,7 +23,7 @@ Every event, regardless of type, shares this envelope:
 | `correlation_id` | uuid | | Ties events from one handshake/workflow together. |
 | `source` | json | | `{ system, source_record_id }` for imported facts. |
 
-**Storage:** append-only table (Postgres) partitioned by `project_id` + month; mirrored to an immutable stream (see [`architecture.md`](architecture.md) §Events) for fan-out. No `UPDATE`/`DELETE` grants on the events table.
+**Storage:** one append-only Postgres table (`event`), indexed by `(project_id, recorded_at)` and `correlation_id`. Consumers are jobs enqueued in the **same transaction** as the append ([`../technical/04-events-and-jobs.md`](../technical/04-events-and-jobs.md)); there is no separate stream. Partition by month only once it passes ~50 M rows. No `UPDATE`/`DELETE` grants on the table.
 
 ---
 

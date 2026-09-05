@@ -1,0 +1,80 @@
+{
+  "operation": "POST /auth/logout",
+  "method": "POST",
+  "path_template": "/auth/logout",
+  "fingerprint": "d2024265",
+  "case_id": "F8F67L",
+  "code_sample": "curl -X POST -H 'X-Requested-With: HomeFlow' -H 'Cookie: [Filtered]' http://localhost:8001/auth/logout",
+  "sequence": [
+    {
+      "method": "POST",
+      "url": "http://localhost:8001/auth/logout",
+      "url_template": "http://localhost:8001/auth/logout",
+      "headers": {
+        "User-Agent": "schemathesis/4.25.2",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Accept": "*/*",
+        "Connection": "keep-alive",
+        "X-Requested-With": "HomeFlow",
+        "Cookie": "[Filtered]",
+        "X-Schemathesis-TestCaseId": "F8F67L",
+        "Content-Length": "0"
+      },
+      "response": {
+        "status_code": 204,
+        "headers": {
+          "date": "Sat, 05 Sep 2026 10:45:22 GMT",
+          "server": "uvicorn",
+          "set-cookie": "[Filtered]",
+          "x-request-id": "0ffad6d6-027a-4372-9323-c60faf2d2947"
+        },
+        "body": ""
+      },
+      "link": null,
+      "checks": [
+        {
+          "name": "status_code_conformance",
+          "status": "failure",
+          "message": "Undocumented HTTP status code\n\nReceived: 204\nDocumented: 200"
+        }
+      ],
+      "meta": {
+        "generation": {
+          "time": 0.00012799998512491584,
+          "mode": "positive"
+        },
+        "components": {},
+        "phase": {
+          "name": "fuzzing",
+          "data": {
+            "type": "FuzzingPhaseData",
+            "description": "Positive test case",
+            "location": null,
+            "parameter": null,
+            "parameter_location": null,
+            "mutations": []
+          }
+        },
+        "pool_draws": [],
+        "pool_misses": [],
+        "semantic_draws": [],
+        "dictionary_draws": [],
+        "constants_draws": [],
+        "raw_containers": {}
+      },
+      "path": "/auth/logout",
+      "path_parameters": {},
+      "query": {},
+      "case_headers": {
+        "X-Requested-With": "HomeFlow",
+        "Cookie": "[Filtered]"
+      },
+      "cookies": {},
+      "case_body": {
+        "encoding": "none"
+      },
+      "media_type": null,
+      "parent_index": null
+    }
+  ]
+}

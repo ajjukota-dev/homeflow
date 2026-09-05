@@ -1,0 +1,90 @@
+{
+  "operation": "GET /auth/google/callback",
+  "method": "GET",
+  "path_template": "/auth/google/callback",
+  "fingerprint": "e515b069",
+  "case_id": "hZQlOt",
+  "code_sample": "curl -X GET -H 'X-Requested-With: HomeFlow' -H 'Cookie: [Filtered]' 'http://localhost:8001/auth/google/callback?state=&x-schemathesis-unknown-property=42'",
+  "sequence": [
+    {
+      "method": "GET",
+      "url": "http://localhost:8001/auth/google/callback?state=&x-schemathesis-unknown-property=42",
+      "url_template": "http://localhost:8001/auth/google/callback",
+      "headers": {
+        "User-Agent": "schemathesis/4.25.2",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Accept": "*/*",
+        "Connection": "keep-alive",
+        "X-Requested-With": "HomeFlow",
+        "Cookie": "[Filtered]",
+        "X-Schemathesis-TestCaseId": "hZQlOt"
+      },
+      "response": {
+        "status_code": 401,
+        "headers": {
+          "date": "Sat, 05 Sep 2026 10:45:21 GMT",
+          "server": "uvicorn",
+          "content-length": "140",
+          "content-type": "application/json",
+          "x-request-id": "b2aa9acf-2083-4f36-85b7-39e5ceb14ecc"
+        },
+        "body": "{\"errors\":[{\"code\":\"UNAUTHENTICATED\",\"message\":\"Sign-in expired. Try again.\"}],\"meta\":{\"request_id\":\"b2aa9acf-2083-4f36-85b7-39e5ceb14ecc\"}}"
+      },
+      "link": null,
+      "checks": [
+        {
+          "name": "status_code_conformance",
+          "status": "failure",
+          "message": "Undocumented HTTP status code\n\nReceived: 401\nDocumented: 200, 422"
+        }
+      ],
+      "meta": {
+        "generation": {
+          "time": 0.00015079998411238194,
+          "mode": "negative"
+        },
+        "components": {
+          "QUERY": "negative"
+        },
+        "phase": {
+          "name": "coverage",
+          "data": {
+            "type": "CoveragePhaseData",
+            "description": "Object with unexpected properties",
+            "location": null,
+            "parameter": null,
+            "parameter_location": "QUERY",
+            "scenario": "object_unexpected_properties"
+          }
+        },
+        "pool_draws": [],
+        "pool_misses": [],
+        "semantic_draws": [],
+        "dictionary_draws": [],
+        "constants_draws": [],
+        "raw_containers": {
+          "QUERY": {
+            "state": "",
+            "x-schemathesis-unknown-property": 42
+          }
+        }
+      },
+      "path": "/auth/google/callback",
+      "path_parameters": {},
+      "query": {
+        "state": "",
+        "x-schemathesis-unknown-property": "42"
+      },
+      "case_headers": {
+        "X-Requested-With": "HomeFlow",
+        "Cookie": "[Filtered]"
+      },
+      "cookies": {},
+      "case_body": {
+        "encoding": "none"
+      },
+      "media_type": null,
+      "parent_index": null
+    }
+  ]
+}

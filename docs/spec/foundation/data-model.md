@@ -2,7 +2,7 @@
 
 The canonical relational model. This is the **system of record** — twins ([`unit-twin.md`](unit-twin.md), [`customer-twin.md`](customer-twin.md)) are views composed from these entities plus their sub-tables.
 
-Store: **PostgreSQL (Aurora)**. All money in INR. All timestamps ISO-8601 UTC. All ids are `uuid` (v7, time-sortable) unless noted.
+Store: **PostgreSQL 16** (RDS in AWS, Docker locally). All money in INR. All timestamps ISO-8601 UTC. All ids are `uuid` (v7, time-sortable) unless noted.
 
 ---
 

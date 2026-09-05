@@ -1,0 +1,84 @@
+{
+  "operation": "GET /auth/dev-otp",
+  "method": "GET",
+  "path_template": "/auth/dev-otp",
+  "fingerprint": "21cfeb64",
+  "case_id": "irHmQN",
+  "code_sample": "curl -X GET -H 'X-Requested-With: HomeFlow' -H 'Cookie: [Filtered]' 'http://localhost:8001/auth/dev-otp?phone='",
+  "sequence": [
+    {
+      "method": "GET",
+      "url": "http://localhost:8001/auth/dev-otp?phone=",
+      "url_template": "http://localhost:8001/auth/dev-otp",
+      "headers": {
+        "User-Agent": "schemathesis/4.25.2",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Accept": "*/*",
+        "Connection": "keep-alive",
+        "X-Requested-With": "HomeFlow",
+        "Cookie": "[Filtered]",
+        "X-Schemathesis-TestCaseId": "irHmQN"
+      },
+      "response": {
+        "status_code": 400,
+        "headers": {
+          "date": "Sat, 05 Sep 2026 10:45:24 GMT",
+          "server": "uvicorn",
+          "content-length": "164",
+          "content-type": "application/json",
+          "x-request-id": "75c10c3f-4862-423b-85ba-0bc1c436413f"
+        },
+        "body": "{\"errors\":[{\"code\":\"VALIDATION\",\"message\":\"That does not look like a mobile number.\",\"field\":\"phone\"}],\"meta\":{\"request_id\":\"75c10c3f-4862-423b-85ba-0bc1c436413f\"}}"
+      },
+      "link": null,
+      "checks": [
+        {
+          "name": "positive_data_acceptance",
+          "status": "failure",
+          "message": "API rejected schema-compliant request\n\nValid data should have been accepted\nExpected: 2xx, 401, 403, 404, 409, 5xx"
+        }
+      ],
+      "meta": {
+        "generation": {
+          "time": 0.0034989999840036035,
+          "mode": "positive"
+        },
+        "components": {
+          "QUERY": "positive"
+        },
+        "phase": {
+          "name": "fuzzing",
+          "data": {
+            "type": "FuzzingPhaseData",
+            "description": "Positive test case",
+            "location": null,
+            "parameter": null,
+            "parameter_location": null,
+            "mutations": []
+          }
+        },
+        "pool_draws": [],
+        "pool_misses": [],
+        "semantic_draws": [],
+        "dictionary_draws": [],
+        "constants_draws": [],
+        "raw_containers": {}
+      },
+      "path": "/auth/dev-otp",
+      "path_parameters": {},
+      "query": {
+        "phone": ""
+      },
+      "case_headers": {
+        "X-Requested-With": "HomeFlow",
+        "Cookie": "[Filtered]"
+      },
+      "cookies": {},
+      "case_body": {
+        "encoding": "none"
+      },
+      "media_type": null,
+      "parent_index": null
+    }
+  ]
+}

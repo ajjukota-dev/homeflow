@@ -10,3 +10,21 @@ test-results/
 playwright-report/
 blob-report/
 
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# local stack data
+.data/
+
+# Built SPAs copied into the image by the Dockerfile web stage (technical/09 §7).
+services/api/static/
+
+# CDK synth output
+infra/cdk.out/
+infra/cdk.context.json

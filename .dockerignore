@@ -1,0 +1,17 @@
+**/node_modules
+**/.venv
+**/dist
+**/.git
+**/__pycache__
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/.data
+apps/legacy-ts
+services/legacy-ts
+canvases
+*.pdf
+**/e2e/__screenshots__
+**/test-results
+**/playwright-report
+services/api/static

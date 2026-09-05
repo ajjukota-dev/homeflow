@@ -1,0 +1,89 @@
+{
+  "operation": "GET /api/v1/auth/google/start",
+  "method": "TRACE",
+  "path_template": "/api/v1/auth/google/start",
+  "fingerprint": "55efa88f",
+  "case_id": "7SwTrG",
+  "code_sample": "curl -X TRACE -H 'X-Requested-With: HomeFlow' -H 'Cookie: [Filtered]' 'http://localhost:8001/api/v1/auth/google/start?next=%2F'",
+  "sequence": [
+    {
+      "method": "TRACE",
+      "url": "http://localhost:8001/api/v1/auth/google/start?next=%2F",
+      "url_template": "http://localhost:8001/api/v1/auth/google/start",
+      "headers": {
+        "User-Agent": "schemathesis/4.25.2",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Accept": "*/*",
+        "Connection": "keep-alive",
+        "X-Requested-With": "HomeFlow",
+        "Cookie": "[Filtered]",
+        "X-Schemathesis-TestCaseId": "7SwTrG",
+        "Content-Length": "0"
+      },
+      "response": {
+        "status_code": 405,
+        "headers": {
+          "date": "Sat, 05 Sep 2026 10:45:21 GMT",
+          "server": "uvicorn",
+          "content-length": "125",
+          "content-type": "application/json",
+          "x-request-id": "5a3e2cb2-a8a9-4289-8d0d-0dc7d5aec98f"
+        },
+        "body": "{\"errors\":[{\"code\":\"NOT_FOUND\",\"message\":\"Method Not Allowed\"}],\"meta\":{\"request_id\":\"5a3e2cb2-a8a9-4289-8d0d-0dc7d5aec98f\"}}"
+      },
+      "link": null,
+      "checks": [
+        {
+          "name": "unsupported_method",
+          "status": "failure",
+          "message": "Unsupported methods\n\nTRACE returned 405 without required `Allow` header\n\nAdd `Allow` header listing supported methods (required by RFC 9110)"
+        }
+      ],
+      "meta": {
+        "generation": {
+          "time": 2.700020559132099e-06,
+          "mode": "negative"
+        },
+        "components": {
+          "QUERY": "positive"
+        },
+        "phase": {
+          "name": "coverage",
+          "data": {
+            "type": "CoveragePhaseData",
+            "description": "Unspecified HTTP method: TRACE",
+            "location": null,
+            "parameter": null,
+            "parameter_location": null,
+            "scenario": "unspecified_http_method"
+          }
+        },
+        "pool_draws": [],
+        "pool_misses": [],
+        "semantic_draws": [],
+        "dictionary_draws": [],
+        "constants_draws": [],
+        "raw_containers": {
+          "QUERY": {
+            "next": "/"
+          }
+        }
+      },
+      "path": "/api/v1/auth/google/start",
+      "path_parameters": {},
+      "query": {
+        "next": "/"
+      },
+      "case_headers": {
+        "X-Requested-With": "HomeFlow",
+        "Cookie": "[Filtered]"
+      },
+      "cookies": {},
+      "case_body": {
+        "encoding": "none"
+      },
+      "media_type": null,
+      "parent_index": null
+    }
+  ]
+}

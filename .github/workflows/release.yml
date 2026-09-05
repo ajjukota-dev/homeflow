@@ -1,0 +1,98 @@
+# HomeFlow release (technical/10 §5).
+#
+# ────────────────────────────────────────────────────────────────────────────
+#  NOT ARMED. This workflow cannot run until three things exist, and all three
+#  need Pranava's approval first (HANDOFF.md, TASKS Shared 1, TASKS Vivek 9):
+#
+#    1. an AWS account and a confirmed region (ap-south-1) and monthly budget
+#    2. a GitHub repository environment named `prod` with required reviewers
+#    3. two repository variables:
+#         AWS_DEPLOY_ROLE_ARN   the OIDC role GitHub assumes (see infra/README.md)
+#         AWS_ACCOUNT_ID        the account that owns the ECR repository
+#
+#  Until the `prod` environment exists, every run of this workflow stops at the
+#  first job waiting for an approval that nobody can give. That is deliberate:
+#  no tag can put anything into AWS without a person saying yes.
+# ────────────────────────────────────────────────────────────────────────────
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  id-token: write # OIDC: no long-lived AWS keys in GitHub
+  contents: read
+
+env:
+  AWS_REGION: ap-south-1
+  ECR_REPOSITORY: homeflow-api
+
+jobs:
+  release:
+    name: build, push, deploy, smoke
+    runs-on: ubuntu-latest
+    # The gate. A reviewer on this environment approves every deploy by hand.
+    environment:
+      name: prod
+      url: https://homeflow.pranava.in
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Assume the deploy role
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push :sha and :vX.Y.Z
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+        run: |
+          SHA="${GITHUB_SHA::7}"
+          TAG="${GITHUB_REF_NAME}"
+          docker build -t "$REGISTRY/$ECR_REPOSITORY:$SHA" -f services/api/Dockerfile .
+          docker tag "$REGISTRY/$ECR_REPOSITORY:$SHA" "$REGISTRY/$ECR_REPOSITORY:$TAG"
+          docker push "$REGISTRY/$ECR_REPOSITORY:$SHA"
+          docker push "$REGISTRY/$ECR_REPOSITORY:$TAG"
+          echo "IMAGE_TAG=$SHA" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+
+      - name: Deploy the service stack only
+        # DataStack is deployed by a person with --require-approval broadening
+        # (infra/README.md). A release must never be able to touch the database.
+        working-directory: infra
+        run: |
+          npx cdk deploy HomeFlow-Service \
+            --require-approval never \
+            -c imageTag=${{ env.IMAGE_TAG }} \
+            -c hostedZoneId=${{ vars.HOSTED_ZONE_ID }}
+
+      - name: Smoke test
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS https://homeflow.pranava.in/health | grep -q '"db":"ok"'; then
+              echo "healthy"; exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::/health did not report db:ok after five minutes"
+          exit 1
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Release ${GITHUB_REF_NAME}"
+            echo "- image: \`${ECR_REPOSITORY}:${IMAGE_TAG}\`"
+            echo "- rollback: re-run \`cdk deploy HomeFlow-Service -c imageTag=<previous sha>\`"
+          } >> "$GITHUB_STEP_SUMMARY"

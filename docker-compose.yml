@@ -1,0 +1,85 @@
+# Local mirror of the AWS runtime (technical/10 §2). No AWS account required.
+# Host port 5433 -> postgres:5432 because 5432 is usually already taken on a dev laptop.
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - "${POSTGRES_HOST_PORT:-5434}:5432"
+    volumes:
+      - pg:/var/lib/postgresql/data
+      - ./docker/postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d homeflow"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  minio:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: homeflow
+      MINIO_ROOT_PASSWORD: homeflow123
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  createbuckets:
+    image: minio/mc
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 homeflow homeflow123 &&
+      mc mb --ignore-existing local/homeflow-files &&
+      echo 'bucket homeflow-files ready'
+      "
+
+  mailpit:
+    image: axllent/mailpit
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+    image: ${HOMEFLOW_IMAGE:-homeflow-api:local}
+    env_file:
+      - .env
+    environment:
+      UVICORN_EXTRA_ARGS: "--reload"
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./services/api:/app
+      - api-data:/app/.data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      createbuckets:
+        condition: service_completed_successfully
+
+volumes:
+  pg:
+  minio:
+  api-data:

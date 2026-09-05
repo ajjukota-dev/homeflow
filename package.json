@@ -2,15 +2,27 @@
   "name": "homeflow",
   "private": true,
   "version": "0.0.0",
-  "description": "Pranava HomeFlow — post-sales OS for residential real estate. Monorepo: apps/ (frontend), services/ (backend), infra/ (AWS CDK), docs/spec (build contract).",
+  "description": "Pranava HomeFlow \u2014 post-sales OS for residential real estate. Monorepo: apps/ (frontend), services/ (backend), infra/ (AWS CDK), docs/spec (build contract).",
   "scripts": {
-    "test": "npm --prefix services/api test && npm --prefix apps/workspace test",
-    "test:api": "npm --prefix services/api test",
-    "test:web": "npm --prefix apps/workspace test",
-    "test:e2e": "npm --prefix apps/workspace run e2e",
-    "build": "npm --prefix apps/workspace run build",
+    "dev:workspace": "npm --prefix apps/workspace run dev",
+    "dev:customer": "npm --prefix apps/my-pranava-home run dev",
+    "build": "npm run build -w @homeflow/ui -w @homeflow/workspace -w @homeflow/my-pranava-home",
+ "build:static": "npm run build && node -e \"const fs=require('fs');for(const [a,d] of [['workspace','workspace'],['my-pranava-home','customer']]){fs.rmSync('services/api/static/'+d,{recursive:true,force:true});fs.cpSync('apps/'+a+'/dist','services/api/static/'+d,{recursive:true});}console.log('static/ refreshed - restart the api container to serve it')\"",
+    "typecheck": "npm run typecheck -w @homeflow/ui -w @homeflow/workspace -w @homeflow/my-pranava-home",
+    "lint": "npm run lint -w @homeflow/workspace -w @homeflow/my-pranava-home",
+    "test": "npm run test -w @homeflow/ui -w @homeflow/workspace -w @homeflow/my-pranava-home",
+    "test:e2e": "npm run e2e -w @homeflow/workspace -w @homeflow/my-pranava-home",
+    "gen:api": "npm run gen:api -w @homeflow/ui",
     "synth": "npm --prefix infra run synth",
-    "dev:web": "npm --prefix apps/workspace run dev",
-    "dev:api": "npm --prefix services/api start"
-  }
+    "ci:local": "bash scripts/ci-local.sh",
+    "stack:dev": "docker compose up -d --build",
+    "stack:down": "docker compose down",
+    "stack:reset": "docker compose down -v && docker compose up -d --build",
+    "stack:test": "docker compose exec api uv run pytest"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "infra"
+  ]
 }

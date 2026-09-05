@@ -1,0 +1,84 @@
+{
+  "operation": "GET /api/v1/auth/dev-otp",
+  "method": "GET",
+  "path_template": "/api/v1/auth/dev-otp",
+  "fingerprint": "3f0a90a0",
+  "case_id": "tgSASN",
+  "code_sample": "curl -X GET -H 'X-Requested-With: HomeFlow' -H 'Cookie: [Filtered]' http://localhost:8001/api/v1/auth/dev-otp",
+  "sequence": [
+    {
+      "method": "GET",
+      "url": "http://localhost:8001/api/v1/auth/dev-otp",
+      "url_template": "http://localhost:8001/api/v1/auth/dev-otp",
+      "headers": {
+        "User-Agent": "schemathesis/4.25.2",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Accept": "*/*",
+        "Connection": "keep-alive",
+        "X-Requested-With": "HomeFlow",
+        "Cookie": "[Filtered]",
+        "X-Schemathesis-TestCaseId": "tgSASN"
+      },
+      "response": {
+        "status_code": 400,
+        "headers": {
+          "date": "Sat, 05 Sep 2026 10:45:21 GMT",
+          "server": "uvicorn",
+          "content-length": "138",
+          "content-type": "application/json",
+          "x-request-id": "1c0de194-b3ab-40dc-b2d7-94615917a911"
+        },
+        "body": "{\"errors\":[{\"code\":\"VALIDATION\",\"message\":\"Field required\",\"field\":\"phone\"}],\"meta\":{\"request_id\":\"1c0de194-b3ab-40dc-b2d7-94615917a911\"}}"
+      },
+      "link": null,
+      "checks": [
+        {
+          "name": "status_code_conformance",
+          "status": "failure",
+          "message": "Undocumented HTTP status code\n\nReceived: 400\nDocumented: 200, 422"
+        }
+      ],
+      "meta": {
+        "generation": {
+          "time": 1.109996810555458e-05,
+          "mode": "negative"
+        },
+        "components": {
+          "QUERY": "negative"
+        },
+        "phase": {
+          "name": "coverage",
+          "data": {
+            "type": "CoveragePhaseData",
+            "description": "Missing `phone` at query",
+            "location": null,
+            "parameter": "phone",
+            "parameter_location": "QUERY",
+            "scenario": "missing_parameter"
+          }
+        },
+        "pool_draws": [],
+        "pool_misses": [],
+        "semantic_draws": [],
+        "dictionary_draws": [],
+        "constants_draws": [],
+        "raw_containers": {
+          "QUERY": {}
+        }
+      },
+      "path": "/api/v1/auth/dev-otp",
+      "path_parameters": {},
+      "query": {},
+      "case_headers": {
+        "X-Requested-With": "HomeFlow",
+        "Cookie": "[Filtered]"
+      },
+      "cookies": {},
+      "case_body": {
+        "encoding": "none"
+      },
+      "media_type": null,
+      "parent_index": null
+    }
+  ]
+}

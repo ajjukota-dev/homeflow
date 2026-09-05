@@ -1,0 +1,90 @@
+{
+  "operation": "GET /api/v1/auth/dev-login",
+  "method": "GET",
+  "path_template": "/api/v1/auth/dev-login",
+  "fingerprint": "8556d5d7",
+  "case_id": "VlquXJ",
+  "code_sample": "curl -X GET -H 'X-Requested-With: HomeFlow' -H 'Cookie: [Filtered]' 'http://localhost:8001/api/v1/auth/dev-login?user=&x-schemathesis-unknown-property=42'",
+  "sequence": [
+    {
+      "method": "GET",
+      "url": "http://localhost:8001/api/v1/auth/dev-login?user=&x-schemathesis-unknown-property=42",
+      "url_template": "http://localhost:8001/api/v1/auth/dev-login",
+      "headers": {
+        "User-Agent": "schemathesis/4.25.2",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Accept": "*/*",
+        "Connection": "keep-alive",
+        "X-Requested-With": "HomeFlow",
+        "Cookie": "[Filtered]",
+        "X-Schemathesis-TestCaseId": "VlquXJ"
+      },
+      "response": {
+        "status_code": 403,
+        "headers": {
+          "date": "Sat, 05 Sep 2026 10:45:21 GMT",
+          "server": "uvicorn",
+          "content-length": "129",
+          "content-type": "application/json",
+          "x-request-id": "02375e64-3e57-4144-aa4d-9bed1678f805"
+        },
+        "body": "{\"errors\":[{\"code\":\"NOT_PROVISIONED\",\"message\":\"No active user .\"}],\"meta\":{\"request_id\":\"02375e64-3e57-4144-aa4d-9bed1678f805\"}}"
+      },
+      "link": null,
+      "checks": [
+        {
+          "name": "status_code_conformance",
+          "status": "failure",
+          "message": "Undocumented HTTP status code\n\nReceived: 403\nDocumented: 200, 422"
+        }
+      ],
+      "meta": {
+        "generation": {
+          "time": 2.3200002033263445e-05,
+          "mode": "negative"
+        },
+        "components": {
+          "QUERY": "negative"
+        },
+        "phase": {
+          "name": "coverage",
+          "data": {
+            "type": "CoveragePhaseData",
+            "description": "Object with unexpected properties",
+            "location": null,
+            "parameter": null,
+            "parameter_location": "QUERY",
+            "scenario": "object_unexpected_properties"
+          }
+        },
+        "pool_draws": [],
+        "pool_misses": [],
+        "semantic_draws": [],
+        "dictionary_draws": [],
+        "constants_draws": [],
+        "raw_containers": {
+          "QUERY": {
+            "user": "",
+            "x-schemathesis-unknown-property": 42
+          }
+        }
+      },
+      "path": "/api/v1/auth/dev-login",
+      "path_parameters": {},
+      "query": {
+        "user": "",
+        "x-schemathesis-unknown-property": "42"
+      },
+      "case_headers": {
+        "X-Requested-With": "HomeFlow",
+        "Cookie": "[Filtered]"
+      },
+      "cookies": {},
+      "case_body": {
+        "encoding": "none"
+      },
+      "media_type": null,
+      "parent_index": null
+    }
+  ]
+}

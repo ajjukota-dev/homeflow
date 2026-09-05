@@ -1,0 +1,54 @@
+[project]
+name = "homeflow-api"
+version = "0.1.0"
+description = "Pranava HomeFlow 2.0 — FastAPI backend (kernel · modules · domain)."
+requires-python = "==3.12.*"
+dependencies = [
+  # --- 2.0 stack (technical/01 §6) ---
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.32",
+  "pydantic>=2.9",
+  "pydantic-settings>=2.6",
+  "sqlalchemy[asyncio]>=2.0.36",
+  "asyncpg>=0.30",
+  "alembic>=1.14",
+  "authlib>=1.3",
+  "httpx>=0.28",
+  "boto3>=1.35",
+  "jinja2>=3.1",
+  "weasyprint>=63",
+  "python-multipart>=0.0.20",
+  "orjson>=3.10",
+  # --- carried from v1, removed by the task that replaces them ---
+  "motor>=3.6",          # v1 storage; goes with the Mongo -> Postgres cutover (TASKS Vivek 16)
+  "pymongo>=4.9",        # ditto (bson)
+  "aiofiles>=24.1",      # v1 filesystem attachments; goes with TASKS Vivek 7 (S3 files)
+  "python-dotenv>=1.0",  # v1 env loading; goes when settings.py is the only env reader
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.3",
+  "pytest-asyncio>=0.24",
+  "ruff>=0.8",
+  "mypy>=1.13",
+  "hypothesis>=6.119",
+  # Contract fuzzing against the served openapi.json (technical/01 §6, 12 §4).
+  # CI runs it against the built image; any 500 it finds is a real bug.
+  "schemathesis>=3.39",
+]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["kernel.*", "domain.*"]
+strict = true

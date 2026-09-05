@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>{{ template_name }} — {{ customer.primary_name }}</title>
+<style>{{ shared_css | safe }}</style>
+{% block extra_css %}{% endblock %}
+</head>
+<body class="{% if not is_approved %}is-draft{% endif %}">
+
+<h1 class="doc-title">{{ template_name }}</h1>
+<div class="doc-subtitle">
+  {{ project.name }} · Unit {{ unit.code }} · Generated {{ generated_at_display }}
+</div>
+
+<div class="parties">
+  <div class="party">
+    <div class="party-role">Purchaser</div>
+    <div class="party-name">{{ customer.primary_name }}</div>
+    <div class="small-muted">
+      {% if applicant %}{{ applicant.name }}{% if applicant.pan %} · PAN {{ applicant.pan }}{% endif %} · {% endif %}
+      {{ customer.address_line or "" }}{% if customer.city %}, {{ customer.city }}{% endif %}{% if customer.state %}, {{ customer.state }}{% endif %}{% if customer.pincode %} — {{ customer.pincode }}{% endif %}
+    </div>
+  </div>
+  <div class="party">
+    <div class="party-role">Developer / Seller</div>
+    <div class="party-name">Pranava Group</div>
+    <div class="small-muted">
+      Authorised Signatory: {{ signatory.name }} · {{ signatory.designation }}
+    </div>
+  </div>
+</div>
+
+{% block body %}{% endblock %}
+
+<div class="section">
+  <h2>Unit &amp; Property Particulars</h2>
+  <table class="details">
+    <tr><th>Project</th><td>{{ project.name }} ({{ project.code }})</td></tr>
+    <tr><th>Location</th><td>{{ project.location }}</td></tr>
+    <tr><th>Unit</th><td>{{ unit.code }}{% if unit.tower %} · Tower {{ unit.tower }}{% endif %}{% if unit.floor is not none %} · Floor {{ unit.floor }}{% endif %}{% if unit.unit_no %} · Unit No. {{ unit.unit_no }}{% endif %}</td></tr>
+    <tr><th>Type</th><td>{{ unit.unit_type }}</td></tr>
+    <tr><th>Carpet Area</th><td>{{ unit.carpet_area_sqft }} sq. ft.</td></tr>
+    <tr><th>Facing</th><td>{{ unit.facing or "—" }}</td></tr>
+    <tr><th>Parking Slots</th><td>{{ unit.parking_count }}</td></tr>
+  </table>
+</div>
+
+<div class="section">
+  <h2>Commercial Terms</h2>
+  <table class="details">
+    <tr><th>Agreement Value</th><td>{{ money.agreement_value }}</td></tr>
+    <tr><th>Booking Amount</th><td>{{ money.booking_amount }}</td></tr>
+    <tr><th>Base Price of Unit</th><td>{{ money.base_price }}</td></tr>
+    <tr><th>Payment Plan</th><td>{{ booking.payment_plan or "As per payment schedule attached." }}</td></tr>
+  </table>
+</div>
+
+<div class="section">
+  <h2>Key Dates</h2>
+  <table class="details">
+    <tr><th>Booking Date</th><td>{{ dates.booking_date }}</td></tr>
+    <tr><th>Agreement Date</th><td>{{ dates.agreement_date }}</td></tr>
+    <tr><th>Expected Possession</th><td>{{ dates.possession_date }}</td></tr>
+  </table>
+</div>
+
+<div class="section">
+  <h2>Signatures</h2>
+  <div class="signature-grid">
+    <div class="signature-block">
+      <div class="role">For the Purchaser</div>
+      <div class="name">{{ customer.primary_name }}</div>
+      <div class="desc">Signature &amp; Date</div>
+    </div>
+    <div class="signature-block">
+      <div class="role">For the Developer</div>
+      <div class="name">{{ signatory.name }}</div>
+      <div class="desc">{{ signatory.designation }} — Signature &amp; Date</div>
+    </div>
+    {% for w in witnesses %}
+    <div class="signature-block">
+      <div class="role">Witness {{ loop.index }}</div>
+      <div class="name">{{ w.name }}</div>
+      <div class="desc">{{ w.address or "Signature &amp; Date" }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="notes">
+  This document is a template draft. All legal terms herein are indicative and MUST be
+  reviewed and approved by qualified counsel before execution. The {{ template_name }} is
+  binding only when signed by both parties in the presence of the witnesses named above,
+  and, where applicable, registered before the sub-registrar office having jurisdiction over
+  {{ project.location }}. Prepared by {{ generated_by.name }} on {{ generated_at_display }}.
+</div>
+
+</body>
+</html>

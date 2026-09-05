@@ -6,31 +6,42 @@ The operational contract for building HomeFlow — commands, code style, testing
 
 ## 1. Commands
 
-### Frontend — `apps/workspace` (and later `apps/my-pranava-home`)
+### Whole stack (from repo root)
 ```
-npm install            # install deps
-npm run dev            # Vite dev server (hot reload) → http://localhost:5173
-npm run build          # typecheck (tsc -b) + production build
-npm run preview        # serve the production build
-npm test               # Vitest run (CI mode)
-npm run test:watch     # Vitest watch
-npm run lint           # ESLint
+make dev               # docker compose up (Postgres 16 + MinIO + Mailpit + API) → migrate → bucket → seed
+make down              # stop
+make reset             # wipe volumes, re-seed
+make test              # backend pytest + frontend vitest
 ```
 
-### Local backend stack (added in later slices — see architecture §6b)
+### Backend — `services/api` (Python / FastAPI, from v1)
 ```
-docker compose up      # Postgres + LocalStack (EventBridge/SQS/S3/Cognito) + OpenSearch
-npm run dev:api        # SAM local / serverless-offline — Lambda handlers as local HTTP
-make dev               # boots the full local mirror + seeds East Crest sample config
+uv sync                # or: pip install -r requirements.txt
+uvicorn app:app --reload --port 8001
+alembic upgrade head   # migrations
+alembic revision -m "…" --autogenerate
+pytest                 # unit + integration (integration uses the compose Postgres)
+ruff check . && mypy . # lint + types
 ```
 
-> **Local-first rule:** everything runs on a laptop with no AWS account; the same code deploys to AWS by re-pointing env ([`architecture.md`](architecture.md) §6b).
+### Frontends — `apps/workspace`, `apps/my-pranava-home` (React + Vite, TypeScript)
+```
+npm install
+npm run dev            # Vite → :5173 (workspace) / :5174 (customer); /api proxied to :8001
+npm run build          # tsc -b + vite build
+npm test               # Vitest (excludes e2e/)
+npm run e2e            # Playwright
+npm run lint
+```
+
+> **Local-first rule:** everything runs on a laptop with no AWS account; the same image deploys to AWS by re-pointing env ([`architecture.md`](architecture.md) §7).
 
 ---
 
 ## 2. Code style
 
-- **Language:** TypeScript everywhere, `strict: true`. No `any` without a written reason.
+- **Backend language:** Python 3.12, FastAPI, `from __future__ import annotations`, type hints everywhere, `mypy --strict` on `domain/` and `kernel/`. Pydantic models for every request/response. No bare `except:` — v1's `write_audit` swallowing errors is the anti-pattern.
+- **Frontend language:** TypeScript, `strict: true`. No `any` without a written reason.
 - **React:** function components + hooks. One component per file; the file is named for the component (`GateChip.tsx`).
 - **Naming:** `PascalCase` components/types, `camelCase` values/functions, `SCREAMING_SNAKE` domain enums that mirror the spec (`HARD_CLOSED`). API/JSON fields are `snake_case` to match [`data-model.md`](data-model.md).
 - **Design system:** never hard-code colours/spacing/radii — use the tokens in `styles/tokens.css` (mirrors [`design-language.md`](design-language.md) §3). A raw hex in a component is a bug.
@@ -52,10 +63,10 @@ export function GateChip({ state, note }: { state: GateState; note?: string }) {
 
 | Level | Tool | What it covers |
 |---|---|---|
-| Unit | **Vitest** | Pure logic (gate derivation, forecast math, INR formatting, validators). |
+| Unit | **pytest** (backend `domain/`), **Vitest** (frontend) | Pure logic (gate derivation, forecast math, INR formatting, validators). |
 | Component | **Vitest + React Testing Library** | Components render + behave; accessibility (labels, roles). |
-| Contract | Vitest against **OpenAPI** | API request/response shapes match the spec; handshake payloads. |
-| Integration | Vitest + local Postgres/LocalStack | A handshake end-to-end against the local mirror. |
+| Contract | **schemathesis** against FastAPI's OpenAPI | API request/response shapes match the spec; handshake payloads. |
+| Integration | pytest + compose Postgres/MinIO | A handshake end-to-end against the local mirror. Tests never hit a hosted preview URL (v1's did). |
 | E2E (later) | Playwright | A full vertical slice through the real UI. |
 
 - **Behaviour-first:** for new behaviour, write the failing test first (TDD), then implement. Presentational scaffolding (tokens, static gallery) is exempt.
@@ -69,7 +80,7 @@ export function GateChip({ state, note }: { state: GateState; note?: string }) {
 ## 4. Boundaries
 
 **Always**
-- Run `npm test` + `npm run build` before committing a slice.
+- Run `make test` + `npm run build` (both apps) before committing a slice.
 - Use design tokens; keep customer-facing surfaces behind the H10 visibility filter.
 - Derive `project_id` and enforce RLS on every data path.
 - Keep the local stack working (`make dev` must stay green).
@@ -93,15 +104,13 @@ export function GateChip({ state, note }: { state: GateState; note?: string }) {
 
 ## 5. Build order (incremental slices)
 
-Each slice = a little UI + a little backend + DB, runnable locally and demoable:
+Migration first, then slices. See [`v1-reuse.md`](v1-reuse.md) §5 for the migration order.
 
 | Slice | Delivers | Visible outcome |
 |---|---|---|
-| **0. Skeleton + UI kit** ✅ | Repo, Vite app, design system gallery, test setup, these conventions | The homely Apple UI, clickable |
-| 1. Changeability magic | Unit progress → gate engine → sales inventory (H1) | Set progress → gate flips in sales |
-| 2. Booking + handoff | Sales books → CRM completeness gate → Customer Twin (H2) | Booking wizard, CRM accept, Customer 360 |
-| 3. Customer home | My Pranava Home + progress tracker (T1, H10) | Buyer's warm portal |
-| 4. Money | Demands → true-risk collections | Payment "why now", collections |
-| 5+ | Legal, QA/handover, post-handover, management | Each a new visible slice |
-
-Status: **Slice 0 complete** — app builds, tests pass, runs at `http://localhost:5173`.
+| **M. Migration** | v1 in this repo on Postgres + RLS + S3; engines ported; event log + jobs; Action kernel; Google OIDC + OTP sessions | Every v1 screen renders from Postgres for every role |
+| 1. Changeability | Unit-scoped progress → gate engine → sales inventory (H1) | Set progress → gate flips in sales |
+| 2. Booking + handoff | v1 sales handover on the new Booking model (H2) | Completeness gate, return taxonomy, Customer Twin |
+| 3. Customer home | My Pranava Home (T1–T6, H10) | Buyer's portal on real data |
+| 4. Money | Demands → true-risk + forecasting | Payment "why now", cash-flow planner |
+| 5+ | Legal factory, QA/handover, post-handover, management | Each a new visible slice |

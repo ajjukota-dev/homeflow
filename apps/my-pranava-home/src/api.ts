@@ -1,3 +1,5 @@
+import { get } from "@homeflow/ui";
+
 export interface Stage {
   label: string;
   state: "done" | "current" | "upcoming";
@@ -55,8 +57,16 @@ export interface Home {
   keys: KeysWindow;
 }
 
+/**
+ * The customer projection (technical/07 customer_portal). Goes through the
+ * shared client so it carries the session cookie, the CSRF header and the
+ * `{data, meta}` unwrapping, and so a 401 flips the sign-in gate instead of
+ * rendering a dead page (technical/09 §3).
+ *
+ * ponytail: `/me/home` is not built yet — it arrives with TASKS Vivek 15
+ * (customer_portal). Until then this call 404s and the page shows its error
+ * state, which is the honest thing to render.
+ */
 export async function getHome(): Promise<Home> {
-  const res = await fetch("/api/me/home");
-  if (!res.ok) throw new Error(`API ${res.status}`);
-  return (await res.json()).data as Home;
+  return get<Home>("/me/home");
 }
