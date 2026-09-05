@@ -21,7 +21,12 @@ CREATE TABLE event (
   booking_id text REFERENCES booking(id),
   unit_id text REFERENCES unit(id),
   customer_id text REFERENCES customer(id),
-  -- nullable: no user/roles table in this worktree yet (parallel lane). Populate once it lands.
+  -- nullable: the `user` table now exists (0001_identity.sql), but no domain handler's
+  -- appendEvent() call populates this yet even for user-actuated mutations — every real
+  -- event today defaults to actor_kind='SYSTEM'/actor_user_id=null regardless of who acted,
+  -- because ctx.actor (available in every handler since R0.6) isn't threaded through. Real,
+  -- verified gap — tracked as TODO R0.6c, not fixed here (R0.5 scope is schema docs, not
+  -- this wiring). See SCHEMA.md drift #5.
   actor_user_id text,
   actor_kind text NOT NULL DEFAULT 'SYSTEM' CHECK (actor_kind IN ('USER', 'SYSTEM', 'CUSTOMER')),
   payload jsonb NOT NULL DEFAULT '{}',

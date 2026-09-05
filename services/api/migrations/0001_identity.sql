@@ -112,9 +112,11 @@ CREATE TABLE customer_login (
 );
 
 -- Rule 11 (auth/access audit trail). Kept as our own append-only table rather
--- than the workstream-02 `event` table, which does not exist in this worktree
--- yet (02 owns it) — avoids a migration collision. Fold into `event` once 02
--- lands; see PR notes.
+-- than folding into the `event` table (02, merged in 0002_event.sql): auth
+-- events (login/logout/invite/password-reset) aren't project/entity-scoped
+-- the way `event` rows are, and `event`'s append-only trigger + Appendix B
+-- typed registry aren't a fit for this table's free-form `type`. Revisit only
+-- if a real cross-cutting audit view needs both in one place (R0.5, SCHEMA.md).
 CREATE TABLE auth_event (
   id text PRIMARY KEY,
   type text NOT NULL,
