@@ -38,8 +38,8 @@ export const EVENT_TYPES: EventTypeDef[] = [
   { name: "snag.closed", family: "snag", customer_visible: true, built: true },
   { name: "commitment.created", family: "commitment", customer_visible: false, built: false },
   { name: "commitment.status_changed", family: "commitment", customer_visible: false, built: false },
-  { name: "escalation.raised", family: "escalation", customer_visible: false, built: false },
-  { name: "escalation.resolved", family: "escalation", customer_visible: false, built: false },
+  { name: "escalation.raised", family: "escalation", customer_visible: false, built: true },
+  { name: "escalation.resolved", family: "escalation", customer_visible: false, built: true },
   { name: "handover.scheduled", family: "handover", customer_visible: true, built: false },
   { name: "handover.completed", family: "handover", customer_visible: true, built: true },
   { name: "warranty.case_opened", family: "warranty", customer_visible: true, built: false },
@@ -51,6 +51,12 @@ export const EVENT_TYPES: EventTypeDef[] = [
   { name: "action.acted", family: "action", customer_visible: false, built: true },
   { name: "document.approved", family: "document", customer_visible: false, built: true },
   { name: "checkin.captured", family: "checkin", customer_visible: false, built: true },
+  // 12-escalations-notifications.md names escalation.raised/resolved but not the tier-progression
+  // or closed transitions its own rule 1/table actually needs, nor its notification events.
+  { name: "escalation.tier_changed", family: "escalation", customer_visible: false, built: true },
+  { name: "escalation.closed", family: "escalation", customer_visible: false, built: true },
+  { name: "notification.sent", family: "notification", customer_visible: false, built: true },
+  { name: "digest.sent", family: "notification", customer_visible: false, built: true },
 
   // --- Canonical-model rule 8 events (04 §Rules "Every mutation emits: ...") ---
   // These aren't literal Appendix B names but 04 requires them, and 02 says event names

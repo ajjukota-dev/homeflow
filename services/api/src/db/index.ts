@@ -9,7 +9,10 @@ import { seedJourneyStandard } from "../seed/journey-standard";
 import { seedDefaultCalendar } from "../seed/calendar";
 import { seedSlaPolicies } from "../seed/sla-policies";
 import { seedActionTypes } from "../seed/action-types";
+import { seedEscalationConfig } from "../seed/escalation-rules";
 import { registerJourneySubscribers } from "../journey/subscribers";
+import { registerNotificationSubscribers } from "../notifications/subscribers";
+import { registerEscalationSubscribers } from "../escalations/subscribers";
 import type { DbClient } from "./types";
 
 export type { DbClient } from "./types";
@@ -75,7 +78,12 @@ export function initDb(): Promise<void> {
       // 10 config: action_type rows (execution-type-keyed, see seed/action-types.ts header) —
       // every environment needs these before any task instance can get its action.
       await seedActionTypes(db);
+      // 12 config: standard escalation ladder (attached to every per-task sla_policy row above)
+      // + the 13-rule catalogue + materiality thresholds — real production wiring, not demo data.
+      await seedEscalationConfig(db);
       registerJourneySubscribers();
+      registerNotificationSubscribers();
+      registerEscalationSubscribers();
       const seedAllowed = process.env.NODE_ENV !== "production" || process.env.SEED_DEMO === "1";
       if (!seedAllowed) return;
       const { rows } = await db.query<{ count: number }>(`SELECT count(*)::int AS count FROM project`);
