@@ -8,7 +8,7 @@ const badgeVariants = cva("inline-flex items-center rounded-pill px-2 py-0.5 tex
   variants: {
     tone: {
       neutral: "bg-surface-raised text-fg-muted border border-line",
-      accent: "bg-accent-soft text-accent",
+      accent: "bg-accent-soft text-accent-soft-fg",
     },
   },
   defaultVariants: { tone: "neutral" },

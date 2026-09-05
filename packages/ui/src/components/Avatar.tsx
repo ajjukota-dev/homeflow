@@ -33,7 +33,7 @@ export function Avatar({ name, src, size = "md", className, ...props }: AvatarPr
       aria-label={name}
       className={cn(
         dims,
-        "inline-flex items-center justify-center rounded-full bg-accent-soft font-medium text-accent",
+        "inline-flex items-center justify-center rounded-full bg-accent-soft font-medium text-accent-soft-fg",
         className,
       )}
       {...props}

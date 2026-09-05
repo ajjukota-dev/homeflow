@@ -4,31 +4,40 @@
  * they migrate to `@homeflow/ui` component classes/tokens.
  * @type {import('tailwindcss').Config}
  */
+// `rgb(var(--x-rgb) / <alpha-value>)` (not a plain `var(--x)`) is what lets Tailwind generate
+// opacity-modified utilities (`bg-line/70`, `bg-accent/90`, ...) — see tokens.css's file comment.
+const withAlpha = (rgbVar) => `rgb(var(${rgbVar}) / <alpha-value>)`;
+
 export default {
   darkMode: ["selector", '[data-theme="dark"]'],
   theme: {
     extend: {
       colors: {
-        bg: "var(--bg)",
+        bg: withAlpha("--bg-rgb"),
         surface: {
-          DEFAULT: "var(--surface)",
-          raised: "var(--surface-raised)",
+          DEFAULT: withAlpha("--surface-rgb"),
+          raised: withAlpha("--surface-raised-rgb"),
         },
-        line: "var(--line)",
+        line: withAlpha("--line-rgb"),
         fg: {
-          DEFAULT: "var(--fg)",
-          muted: "var(--fg-muted)",
-          subtle: "var(--fg-subtle)",
+          DEFAULT: withAlpha("--fg-rgb"),
+          muted: withAlpha("--fg-muted-rgb"),
+          subtle: withAlpha("--fg-subtle-rgb"),
         },
         accent: {
-          DEFAULT: "var(--accent)",
-          fg: "var(--accent-fg)",
-          soft: "var(--accent-soft)",
+          DEFAULT: withAlpha("--accent-rgb"),
+          fg: withAlpha("--accent-fg-rgb"),
+          soft: withAlpha("--accent-soft-rgb"),
+          "soft-fg": withAlpha("--accent-soft-fg-rgb"),
         },
-        ok: { DEFAULT: "var(--ok)", soft: "var(--ok-soft)", fg: "var(--ok-fg)" },
-        info: { DEFAULT: "var(--info)", soft: "var(--info-soft)", fg: "var(--info-fg)" },
-        warn: { DEFAULT: "var(--warn)", soft: "var(--warn-soft)", fg: "var(--warn-fg)" },
-        danger: { DEFAULT: "var(--danger)", soft: "var(--danger-soft)", fg: "var(--danger-fg)" },
+        ok: { DEFAULT: withAlpha("--ok-rgb"), soft: withAlpha("--ok-soft-rgb"), fg: withAlpha("--ok-fg-rgb") },
+        info: { DEFAULT: withAlpha("--info-rgb"), soft: withAlpha("--info-soft-rgb"), fg: withAlpha("--info-fg-rgb") },
+        warn: { DEFAULT: withAlpha("--warn-rgb"), soft: withAlpha("--warn-soft-rgb"), fg: withAlpha("--warn-fg-rgb") },
+        danger: {
+          DEFAULT: withAlpha("--danger-rgb"),
+          soft: withAlpha("--danger-soft-rgb"),
+          fg: withAlpha("--danger-fg-rgb"),
+        },
       },
       fontFamily: {
         // Headings/wordmark/portal-display use Jost; body/UI/data uses Geist Sans; codes/IDs use Geist Mono.

@@ -48,7 +48,7 @@ export function SelectOptions({ options }: { options: SelectOption[] }) {
               key={opt.value}
               value={opt.value}
               className={cn(
-                "flex cursor-pointer items-center justify-between rounded-[6px] px-2.5 py-1.5 text-ws-body text-fg",
+                "flex cursor-pointer items-center justify-between rounded-control px-2.5 py-1.5 text-ws-body text-fg",
                 "outline-none data-[highlighted]:bg-surface-raised",
               )}
             >
