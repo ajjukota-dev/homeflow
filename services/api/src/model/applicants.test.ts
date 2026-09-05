@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { initDb, db } from "../db";
 import { listApplicants, setApplicants } from "./applicants";
+import { superAdminCtx } from "../authz/test-helpers";
 
 beforeAll(async () => {
   await initDb();
@@ -17,7 +18,7 @@ describe("booking applicants (04 rule 4, §API PUT /bookings/:id/applicants)", (
     const result = await setApplicants("b_v111", [
       { ...existing[0], role: "PRIMARY" },
       { display_name: "Suresh Krishnan", role: "CO_APPLICANT", ownership_pct: undefined },
-    ]);
+    ], superAdminCtx);
     expect(result).toHaveLength(2);
     expect(result.some((a) => a.role === "CO_APPLICANT" && a.display_name === "Suresh Krishnan")).toBe(true);
     const events = await db.query<{ n: number }>(
@@ -29,7 +30,7 @@ describe("booking applicants (04 rule 4, §API PUT /bookings/:id/applicants)", (
   it("removes an applicant and emits applicant.removed", async () => {
     const existing = await listApplicants("b_v111");
     const primary = existing.find((a) => a.role === "PRIMARY")!;
-    await setApplicants("b_v111", [primary]);
+    await setApplicants("b_v111", [primary], superAdminCtx);
     const after = await listApplicants("b_v111");
     expect(after).toHaveLength(1);
     const events = await db.query<{ n: number }>(
@@ -40,12 +41,12 @@ describe("booking applicants (04 rule 4, §API PUT /bookings/:id/applicants)", (
 
   it("rejects zero or two PRIMARY applicants", async () => {
     const existing = await listApplicants("b_v110");
-    await expect(setApplicants("b_v110", [])).rejects.toThrow();
+    await expect(setApplicants("b_v110", [], superAdminCtx)).rejects.toThrow();
     await expect(
       setApplicants("b_v110", [
         { ...existing[0], role: "PRIMARY" },
         { display_name: "Second Primary", role: "PRIMARY" },
-      ])
+      ], superAdminCtx)
     ).rejects.toThrow();
   });
 
@@ -58,7 +59,7 @@ describe("booking applicants (04 rule 4, §API PUT /bookings/:id/applicants)", (
         { display_name: "B", role: "CO_APPLICANT" },
         { display_name: "C", role: "CO_APPLICANT" },
         { display_name: "D", role: "CO_APPLICANT" },
-      ])
+      ], superAdminCtx)
     ).rejects.toThrow();
   });
 
@@ -68,7 +69,7 @@ describe("booking applicants (04 rule 4, §API PUT /bookings/:id/applicants)", (
       setApplicants("b_v113", [
         { ...existing[0], role: "PRIMARY", ownership_pct: 60 },
         { display_name: "Co-owner", role: "CO_APPLICANT", ownership_pct: 30 },
-      ])
+      ], superAdminCtx)
     ).rejects.toThrow();
   });
 });

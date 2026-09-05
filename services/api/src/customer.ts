@@ -3,6 +3,8 @@ import { deriveGate, type ChangeGateRule, type ProgressState } from "./gates";
 import { t2Payments } from "./collections-view";
 import { t4Passport, t5Legal, t6Keys } from "./transparency";
 import { handoverForBooking } from "./qa";
+import { authorize } from "./authz/authorize";
+import type { Ctx } from "./authz/types";
 
 // My Pranava Home (customer) projection — the H10-filtered, approved view.
 // T1: coarse construction stages. T3: friendly personalisation windows.
@@ -41,7 +43,11 @@ function friendlyWindow(state: string): string {
   }
 }
 
-export async function getCustomerHome(bookingId: string) {
+// customer_journey READ covers both the CUSTOMER role (own portal) and the staff
+// roles that preview it (SALES/CRM/MANAGEMENT/ACCOUNTS/BANKING/LEGAL/REGISTRATION —
+// all READ+ per seed/permissions.ts; SITE/FM/QA are NONE and can't preview it).
+export async function getCustomerHome(bookingId: string, ctx: Ctx) {
+  await authorize(ctx, "customer_journey", "READ");
   const b = await db.query<{
     unit_id: string;
     status: string;

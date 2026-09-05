@@ -3,6 +3,8 @@ import { pickFive, type TowerCandidate } from "./tower";
 import { projectCollections } from "./collections-view";
 import { projectHandover } from "./qa";
 import { appendEvent, withTx } from "./events";
+import { authorize } from "./authz/authorize";
+import type { Ctx } from "./authz/types";
 
 // Control Tower — five ranked interventions from live exceptions (management/spec.md, H11).
 
@@ -21,7 +23,8 @@ interface InterventionRow {
   acted_by: string | null;
 }
 
-export async function controlTower(projectId: string) {
+export async function controlTower(projectId: string, ctx: Ctx) {
+  await authorize(ctx, "escalations", "READ");
   const candidates: TowerCandidate[] = [];
   const collections = await projectCollections(projectId);
   const trueRisk = collections.buckets.TRUE_RISK;
@@ -162,7 +165,8 @@ export async function controlTower(projectId: string) {
 
 // Act is idempotent: only the first call stamps acted_at (acted_by awaits Cognito, H11).
 // Emits action.acted (extension — 02 §Appendix B "Extend with action.*").
-export async function actIntervention(id: string) {
+export async function actIntervention(id: string, ctx: Ctx) {
+  await authorize(ctx, "escalations", "WRITE");
   let updated: InterventionRow | undefined;
   await withTx(undefined, async (t) => {
     const r = await t.query<InterventionRow>(

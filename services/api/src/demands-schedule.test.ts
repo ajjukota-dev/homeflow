@@ -6,6 +6,7 @@ import { getCustomerHome } from "./customer";
 import { listDemands, today } from "./demands";
 import { postReceipt } from "./demands-receipts";
 import { projectCollections } from "./collections-view";
+import { superAdminCtx } from "./authz/test-helpers";
 
 // H3 — a scheduled demand carries no due_date until its construction trigger fires
 // (accounts/spec.md H3; T2 in customer-transparency.md must show "Upcoming", never a stamped date).
@@ -27,8 +28,8 @@ beforeAll(async () => {
 describe("setupFunding — no date stamped on an unmet trigger", () => {
   it("leaves scheduled demands with due_date null and only dates the no-trigger demand", async () => {
     // u_v101 starts with every component not_started — no trigger has fired.
-    const b = await createBooking("u_v101", completeInput);
-    await acceptBooking(b.id);
+    const b = await createBooking("u_v101", completeInput, superAdminCtx);
+    await acceptBooking(b.id, superAdminCtx);
     const demands = await listDemands(b.id);
 
     const booking = demands.find((d) => d.milestone_key === "booking_token")!;
@@ -47,8 +48,8 @@ describe("raiseDemandsForUnit — dates only the demand whose trigger just fired
   it("stamps today's date on the newly-due demand, leaves other scheduled demands null", async () => {
     // u_v108 is seeded with structure already complete, so its structure milestone is
     // already due (dated at setupFunding); mep/flooring/possession are still scheduled.
-    const b = await createBooking("u_v108", completeInput);
-    await acceptBooking(b.id);
+    const b = await createBooking("u_v108", completeInput, superAdminCtx);
+    await acceptBooking(b.id, superAdminCtx);
     const before = await listDemands(b.id);
     const mep = before.find((d) => d.milestone_key === "mep_milestone")!;
     const flooring = before.find((d) => d.milestone_key === "flooring_milestone")!;
@@ -56,7 +57,7 @@ describe("raiseDemandsForUnit — dates only the demand whose trigger just fired
     expect(mep.due_date).toBeNull();
     expect(flooring.due_date).toBeNull();
 
-    await setProgress("u_v108", "mep_first_fix", "complete");
+    await setProgress("u_v108", "mep_first_fix", "complete", superAdminCtx);
 
     const after = await listDemands(b.id);
     const mepAfter = after.find((d) => d.milestone_key === "mep_milestone")!;
@@ -73,9 +74,9 @@ describe("T2 customer payment view — scheduled demand carries due_date: null",
     const b = await createBooking("u_v104", {
       ...completeInput,
       applicant: { ...completeInput.applicant, phone: "9876500002" },
-    });
-    await acceptBooking(b.id);
-    const home = await getCustomerHome(b.id);
+    }, superAdminCtx);
+    await acceptBooking(b.id, superAdminCtx);
+    const home = await getCustomerHome(b.id, superAdminCtx);
     const payments = home!.payments!;
 
     const scheduledLine = payments.schedule.find((s) => s.status === "Upcoming")!;
@@ -102,7 +103,7 @@ describe("a receipt against a scheduled (undated) demand never vanishes from col
     expect(scheduled.due_date).toBeNull();
 
     const partial = Math.floor(scheduled.amount / 2);
-    await postReceipt(scheduled.id, { amount: partial, idempotency_key: "rcpt-v101-scheduled-partial" });
+    await postReceipt(scheduled.id, { amount: partial, idempotency_key: "rcpt-v101-scheduled-partial" }, superAdminCtx);
 
     const updated = (await listDemands(bookingId)).find((d) => d.id === scheduled.id)!;
     expect(updated.status).toBe("part_paid");

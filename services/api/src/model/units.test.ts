@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { initDb, db } from "../db";
 import { createProject } from "../projects";
 import { bulkCreateUnits, defaultHierarchyNodeId } from "./units";
+import { superAdminCtx } from "../authz/test-helpers";
 
 beforeAll(async () => {
   await initDb();
@@ -9,7 +10,7 @@ beforeAll(async () => {
 
 describe("bulk unit range create (04 §Screens)", () => {
   it("creates floors x letters as a grid, each with a UNT- code and unit.created event", async () => {
-    const p = await createProject({ code: "bulk1", name: "Bulk Test" });
+    const p = await createProject({ code: "bulk1", name: "Bulk Test" }, superAdminCtx);
     const ids = await bulkCreateUnits(p.id, {
       floor_from: 1,
       floor_to: 3,
@@ -19,7 +20,7 @@ describe("bulk unit range create (04 §Screens)", () => {
       facing: "East",
       product_type: "APARTMENT",
       base_price_inr: 6500000,
-    });
+    }, superAdminCtx);
     expect(ids).toHaveLength(12); // 3 floors x 4 letters
 
     const units = await db.query<{ unit_number: string; code: string; product_type: string; floor_no: number }>(
@@ -40,7 +41,7 @@ describe("bulk unit range create (04 §Screens)", () => {
   });
 
   it("rejects an inverted range", async () => {
-    const p = await createProject({ code: "bulk2", name: "Bulk Test 2" });
+    const p = await createProject({ code: "bulk2", name: "Bulk Test 2" }, superAdminCtx);
     await expect(
       bulkCreateUnits(p.id, {
         floor_from: 5,
@@ -49,12 +50,12 @@ describe("bulk unit range create (04 §Screens)", () => {
         letter_to: "B",
         unit_type: "2BHK",
         facing: "East",
-      })
+      }, superAdminCtx)
     ).rejects.toThrow();
   });
 
   it("falls back to the project's default hierarchy node when none is supplied", async () => {
-    const p = await createProject({ code: "bulk3", name: "Bulk Test 3" });
+    const p = await createProject({ code: "bulk3", name: "Bulk Test 3" }, superAdminCtx);
     await bulkCreateUnits(p.id, {
       floor_from: 1,
       floor_to: 1,
@@ -62,7 +63,7 @@ describe("bulk unit range create (04 §Screens)", () => {
       letter_to: "A",
       unit_type: "2BHK",
       facing: "East",
-    });
+    }, superAdminCtx);
     const defaultId = await defaultHierarchyNodeId(p.id);
     const u = await db.query<{ hierarchy_node_id: string }>(
       `SELECT hierarchy_node_id FROM unit WHERE project_id = $1`,
@@ -74,7 +75,7 @@ describe("bulk unit range create (04 §Screens)", () => {
 
 describe("unit.project_id is immutable (04 rule 1 — DB trigger + handler test)", () => {
   it("rejects a direct UPDATE that changes project_id", async () => {
-    const other = await createProject({ code: "otherproj", name: "Other Project" });
+    const other = await createProject({ code: "otherproj", name: "Other Project" }, superAdminCtx);
     await expect(
       db.query(`UPDATE unit SET project_id = $1 WHERE id = 'u_v101'`, [other.id])
     ).rejects.toThrow();

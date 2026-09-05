@@ -3,6 +3,8 @@ import { db } from "./db";
 import type { BookingDetailRow, BookingListRow } from "./bookings-types";
 import { appendEvent, withTx } from "./events";
 import { nextCode } from "./model/codes";
+import { authorize } from "./authz/authorize";
+import type { Ctx } from "./authz/types";
 
 // Sales → CRM handoff (handshakes.md H2). Completeness gate → accept births a Customer Twin.
 
@@ -47,8 +49,10 @@ export async function getBooking(id: string) {
   return r.rows[0] ?? null;
 }
 
-/** Sales creates the booking; blocked unless the completeness gate is satisfied. */
-export async function createBooking(unitId: string, input: BookingInput) {
+/** Sales creates the booking; blocked unless the completeness gate is satisfied.
+ *  Fires sales_handover.submitted below — this IS the sales_handover submission step. */
+export async function createBooking(unitId: string, input: BookingInput, ctx: Ctx) {
+  await authorize(ctx, "sales_handover", "WRITE");
   const u = await db.query<{ project_id: string; sale_status: string }>(
     `SELECT project_id, sale_status FROM unit WHERE id = $1`,
     [unitId]
@@ -110,7 +114,8 @@ export async function createBooking(unitId: string, input: BookingInput) {
   return getBooking(bookingId);
 }
 
-export async function listBookings(status?: string) {
+export async function listBookings(status: string | undefined, ctx: Ctx) {
+  await authorize(ctx, "sales_handover", "READ");
   const r = await db.query<BookingListRow>(
     `SELECT b.id, b.booking_number, b.status, b.total_consideration::float8 AS total_consideration,
             b.completeness_score, b.return_reason,

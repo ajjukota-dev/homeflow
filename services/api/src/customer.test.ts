@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { initDb, setState, db } from "./db";
 import { createBooking, acceptBooking } from "./bookings";
 import { getCustomerHome } from "./customer";
+import { superAdminCtx } from "./authz/test-helpers";
 
 const completeInput = {
   applicant: { display_name: "Ravi Menon", phone: "9876500000", pan: "ABCDE1234F" },
@@ -19,9 +20,9 @@ beforeAll(async () => {
 
 describe("My Pranava Home projection (T1 + T3)", () => {
   it("shows coarse stages and friendly windows, no internal fields", async () => {
-    const b = await createBooking("u_v108", completeInput); // V108 = mid construction
-    await acceptBooking(b.id);
-    const home = await getCustomerHome(b.id);
+    const b = await createBooking("u_v108", completeInput, superAdminCtx); // V108 = mid construction
+    await acceptBooking(b.id, superAdminCtx);
+    const home = await getCustomerHome(b.id, superAdminCtx);
     expect(home).toBeTruthy();
     expect(home!.customer_name).toBe("Ravi Menon");
     expect(home!.stages.length).toBe(5);
@@ -36,13 +37,13 @@ describe("My Pranava Home projection (T1 + T3)", () => {
   });
 
   it("advances a stage when site progress advances", async () => {
-    const b = await createBooking("u_v101", completeInput); // V101 = early
-    await acceptBooking(b.id);
-    const before = await getCustomerHome(b.id);
+    const b = await createBooking("u_v101", completeInput, superAdminCtx); // V101 = early
+    await acceptBooking(b.id, superAdminCtx);
+    const before = await getCustomerHome(b.id, superAdminCtx);
     expect(before!.stages[0].state).not.toBe("done"); // Foundation not done yet
 
     await setState("u_v101", "structure", "in_progress");
-    const after = await getCustomerHome(b.id);
+    const after = await getCustomerHome(b.id, superAdminCtx);
     expect(after!.stages[0].state).toBe("done"); // Foundation now done
   });
 });
@@ -54,7 +55,7 @@ describe("T2 why-now matches V110's real progress", () => {
     );
     const stateOf = Object.fromEntries(rows.rows.map((r) => [r.component_code, r.state_code]));
 
-    const home = await getCustomerHome("b_v110");
+    const home = await getCustomerHome("b_v110", superAdminCtx);
     const byLabel = Object.fromEntries(home!.payments!.schedule.map((s) => [s.milestone_label, s.why_now]));
 
     expect(byLabel["Structure complete"]).toBe(`Structure ${stateOf.structure} — payment due.`);

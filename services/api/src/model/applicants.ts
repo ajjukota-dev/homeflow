@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import { db } from "../db";
 import { appendEvent, withTx, type DbLike } from "../events";
 import { ValidationError } from "./derive";
+import { authorize } from "../authz/authorize";
+import type { Ctx } from "../authz/types";
 
 // booking_applicant (04 §Data, rule 4): exactly one PRIMARY, max 4 (config), ownership_pct
 // sums to 100 when set. PUT /bookings/:id/applicants replaces the full list (diff → events).
@@ -37,7 +39,10 @@ export interface ApplicantRow {
 const toDbRole = (role: ApplicantRole): string => (role === "PRIMARY" ? "primary" : role);
 const toSpecRole = (role: string): ApplicantRole => (role === "primary" ? "PRIMARY" : (role as ApplicantRole));
 
-export async function listApplicants(bookingId: string, handle: DbLike = db): Promise<ApplicantRow[]> {
+// `ctx` optional: also called internally at the end of setApplicants (with a tx
+// handle) to return the fresh state — setApplicants already authorized above.
+export async function listApplicants(bookingId: string, handle: DbLike = db, ctx?: Ctx): Promise<ApplicantRow[]> {
+  if (ctx) await authorize(ctx, "sales_handover", "READ");
   const r = await handle.query<{
     id: string;
     customer_id: string | null;
@@ -55,7 +60,8 @@ export async function listApplicants(bookingId: string, handle: DbLike = db): Pr
   return r.rows.map((row) => ({ ...row, role: toSpecRole(row.role) }));
 }
 
-export async function setApplicants(bookingId: string, applicants: ApplicantInput[]): Promise<ApplicantRow[]> {
+export async function setApplicants(bookingId: string, applicants: ApplicantInput[], ctx: Ctx): Promise<ApplicantRow[]> {
+  await authorize(ctx, "sales_handover", "WRITE");
   if (applicants.length === 0) throw new ValidationError("at least one applicant required");
   if (applicants.length > MAX_APPLICANTS) throw new ValidationError(`max ${MAX_APPLICANTS} applicants`);
   const primaries = applicants.filter((a) => a.role === "PRIMARY");

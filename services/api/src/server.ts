@@ -27,6 +27,7 @@ import { registerAuthRoutes } from "./auth/routes";
 import { requireSession, type AuthedRequest } from "./auth/middleware";
 import { registerModelRoutes } from "./routes-model";
 import { getAudit } from "./events";
+import { failHttp } from "./authz/httpError";
 
 // Local API gateway. Handlers are Lambda-portable; this Express wrapper is the local
 // mirror (architecture.md §6b) — the same handlers run behind API Gateway on AWS.
@@ -49,77 +50,99 @@ app.get("/health", async (_req, res) => {
 registerAuthRoutes(app);
 app.use(requireSession);
 
-app.get("/api/units", async (req, res) => {
-  res.json({ data: await listUnits(req.query.project_id as string | undefined) });
+app.get("/api/units", async (req: AuthedRequest, res) => {
+  try {
+    res.json({ data: await listUnits(req.query.project_id as string | undefined, { actor: req.actor! }) });
+  } catch (e) {
+    failHttp(res, e);
+  }
 });
 
 // --- Projects & unit creation (project-site master data) ---
-app.get("/api/projects", async (_req, res) => res.json({ data: await listProjects() }));
-
-app.post("/api/projects", async (req, res) => {
+app.get("/api/projects", async (req: AuthedRequest, res) => {
   try {
-    res.json({ data: await createProject(req.body) });
+    res.json({ data: await listProjects({ actor: req.actor! }) });
   } catch (e) {
-    res.status(400).json({ errors: [{ code: "bad_request", message: String((e as Error).message) }] });
+    failHttp(res, e);
   }
 });
 
-app.post("/api/projects/:id/units", async (req, res) => {
+app.post("/api/projects", async (req: AuthedRequest, res) => {
   try {
-    res.json({ data: await createUnit(req.params.id, req.body) });
+    res.json({ data: await createProject(req.body, { actor: req.actor! }) });
   } catch (e) {
-    res.status(400).json({ errors: [{ code: "bad_request", message: String((e as Error).message) }] });
+    failHttp(res, e);
   }
 });
 
-app.get("/api/units/:id", async (req, res) => {
-  const unit = await getUnit(req.params.id);
-  if (!unit) return res.status(404).json({ errors: [{ code: "not_found" }] });
-  res.json({ data: unit });
+app.post("/api/projects/:id/units", async (req: AuthedRequest, res) => {
+  try {
+    res.json({ data: await createUnit(req.params.id, req.body, { actor: req.actor! }) });
+  } catch (e) {
+    failHttp(res, e);
+  }
 });
 
-app.put("/api/units/:id/progress", async (req, res) => {
+app.get("/api/units/:id", async (req: AuthedRequest, res) => {
+  try {
+    const unit = await getUnit(req.params.id, { actor: req.actor! });
+    if (!unit) return res.status(404).json({ errors: [{ code: "not_found" }] });
+    res.json({ data: unit });
+  } catch (e) {
+    failHttp(res, e);
+  }
+});
+
+app.put("/api/units/:id/progress", async (req: AuthedRequest, res) => {
   const { component_code, state_code } = req.body ?? {};
   if (!component_code || !state_code) {
     return res.status(400).json({ errors: [{ code: "missing_fields" }] });
   }
   try {
-    const unit = await setProgress(req.params.id, component_code, state_code);
+    const unit = await setProgress(req.params.id, component_code, state_code, { actor: req.actor! });
     res.json({ data: unit });
   } catch (e) {
-    res.status(400).json({ errors: [{ code: "bad_request", message: String(e) }] });
+    failHttp(res, e);
   }
 });
 
 // --- Bookings + CRM handoff (H2) ---
 app.get("/api/booking-config", (_req, res) => res.json({ data: { mandatory_docs: MANDATORY_DOCS } }));
 
-app.post("/api/units/:id/book", async (req, res) => {
+app.post("/api/units/:id/book", async (req: AuthedRequest, res) => {
   try {
-    res.json({ data: await createBooking(req.params.id, req.body) });
+    res.json({ data: await createBooking(req.params.id, req.body, { actor: req.actor! }) });
   } catch (e) {
     const err = e as Error & { missing?: string[] };
     if (err.missing) return res.status(400).json({ errors: [{ code: "incomplete", missing: err.missing }] });
-    res.status(400).json({ errors: [{ code: "bad_request", message: String(err.message) }] });
+    failHttp(res, e);
   }
 });
 
-app.get("/api/bookings", async (req, res) => {
-  res.json({ data: await listBookings(req.query.status as string | undefined) });
-});
-
-app.post("/api/bookings/:id/accept", async (req, res) => {
+app.get("/api/bookings", async (req: AuthedRequest, res) => {
   try {
-    res.json({ data: await acceptBooking(req.params.id) });
+    res.json({ data: await listBookings(req.query.status as string | undefined, { actor: req.actor! }) });
   } catch (e) {
-    res.status(400).json({ errors: [{ code: "bad_request", message: String((e as Error).message) }] });
+    failHttp(res, e);
   }
 });
 
-app.post("/api/bookings/:id/return", async (req, res) => {
+app.post("/api/bookings/:id/accept", async (req: AuthedRequest, res) => {
+  try {
+    res.json({ data: await acceptBooking(req.params.id, { actor: req.actor! }) });
+  } catch (e) {
+    failHttp(res, e);
+  }
+});
+
+app.post("/api/bookings/:id/return", async (req: AuthedRequest, res) => {
   const reason = req.body?.reason;
   if (!reason) return res.status(400).json({ errors: [{ code: "missing_reason" }] });
-  res.json({ data: await returnBooking(req.params.id, reason) });
+  try {
+    res.json({ data: await returnBooking(req.params.id, reason, { actor: req.actor! }) });
+  } catch (e) {
+    failHttp(res, e);
+  }
 });
 
 // --- My Pranava Home (customer portal, H10-filtered) ---
@@ -132,76 +155,119 @@ app.get("/api/me/home", async (req: AuthedRequest, res) => {
   const bookingId =
     actor.kind === "CUSTOMER" ? await bookingForCustomerUser(actor.user_id) : (req.query.booking_id as string) || (await firstActiveBooking());
   if (!bookingId) return res.status(404).json({ errors: [{ code: "no_booking" }] });
-  const home = await getCustomerHome(bookingId);
-  if (!home) return res.status(404).json({ errors: [{ code: "not_found" }] });
-  res.json({ data: home });
+  try {
+    const home = await getCustomerHome(bookingId, { actor });
+    if (!home) return res.status(404).json({ errors: [{ code: "not_found" }] });
+    res.json({ data: home });
+  } catch (e) {
+    failHttp(res, e);
+  }
 });
 
-app.get("/api/customers", async (_req, res) => res.json({ data: await listCustomers() }));
-app.get("/api/customers/:id", async (req, res) => {
-  const c = await getCustomer(req.params.id);
-  if (!c) return res.status(404).json({ errors: [{ code: "not_found" }] });
-  res.json({ data: c });
+app.get("/api/customers", async (req: AuthedRequest, res) => {
+  try {
+    res.json({ data: await listCustomers({ actor: req.actor! }) });
+  } catch (e) {
+    failHttp(res, e);
+  }
+});
+app.get("/api/customers/:id", async (req: AuthedRequest, res) => {
+  try {
+    const c = await getCustomer(req.params.id, { actor: req.actor! });
+    if (!c) return res.status(404).json({ errors: [{ code: "not_found" }] });
+    res.json({ data: c });
+  } catch (e) {
+    failHttp(res, e);
+  }
 });
 
 // --- Accounts / collections (H3, true-risk, T2 source) ---
-app.get("/api/bookings/:id/demands", async (req, res) => {
-  res.json({ data: await listDemands(req.params.id) });
+app.get("/api/bookings/:id/demands", async (req: AuthedRequest, res) => {
+  try {
+    res.json({ data: await listDemands(req.params.id, undefined, { actor: req.actor! }) });
+  } catch (e) {
+    failHttp(res, e);
+  }
 });
 
-app.get("/api/overdue-reasons", async (_req, res) => res.json({ data: await listOverdueReasons() }));
-
-app.get("/api/projects/:id/collections", async (req, res) => {
-  res.json({ data: await projectCollections(req.params.id) });
+app.get("/api/overdue-reasons", async (req: AuthedRequest, res) => {
+  try {
+    res.json({ data: await listOverdueReasons({ actor: req.actor! }) });
+  } catch (e) {
+    failHttp(res, e);
+  }
 });
 
-app.post("/api/demands/:id/receipt", async (req, res) => {
+app.get("/api/projects/:id/collections", async (req: AuthedRequest, res) => {
+  try {
+    res.json({ data: await projectCollections(req.params.id, undefined, { actor: req.actor! }) });
+  } catch (e) {
+    failHttp(res, e);
+  }
+});
+
+app.post("/api/demands/:id/receipt", async (req: AuthedRequest, res) => {
   try {
     const key = (req.headers["idempotency-key"] as string | undefined) ?? req.body?.idempotency_key;
     res.json({
-      data: await postReceipt(req.params.id, {
-        amount: Number(req.body?.amount),
-        mode: req.body?.mode,
-        idempotency_key: key,
-      }),
+      data: await postReceipt(
+        req.params.id,
+        {
+          amount: Number(req.body?.amount),
+          mode: req.body?.mode,
+          idempotency_key: key,
+        },
+        { actor: req.actor! }
+      ),
     });
   } catch (e) {
-    res.status(400).json({ errors: [{ code: "bad_request", message: String((e as Error).message) }] });
+    failHttp(res, e);
   }
 });
 
-app.post("/api/demands/:id/overdue-reason", async (req, res) => {
+app.post("/api/demands/:id/overdue-reason", async (req: AuthedRequest, res) => {
   try {
-    res.json({ data: await setOverdueReason(req.params.id, req.body?.reason_code) });
+    res.json({ data: await setOverdueReason(req.params.id, req.body?.reason_code, { actor: req.actor! }) });
   } catch (e) {
-    res.status(400).json({ errors: [{ code: "bad_request", message: String((e as Error).message) }] });
+    failHttp(res, e);
   }
 });
 
-app.post("/api/demands/:id/ptp", async (req, res) => {
+app.post("/api/demands/:id/ptp", async (req: AuthedRequest, res) => {
   try {
     res.json({
-      data: await recordPtp(req.params.id, {
-        expected_date: req.body?.expected_date,
-        expected_amount: Number(req.body?.expected_amount),
-      }),
+      data: await recordPtp(
+        req.params.id,
+        {
+          expected_date: req.body?.expected_date,
+          expected_amount: Number(req.body?.expected_amount),
+        },
+        { actor: req.actor! }
+      ),
     });
   } catch (e) {
-    res.status(400).json({ errors: [{ code: "bad_request", message: String((e as Error).message) }] });
+    failHttp(res, e);
   }
 });
 
 // --- Audit (02 §API) — paged, masked; the workspace Activity tab reads this ---
-app.get("/api/audit", async (req, res) => {
-  const result = await getAudit({
-    entity_type: req.query.entity_type as string | undefined,
-    entity_id: req.query.entity_id as string | undefined,
-    from: req.query.from as string | undefined,
-    to: req.query.to as string | undefined,
-    page: req.query.page ? Number(req.query.page) : undefined,
-    page_size: req.query.page_size ? Number(req.query.page_size) : undefined,
-  });
-  res.json({ data: result.data, page: result.page, page_size: result.page_size, total: result.total });
+app.get("/api/audit", async (req: AuthedRequest, res) => {
+  try {
+    const result = await getAudit(
+      {
+        entity_type: req.query.entity_type as string | undefined,
+        entity_id: req.query.entity_id as string | undefined,
+        from: req.query.from as string | undefined,
+        to: req.query.to as string | undefined,
+        page: req.query.page ? Number(req.query.page) : undefined,
+        page_size: req.query.page_size ? Number(req.query.page_size) : undefined,
+      },
+      { actor: req.actor! }
+    );
+    res.json({ data: result.data, page: result.page, page_size: result.page_size, total: result.total });
+  } catch (e) {
+    failHttp(res, e);
+  }
 });
 
 registerLifecycleRoutes(app);

@@ -1,6 +1,8 @@
 // GET /audit — paged, masked (02 §API, rule 3, rule 5). Answers who/what/when/from
 // where/before-after for Booking, Unit, Customer, Document, Commitment, Change Request, Gate.
 import { db } from "../db";
+import { authorize } from "../authz/authorize";
+import type { Ctx } from "../authz/types";
 
 export interface AuditQuery {
   entity_type?: string;
@@ -34,7 +36,11 @@ export function mask(payload: Record<string, unknown>): Record<string, unknown> 
   return payload;
 }
 
-export async function getAudit(q: AuditQuery): Promise<{ data: AuditRow[]; page: number; page_size: number; total: number }> {
+export async function getAudit(
+  q: AuditQuery,
+  ctx: Ctx
+): Promise<{ data: AuditRow[]; page: number; page_size: number; total: number }> {
+  await authorize(ctx, "reports", "READ");
   const page = Math.max(1, q.page ?? 1);
   const pageSize = Math.min(100, Math.max(1, q.page_size ?? 25));
   const conditions: string[] = [];

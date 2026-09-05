@@ -8,6 +8,7 @@ import { verifyComponent, closeSnag, completeHandover } from "../qa";
 import { generateDocument, approveDocument, executeDocument, completeRegistration } from "../legal-docs";
 import { closeWarranty, captureCheckin } from "../warranty";
 import { actIntervention, controlTower } from "../tower-view";
+import { superAdminCtx } from "../authz/test-helpers";
 
 // 02 rule 2: "Every handler listed in a spec's Events section must emit; tests assert the
 // emitted type and payload keys." One assertion per built event type — this is also what
@@ -38,7 +39,7 @@ beforeAll(async () => {
 
 describe("event emission — booking / sales handover / unit (02 Appendix B + 04 rule 8)", () => {
   it("createBooking emits booking.created, sales_handover.submitted, unit.sale_status_changed", async () => {
-    const b = await createBooking("u_v101", completeInput);
+    const b = await createBooking("u_v101", completeInput, superAdminCtx);
     const events = await eventsFor(b!.id);
     expect(events.map((e) => e.type)).toEqual(
       expect.arrayContaining(["booking.created", "sales_handover.submitted"])
@@ -53,8 +54,8 @@ describe("event emission — booking / sales handover / unit (02 Appendix B + 04
   });
 
   it("acceptBooking emits sales_handover.accepted, booking.status_changed, customer.created, unit.sale_status_changed", async () => {
-    const b = await createBooking("u_v108", completeInput);
-    const { customer_id } = await acceptBooking(b!.id);
+    const b = await createBooking("u_v108", completeInput, superAdminCtx);
+    const { customer_id } = await acceptBooking(b!.id, superAdminCtx);
     const events = await eventsFor(b!.id);
     expect(events.map((e) => e.type)).toEqual(
       expect.arrayContaining(["sales_handover.accepted", "booking.status_changed"])
@@ -78,8 +79,8 @@ describe("event emission — booking / sales handover / unit (02 Appendix B + 04
   });
 
   it("returnBooking emits sales_handover.returned + booking.status_changed", async () => {
-    const b = await createBooking("u_v104", completeInput);
-    await returnBooking(b!.id, "PAN mismatch");
+    const b = await createBooking("u_v104", completeInput, superAdminCtx);
+    await returnBooking(b!.id, "PAN mismatch", superAdminCtx);
     const events = await eventsFor(b!.id);
     expect(events.map((e) => e.type)).toEqual(
       expect.arrayContaining(["sales_handover.returned", "booking.status_changed"])
@@ -88,7 +89,7 @@ describe("event emission — booking / sales handover / unit (02 Appendix B + 04
 
   it("createUnit emits unit.created with payload keys", async () => {
     const projects = await db.query<{ id: string }>(`SELECT id FROM project LIMIT 1`);
-    const unit = await createUnit(projects.rows[0].id, { unit_number: "Z999", unit_type: "3BHK", facing: "East" });
+    const unit = await createUnit(projects.rows[0].id, { unit_number: "Z999", unit_type: "3BHK", facing: "East" }, superAdminCtx);
     const events = await eventsFor(unit!.id);
     expect(events[0].type).toBe("unit.created");
     expect(events[0].payload).toHaveProperty("unit_number", "Z999");
@@ -97,7 +98,7 @@ describe("event emission — booking / sales handover / unit (02 Appendix B + 04
 
 describe("event emission — money, progress, QA, legal, warranty, actions", () => {
   it("setProgress emits progress.updated with from/to", async () => {
-    await setProgress("u_v101", "structure", "in_progress");
+    await setProgress("u_v101", "structure", "in_progress", superAdminCtx);
     const events = await db.query<{ type: string; payload: { from: string | null; to: string } }>(
       `SELECT type, payload FROM event WHERE entity_id = 'u_v101' AND type = 'progress.updated' ORDER BY id DESC LIMIT 1`
     );
@@ -109,7 +110,7 @@ describe("event emission — money, progress, QA, legal, warranty, actions", () 
     const demands = await db.query<{ id: string }>(
       `SELECT id FROM demand WHERE booking_id = 'b_v110' AND status = 'due' LIMIT 1`
     );
-    const receipt = await postReceipt(demands.rows[0].id, { amount: 100, mode: "neft" });
+    const receipt = await postReceipt(demands.rows[0].id, { amount: 100, mode: "neft" }, superAdminCtx);
     const events = await eventsFor(receipt.id);
     expect(events.map((e) => e.type)).toEqual(
       expect.arrayContaining(["payment.received", "payment.reconciled"])
@@ -118,7 +119,7 @@ describe("event emission — money, progress, QA, legal, warranty, actions", () 
   });
 
   it("verifyComponent emits qa.inspection_passed", async () => {
-    await verifyComponent("u_v111", "structure", "Photo checklist complete");
+    await verifyComponent("u_v111", "structure", "Photo checklist complete", superAdminCtx);
     const events = await db.query<{ payload: Record<string, unknown> }>(
       `SELECT payload FROM event WHERE entity_id = 'u_v111' AND type = 'qa.inspection_passed'`
     );
@@ -127,17 +128,17 @@ describe("event emission — money, progress, QA, legal, warranty, actions", () 
   });
 
   it("closeSnag emits snag.closed", async () => {
-    await closeSnag("s_v110_1", "Before photo", "After photo");
+    await closeSnag("s_v110_1", "Before photo", "After photo", superAdminCtx);
     const events = await eventsFor("s_v110_1");
     expect(events.map((e) => e.type)).toContain("snag.closed");
   });
 
   it("generateDocument/approveDocument/executeDocument emit agreement.generated, document.approved, agreement.executed", async () => {
-    const doc = await generateDocument("b_v111", "AOS");
+    const doc = await generateDocument("b_v111", "AOS", superAdminCtx);
     const genEvents = await eventsFor(doc!.id);
     expect(genEvents.map((e) => e.type)).toContain("agreement.generated");
-    await approveDocument(doc!.id);
-    await executeDocument(doc!.id);
+    await approveDocument(doc!.id, superAdminCtx);
+    await executeDocument(doc!.id, superAdminCtx);
     const allEvents = await eventsFor(doc!.id);
     expect(allEvents.map((e) => e.type)).toEqual(
       expect.arrayContaining(["agreement.generated", "document.approved", "agreement.executed"])
@@ -149,15 +150,15 @@ describe("event emission — money, progress, QA, legal, warranty, actions", () 
     const reg = await db.query<{ status: string }>(`SELECT status FROM registration_case WHERE booking_id = 'b_v112'`);
     expect(reg.rows[0]?.status).toBe("completed"); // already completed via seed — assert the seeded fact and…
     // …exercise the real path on a booking whose agreement is executed:
-    await generateDocument("b_v111", "AOS");
+    await generateDocument("b_v111", "AOS", superAdminCtx);
     const doc = await db.query<{ id: string }>(
       `SELECT id FROM generated_document WHERE booking_id = 'b_v111' ORDER BY version DESC LIMIT 1`
     );
-    await approveDocument(doc.rows[0].id);
-    await executeDocument(doc.rows[0].id);
+    await approveDocument(doc.rows[0].id, superAdminCtx);
+    await executeDocument(doc.rows[0].id, superAdminCtx);
     // b_v111 is not financially cleared in seed data, so completeRegistration is expected to
     // throw here — assert failure leaves no registration.completed event (rule 1: no partial writes).
-    await expect(completeRegistration("b_v111", "SRO/TEST/1")).rejects.toThrow();
+    await expect(completeRegistration("b_v111", "SRO/TEST/1", superAdminCtx)).rejects.toThrow();
     const events = await eventsFor("b_v111");
     expect(events.map((e) => e.type)).not.toContain("registration.completed");
   });
@@ -168,28 +169,28 @@ describe("event emission — money, progress, QA, legal, warranty, actions", () 
     const events = await eventsFor("b_v113");
     // seed-lifecycle inserts the handover_record directly; exercise the real handler on a
     // second pass to prove it's idempotent and still emits nothing new once already completed.
-    await completeHandover("b_v113");
+    await completeHandover("b_v113", superAdminCtx);
     const after = await eventsFor("b_v113");
     expect(after.length).toBe(events.length);
   });
 
   it("closeWarranty emits warranty.case_closed", async () => {
-    await closeWarranty("w_v113_1");
+    await closeWarranty("w_v113_1", superAdminCtx);
     const events = await eventsFor("w_v113_1");
     expect(events.map((e) => e.type)).toContain("warranty.case_closed");
   });
 
   it("captureCheckin emits checkin.captured", async () => {
-    await captureCheckin("ci_v113_7", 5);
+    await captureCheckin("ci_v113_7", 5, superAdminCtx);
     const events = await eventsFor("ci_v113_7");
     expect(events.map((e) => e.type)).toContain("checkin.captured");
     expect(events[0].payload).toMatchObject({ satisfaction_score: 5 });
   });
 
   it("actIntervention emits action.acted", async () => {
-    const view = await controlTower("p_eastcrest");
+    const view = await controlTower("p_eastcrest", superAdminCtx);
     const first = view.interventions[0];
-    await actIntervention(first.id);
+    await actIntervention(first.id, superAdminCtx);
     const events = await eventsFor(first.id);
     expect(events.map((e) => e.type)).toContain("action.acted");
   });

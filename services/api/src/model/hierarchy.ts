@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import { db } from "../db";
 import type { DbLike } from "../events";
 import { ValidationError } from "./derive";
+import { requireRole, SITE_SETUP_ROLES, STAFF_ROLES } from "../authz/requireRole";
+import type { Ctx } from "../authz/types";
 
 // project_hierarchy_node — Phase/Tower/Block/Cluster/Floor/Street (04 §Data, p36 §31.1).
 
@@ -30,8 +32,10 @@ export interface HierarchyNodeInput {
 export async function createHierarchyNode(
   projectId: string,
   input: HierarchyNodeInput,
+  ctx: Ctx,
   tx: DbLike = db
 ): Promise<HierarchyNode> {
+  requireRole(ctx, SITE_SETUP_ROLES);
   if (!input.code?.trim() || !input.name?.trim()) throw new ValidationError("code and name required");
   if (input.parent_id) {
     const parent = await tx.query<{ project_id: string }>(
@@ -71,7 +75,8 @@ export async function createHierarchyNode(
 }
 
 /** Flat list, ordered so a caller can render a tree by walking parent_id (sort_order within siblings). */
-export async function listHierarchy(projectId: string): Promise<HierarchyNode[]> {
+export async function listHierarchy(projectId: string, ctx: Ctx): Promise<HierarchyNode[]> {
+  requireRole(ctx, STAFF_ROLES);
   const r = await db.query<HierarchyNode>(
     `SELECT id, project_id, parent_id, kind, code, name, sort_order,
             planned_handover_date::text AS planned_handover_date

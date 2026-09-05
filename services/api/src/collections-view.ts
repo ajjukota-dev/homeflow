@@ -10,6 +10,8 @@ import {
 } from "./collections";
 import { type ProgressState } from "./gates";
 import { asDate, DEMAND_SELECT, listDemands, today, type DemandRow } from "./demands";
+import { authorize } from "./authz/authorize";
+import type { Ctx } from "./authz/types";
 
 // Workbench + T2 projections over the demand ledger (accounts/spec.md §2.3 / T2).
 
@@ -26,7 +28,10 @@ export interface CollectionItem {
   bucket: RiskBucket;
 }
 
-export async function projectCollections(projectId: string, asOf = today()) {
+// `ctx` optional: also called internally by tower-view.ts's controlTower, which is
+// itself gated (escalations READ) before reaching here.
+export async function projectCollections(projectId: string, asOf = today(), ctx?: Ctx) {
+  if (ctx) await authorize(ctx, "collections", "READ");
   const policy = await db.query<{ true_risk_max_probability: number }>(
     `SELECT true_risk_max_probability::float8 AS true_risk_max_probability
        FROM collection_policy WHERE project_id = $1`,
@@ -87,7 +92,8 @@ export async function projectCollections(projectId: string, asOf = today()) {
   return { outstanding_total, buckets };
 }
 
-export async function listOverdueReasons() {
+export async function listOverdueReasons(ctx: Ctx) {
+  await authorize(ctx, "collections", "READ");
   const r = await db.query<{ code: string; label: string; next_action: string }>(
     `SELECT code, label, next_action FROM overdue_reason ORDER BY label`
   );

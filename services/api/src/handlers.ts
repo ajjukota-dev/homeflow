@@ -8,6 +8,9 @@ import {
 } from "./gates";
 import { raiseDemandsForUnit } from "./demands-schedule";
 import { appendEvent, withTx, type DbLike } from "./events";
+import { authorize } from "./authz/authorize";
+import { requireRole, STAFF_ROLES } from "./authz/requireRole";
+import type { Ctx } from "./authz/types";
 
 // Pure-ish handlers (portable to Lambda). Each reads/writes the DB and derives gates.
 
@@ -51,8 +54,10 @@ async function gatesForUnit(unitId: string) {
   return { gates, score };
 }
 
-/** Sales inventory — every available unit with live gates + score (optionally by project). */
-export async function listUnits(projectId?: string) {
+/** Sales inventory — every available unit with live gates + score (optionally by project).
+ *  Pre-booking master data, not in the customer-file permission_matrix — role-gated (R0.6). */
+export async function listUnits(projectId: string | undefined, ctx: Ctx) {
+  requireRole(ctx, STAFF_ROLES);
   const units = await db.query<{
     id: string;
     unit_number: string;
@@ -72,8 +77,12 @@ export async function listUnits(projectId?: string) {
   return out;
 }
 
-/** Project/Site — one unit with its component progress + resulting gates. */
-export async function getUnit(unitId: string) {
+/** Project/Site — one unit with its component progress + resulting gates. `ctx` is only
+ *  supplied at the route entry point (GET /api/units/:id); internal reentrant callers
+ *  (createUnit, setProgress returning the fresh state) skip it — the caller already
+ *  authorized before reaching here, so this isn't a separate attack surface. */
+export async function getUnit(unitId: string, ctx?: Ctx) {
+  if (ctx) requireRole(ctx, STAFF_ROLES);
   const u = await db.query<{
     id: string;
     unit_number: string;
@@ -94,7 +103,14 @@ export async function getUnit(unitId: string) {
 }
 
 /** Project/Site writes progress → gates re-derive (the H1 loop). Emits progress.updated (02 Appendix B). */
-export async function setProgress(unitId: string, component: string, state: ProgressState, tx?: DbLike) {
+export async function setProgress(
+  unitId: string,
+  component: string,
+  state: ProgressState,
+  ctx: Ctx,
+  tx?: DbLike
+) {
+  await authorize(ctx, "unit_readiness", "WRITE");
   const valid: ProgressState[] = ["not_started", "in_progress", "complete", "verified"];
   if (!valid.includes(state)) throw new Error(`invalid state ${state}`);
   const before = await db.query<{ state_code: ProgressState }>(

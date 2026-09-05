@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { initDb } from "../db";
 import { appendEvent, withTx } from "./append";
 import { getAudit } from "./audit";
+import { superAdminCtx } from "../authz/test-helpers";
 
 beforeAll(async () => {
   await initDb();
@@ -24,12 +25,12 @@ describe("GET /audit (02 §API)", () => {
       });
       await appendEvent(tx, { type: "unit.created", entity_type: "unit", entity_id: "u_audit_other" });
     });
-    const r = await getAudit({ entity_type: "unit", entity_id: "u_audit1" });
+    const r = await getAudit({ entity_type: "unit", entity_id: "u_audit1" }, superAdminCtx);
     expect(r.total).toBe(2);
     expect(r.data.every((row) => row.entity_id === "u_audit1")).toBe(true);
     expect(r.data[0].occurred_at >= r.data[1].occurred_at).toBe(true); // newest first
 
-    const paged = await getAudit({ entity_type: "unit", entity_id: "u_audit1", page: 1, page_size: 1 });
+    const paged = await getAudit({ entity_type: "unit", entity_id: "u_audit1", page: 1, page_size: 1 }, superAdminCtx);
     expect(paged.data).toHaveLength(1);
     expect(paged.total).toBe(2);
   });

@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { db } from "./db";
 import { appendEvent, withTx } from "./events";
+import { authorize } from "./authz/authorize";
+import type { Ctx } from "./authz/types";
 
 // H12 consumer — DLP, passport, check-ins, service history (post-handover/spec.md).
 // Durations come from handover_policy, never a hard-coded East Crest month count.
@@ -108,7 +110,10 @@ export async function onHandoverCompleted(bookingId: string) {
   return projectWarranty(project_id);
 }
 
-export async function projectWarranty(projectId: string) {
+// `ctx` optional: also called internally by onHandoverCompleted (post-handover DLP
+// setup), which is itself reached only from qa.ts's completeHandover (already gated).
+export async function projectWarranty(projectId: string, ctx?: Ctx) {
+  if (ctx) await authorize(ctx, "handovers", "READ");
   const windows = await db.query<DlpWindowRow>(
     `SELECT d.id, d.unit_id, d.booking_id, d.dlp_start, d.dlp_end, d.status, d.policy_months,
             u.unit_number, a.display_name AS customer_name
@@ -140,7 +145,8 @@ export async function projectWarranty(projectId: string) {
   return { windows: windows.rows, cases: cases.rows, checkins: checkins.rows };
 }
 
-export async function serviceHistory(unitId: string) {
+export async function serviceHistory(unitId: string, ctx: Ctx) {
+  await authorize(ctx, "handovers", "READ");
   const r = await db.query<ServiceHistoryRow>(
     `SELECT id, unit_id, event_type, description, actor, occurred_at
        FROM service_history WHERE unit_id = $1 ORDER BY occurred_at`,
@@ -150,7 +156,8 @@ export async function serviceHistory(unitId: string) {
 }
 
 /** Emits warranty.case_closed (02 Appendix B). */
-export async function closeWarranty(id: string) {
+export async function closeWarranty(id: string, ctx: Ctx) {
+  await authorize(ctx, "handovers", "WRITE");
   const w = await db.query<{ unit_id: string; project_id: string; coverage: string; description: string }>(
     `SELECT unit_id, project_id, coverage, description FROM warranty_case WHERE id = $1`,
     [id]
@@ -185,7 +192,8 @@ export async function closeWarranty(id: string) {
 }
 
 /** Emits checkin.captured (extension — check-ins aren't named in Appendix B). */
-export async function captureCheckin(id: string, satisfactionScore: number) {
+export async function captureCheckin(id: string, satisfactionScore: number, ctx: Ctx) {
+  await authorize(ctx, "handovers", "WRITE");
   const existing = await db.query<{ id: string; booking_id: string }>(
     `SELECT id, booking_id FROM checkin_record WHERE id = $1`,
     [id]

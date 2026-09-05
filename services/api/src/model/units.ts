@@ -3,6 +3,8 @@ import { db } from "../db";
 import { appendEvent, withTx, type DbLike } from "../events";
 import { nextCode } from "./codes";
 import { ValidationError } from "./derive";
+import { requireRole, SITE_SETUP_ROLES, STAFF_ROLES } from "../authz/requireRole";
+import type { Ctx } from "../authz/types";
 
 // Unit creation core (04 §Data, §Screens "bulk create from a range"). services/api/src/
 // projects.ts's createUnit (pre-dates this spec) delegates here for a single unit; the Admin
@@ -93,7 +95,8 @@ export async function insertUnit(
 
 /** Admin → Units table projection: every physical/product field, not just the booking-facing
  * subset `handlers.ts`'s listUnits returns (kept separate to avoid widening that shared route). */
-export async function listUnitsForProject(projectId: string) {
+export async function listUnitsForProject(projectId: string, ctx: Ctx) {
+  requireRole(ctx, STAFF_ROLES);
   const r = await db.query<{
     id: string;
     unit_number: string;
@@ -131,7 +134,8 @@ export interface BulkUnitRangeInput {
 }
 
 /** Admin → Units bulk create: e.g. floors 1-12 × units A-D (04 §Screens). */
-export async function bulkCreateUnits(projectId: string, input: BulkUnitRangeInput): Promise<string[]> {
+export async function bulkCreateUnits(projectId: string, input: BulkUnitRangeInput, ctx: Ctx): Promise<string[]> {
+  requireRole(ctx, SITE_SETUP_ROLES);
   if (input.floor_from > input.floor_to) throw new ValidationError("floor_from must be <= floor_to");
   const letters: string[] = [];
   for (let c = input.letter_from.charCodeAt(0); c <= input.letter_to.charCodeAt(0); c++) {
