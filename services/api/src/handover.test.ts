@@ -12,6 +12,7 @@ const READY = {
   financial_cleared: true,
   legal_executed: true,
   registered: true,
+  open_commitments: [] as { code: string; description: string }[],
 };
 
 describe("evaluateHandover (H9)", () => {
@@ -46,21 +47,24 @@ describe("evaluateHandover (H9)", () => {
   });
 });
 
-describe("commitments gate (Promise Ledger not yet built)", () => {
-  it("reports not-verified rather than auto-passing when no ledger data exists", () => {
+describe("commitments gate (13-promise-ledger.md rule 8, real since 13 merged)", () => {
+  it("passes when there are no open commitments", () => {
     const result = evaluateHandover(READY);
     const commitments = result.gates.find((g) => g.type === "commitments");
+    expect(commitments?.state).toBe("passed");
+    expect(commitments?.blockers).toEqual([]);
+  });
+
+  it("opens with the commitment's own code and description as the blocker, but stays soft — doesn't block eligibility", () => {
+    const result = evaluateHandover({ ...READY, open_commitments: [{ code: "CMT-000001", description: "Free modular kitchen upgrade" }] });
+    const commitments = result.gates.find((g) => g.type === "commitments");
     expect(commitments?.state).toBe("open");
-    expect(commitments?.blockers).toEqual(["No commitment records — Promise Ledger not yet built"]);
+    expect(commitments?.classification).toBe("soft");
+    expect(commitments?.blockers).toEqual(["CMT-000001: Free modular kitchen upgrade"]);
+    expect(result.eligible).toBe(true); // soft gate — surfaced, not blocking (gates.md B.2)
   });
 
-  it("does not block eligibility for a booking that passes every other hard gate", () => {
-    const result = evaluateHandover(READY);
-    expect(result.eligible).toBe(true);
-    expect(result.blockers.some((b) => b.gate === "commitments")).toBe(false);
-  });
-
-  it("still leaves a booking not eligible when another hard gate fails", () => {
+  it("still leaves a booking not eligible when a hard gate fails, independent of commitments", () => {
     const result = evaluateHandover({ ...READY, financial_cleared: false });
     expect(result.eligible).toBe(false);
     expect(result.blockers.some((b) => b.gate === "financial")).toBe(true);

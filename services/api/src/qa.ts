@@ -6,6 +6,7 @@ import { bookingFinance } from "./finance";
 import { onHandoverCompleted } from "./warranty";
 import { componentsFor } from "./qa-evidence";
 import { listSnagsForUnit, snagCounts, type SnagRow } from "./qa-snags";
+import { openCommitmentsForBooking } from "./commitments/core";
 import { appendEvent, withTx, actorFields } from "./events";
 import { authorize } from "./authz/authorize";
 import type { Ctx } from "./authz/types";
@@ -162,6 +163,7 @@ export async function handoverForBooking(bookingId: string) {
     reg.rows[0]?.status === "completed" ||
     row.sale_status === "registered" ||
     row.sale_status === "handed_over";
+  const openCommitments = await openCommitmentsForBooking(bookingId);
   const evald = evaluateHandover({
     readiness_value: ready.value,
     readiness_threshold: pol.readiness_threshold,
@@ -173,6 +175,7 @@ export async function handoverForBooking(bookingId: string) {
     financial_cleared: finance.cleared,
     legal_executed: legal.rows.length > 0,
     registered,
+    open_commitments: openCommitments,
   });
   const completed = ho.rows[0]?.status === "completed";
   return {

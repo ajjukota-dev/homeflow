@@ -19,6 +19,8 @@ p16 §8.11: "Promise, owner, beneficiary, due date, financial impact, approval a
 7. Analytics: broken-promise rate = breached / (fulfilled + breached) by department, category, root cause, month; average days late; ₹ impact — feeds 27 KPIs (p24 §19 "commitment fulfilment %").
 8. Open definition for the handover gate (16): any commitment on the booking with status ∈ {ACTIVE, AT_RISK, BREACHED, APPROVED, DRAFT} → gate open with the list as blockers; only FULFILLED/WAIVED pass.
 
+**Build note (2026-09-05, backend merged):** `confidence` is computed at read time, never stored (same "never stored" treatment gates.md gave Emergent's own `overdue` flag). Rule 2's approver resolution is a direct in-code default, not `approvals/matrix.ts`'s `requiredApprovers("COMMITMENT",...)` — that lookup fails closed with zero seeded rows, which would block every approval until Policy Studio is configured; swap it in once a real band exists. Rule 6's SALES_HANDOVER auto-creation has no source yet (17 unbuilt). Rule 5's `depends_on` only resolves ACTION/DEMAND facts for real; CHANGE_REQUEST/PROGRESS score neutral. Rule 7 analytics endpoint deferred (no consumer, 27, built yet). Rule 8's handover gate is real (`handover.ts`/`qa.ts`), and stays **soft** — gates.md §B.2's own hard-gate list doesn't include commitments, despite the code comment it replaced claiming otherwise.
+
 ## API
 `GET /bookings/:id/commitments` · `POST /commitments` · `POST /commitments/:id/approve|activate|fulfil|waive|set-at-risk|recovery-plan|root-cause` · `GET /commitments?status&owner&department&due_before&project_id` · `GET /commitments/analytics?project_id&from&to`.
 
