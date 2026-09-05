@@ -90,6 +90,21 @@ export const EVENT_TYPES: EventTypeDef[] = [
 
   // --- Policy Studio (25-policy-studio.md) — literal Events section name ---
   { name: "policy.changed", family: "policy", customer_visible: false, built: true },
+
+  // --- Collections (19-collections-true-risk.md) — literal Events section names ---
+  { name: "demand.status_changed", family: "demand", customer_visible: false, built: false },
+  { name: "demand.reason_recorded", family: "demand", customer_visible: false, built: true },
+  { name: "payment.disputed", family: "payment", customer_visible: false, built: true },
+  { name: "tds.verified", family: "tds", customer_visible: false, built: true },
+  { name: "tds.rejected", family: "tds", customer_visible: false, built: true },
+  { name: "waiver.requested", family: "waiver", customer_visible: false, built: true },
+  { name: "waiver.approved", family: "waiver", customer_visible: false, built: true },
+  // Not a literal spec-19 name (its Events list says only "waiver.requested/approved") — a
+  // rejected waiver recorded under the "approved" event name would be a false audit trail,
+  // same class of sanctioned extension 05/06 already used for their own gaps.
+  { name: "waiver.rejected", family: "waiver", customer_visible: false, built: true },
+  { name: "clearance.approved", family: "clearance", customer_visible: false, built: true },
+  { name: "clearance.rejected", family: "clearance", customer_visible: false, built: true },
 ];
 
 /** Appendix B (p42) names verbatim — the coverage test's universe. Extensions are exempt by design. */

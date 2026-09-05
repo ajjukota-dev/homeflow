@@ -30,6 +30,7 @@ import { registerJourneyRoutes } from "./routes-journey";
 import { registerJourneyInstanceRoutes } from "./routes-journey-instances";
 import { registerActionRoutes } from "./routes-actions";
 import { registerStudioRoutes } from "./routes-studio";
+import { registerCollectionsRoutes } from "./routes-collections";
 import { getAudit } from "./events";
 import { failHttp } from "./authz/httpError";
 
@@ -231,7 +232,9 @@ app.post("/api/demands/:id/receipt", async (req: AuthedRequest, res) => {
 
 app.post("/api/demands/:id/overdue-reason", async (req: AuthedRequest, res) => {
   try {
-    res.json({ data: await setOverdueReason(req.params.id, req.body?.reason_code, { actor: req.actor! }) });
+    // note (19-collections-true-risk.md rule 2) is optional — existing callers that only send
+    // reason_code keep working unchanged.
+    res.json({ data: await setOverdueReason(req.params.id, req.body?.reason_code, { actor: req.actor! }, req.body?.note) });
   } catch (e) {
     failHttp(res, e);
   }
@@ -280,6 +283,7 @@ registerJourneyRoutes(app);
 registerJourneyInstanceRoutes(app);
 registerActionRoutes(app);
 registerStudioRoutes(app);
+registerCollectionsRoutes(app);
 
 // files port: local-disk adapter serves its own presigned-URL routes; the
 // s3 adapter needs no server route (real presigned URLs hit S3 directly).
