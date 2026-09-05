@@ -13,6 +13,7 @@ import { ControlTower } from "./pages/ControlTower";
 import { AdminUsers } from "./pages/admin/Users";
 import { AdminTeams } from "./pages/admin/Teams";
 import { AdminPermissionMatrix } from "./pages/admin/PermissionMatrix";
+import { Admin as AdminData } from "./pages/admin/Admin";
 import type { useAuth } from "./auth/AuthContext";
 import { NAV, ADMIN_NAV, defaultViewFor, type View } from "./nav";
 import { api, type Project, type Unit } from "./api";
@@ -99,6 +100,7 @@ export function Workspace({ me, onLogout }: { me: NonNullable<ReturnType<typeof 
     "admin-users": <AdminUsers />,
     "admin-teams": <AdminTeams projectId={projectId} />,
     "admin-permissions": <AdminPermissionMatrix />,
+    "admin-data": <AdminData />,
   };
 
   const content = bookingUnit ? (

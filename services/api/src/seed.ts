@@ -1,16 +1,18 @@
-import type { PGlite } from "@electric-sql/pglite";
+import type { DbClient } from "./db/types";
 import { seedLifecycleDemo } from "./seed-lifecycle";
+import { seedCanonicalDemo } from "./seed-canonical";
+import { nextCode } from "./model/codes";
 
 // Configuration + sample project data (not hard-coded UI values).
 
-async function setState(db: PGlite, unitId: string, component: string, state: string) {
+async function setState(db: DbClient, unitId: string, component: string, state: string) {
   await db.query(
     `UPDATE unit_progress SET state_code=$1, updated_at=now() WHERE unit_id=$2 AND component_code=$3`,
     [state, unitId, component]
   );
 }
 
-async function seedPlan(db: PGlite, planId: string, projectId: string | null) {
+async function seedPlan(db: DbClient, planId: string, projectId: string | null) {
   await db.query(`INSERT INTO payment_plan (id, project_id, name, basis) VALUES ($1,$2,$3,$4)`, [
     planId,
     projectId,
@@ -27,10 +29,19 @@ async function seedPlan(db: PGlite, planId: string, projectId: string | null) {
   `);
 }
 
-export async function seed(db: PGlite) {
-  await db.exec(`INSERT INTO project (id, code, name, rera_reg_no, escrow_note) VALUES
-    ('p_eastcrest','EASTCREST','East Crest','PRM/KA/RERA/1251/446/PR/171015/000123',
-     'Booking amounts sit in a designated escrow account until they are due under RERA.');`);
+export async function seed(db: DbClient) {
+  await db.exec(`INSERT INTO project
+      (id, code, name, rera_reg_no, escrow_note, portfolio_id, product_type, legal_entity,
+       jurisdiction, escrow_account_ref, launch_date, planned_handover_date, status)
+    VALUES
+      ('p_eastcrest','EASTCREST','East Crest','PRM/KA/RERA/1251/446/PR/171015/000123',
+       'Booking amounts sit in a designated escrow account until they are due under RERA.',
+       'portfolio_pranava','VILLA','Pranava Housing LLP','Bengaluru Urban, Karnataka',
+       'ESCROW/EASTCREST/01', '2024-01-15', '2026-12-31', 'ACTIVE');`);
+  await db.query(
+    `INSERT INTO project_hierarchy_node (id, project_id, kind, code, name, sort_order)
+     VALUES ('node_eastcrest_p1','p_eastcrest','PHASE','P1','Phase 1 — Villas',1)`
+  );
 
   await db.exec(`
     INSERT INTO component_definition (code, label, sort_order) VALUES
@@ -79,20 +90,33 @@ export async function seed(db: PGlite) {
      VALUES ('p_eastcrest', 80, 2, 12, '7,30,90');`
   );
 
-  await db.exec(`
-    INSERT INTO unit (id, project_id, unit_number, unit_type, facing) VALUES
-      ('u_v101','p_eastcrest','V101','3BHK','East'),
-      ('u_v108','p_eastcrest','V108','3BHK','North'),
-      ('u_v104','p_eastcrest','V104','3BHK','West'),
-      ('u_v110','p_eastcrest','V110','3BHK','East'),
-      ('u_v111','p_eastcrest','V111','3BHK','South'),
-      ('u_v112','p_eastcrest','V112','3BHK','West'),
-      ('u_v113','p_eastcrest','V113','3BHK','North');
-  `);
+  const villaUnits: [string, string, string, number][] = [
+    ["u_v101", "V101", "East", 12000000],
+    ["u_v108", "V108", "North", 11500000],
+    ["u_v104", "V104", "West", 11800000],
+    ["u_v110", "V110", "East", 12000000],
+    ["u_v111", "V111", "South", 8000000],
+    ["u_v112", "V112", "West", 10000000],
+    ["u_v113", "V113", "North", 9500000],
+  ];
+  for (const [id, unitNumber, facing, basePrice] of villaUnits) {
+    const code = await nextCode(db, "UNT");
+    await db.query(
+      `INSERT INTO unit (id, project_id, unit_number, unit_type, facing, code, hierarchy_node_id,
+         product_type, carpet_area_sqft, base_price_inr)
+       VALUES ($1,'p_eastcrest',$2,'3BHK',$3,$4,'node_eastcrest_p1','VILLA',2100,$5)`,
+      [id, unitNumber, facing, code, basePrice]
+    );
+  }
+
+  // Second demo project (villa + plot units) — inserted before the bulk unit_progress
+  // statement below so its units are covered by the same cross-join, same as East Crest's.
+  await seedCanonicalDemo(db);
 
   await db.exec(`
     INSERT INTO unit_progress (unit_id, component_code, state_code)
-    SELECT u.id, c.code, 'not_started' FROM unit u CROSS JOIN component_definition c;
+    SELECT u.id, c.code, 'not_started' FROM unit u CROSS JOIN component_definition c
+     WHERE NOT EXISTS (SELECT 1 FROM unit_progress p WHERE p.unit_id = u.id);
   `);
   await setState(db, "u_v108", "structure", "complete");
   await setState(db, "u_v108", "mep_first_fix", "in_progress");
@@ -117,13 +141,23 @@ export async function seed(db: PGlite) {
   await seedLifecycleDemo(db);
 }
 
-async function seedMoneyDemo(db: PGlite) {
+async function seedMoneyDemo(db: DbClient) {
   // V110 — Karthik: settled + due + overdue + true-risk + scheduled
+  const karthikCode = await nextCode(db, "CUS");
+  const v110Code = await nextCode(db, "BKG");
+  await db.query(
+    `INSERT INTO customer (id, display_name, primary_phone, kyc_status, code, primary_name)
+     VALUES ('c_karthik','Karthik Iyer','9845011122','verified',$1,'Karthik Iyer')`,
+    [karthikCode]
+  );
+  await db.query(
+    `INSERT INTO booking
+      (id, project_id, unit_id, booking_number, status, total_consideration, completeness_score,
+       rm_owner, payment_plan_id, code, agreement_value_inr)
+     VALUES ('b_v110','p_eastcrest','u_v110','BK-V110','active',12000000,100,'Priya Nair','plan_eastcrest',$1,12000000)`,
+    [v110Code]
+  );
   await db.exec(`
-    INSERT INTO customer (id, display_name, primary_phone, kyc_status)
-    VALUES ('c_karthik','Karthik Iyer','9845011122','verified');
-    INSERT INTO booking (id, project_id, unit_id, booking_number, status, total_consideration, completeness_score, rm_owner, payment_plan_id)
-    VALUES ('b_v110','p_eastcrest','u_v110','BK-V110','active',12000000,100,'Priya Nair','plan_eastcrest');
     INSERT INTO booking_applicant (id, booking_id, customer_id, display_name, role, phone, pan)
     VALUES ('a_v110','b_v110','c_karthik','Karthik Iyer','primary','9845011122','ABCDE1234F');
     UPDATE unit SET sale_status = 'booked' WHERE id = 'u_v110';
@@ -140,11 +174,21 @@ async function seedMoneyDemo(db: PGlite) {
   `);
 
   // V111 — Meera: loan-dependent + disputed + PTP
+  const meeraCode = await nextCode(db, "CUS");
+  const v111Code = await nextCode(db, "BKG");
+  await db.query(
+    `INSERT INTO customer (id, display_name, primary_phone, kyc_status, code, primary_name)
+     VALUES ('c_meera','Meera Krishnan','9845033344','verified',$1,'Meera Krishnan')`,
+    [meeraCode]
+  );
+  await db.query(
+    `INSERT INTO booking
+      (id, project_id, unit_id, booking_number, status, total_consideration, completeness_score,
+       rm_owner, payment_plan_id, code, agreement_value_inr)
+     VALUES ('b_v111','p_eastcrest','u_v111','BK-V111','active',8000000,100,'Priya Nair','plan_eastcrest',$1,8000000)`,
+    [v111Code]
+  );
   await db.exec(`
-    INSERT INTO customer (id, display_name, primary_phone, kyc_status)
-    VALUES ('c_meera','Meera Krishnan','9845033344','verified');
-    INSERT INTO booking (id, project_id, unit_id, booking_number, status, total_consideration, completeness_score, rm_owner, payment_plan_id)
-    VALUES ('b_v111','p_eastcrest','u_v111','BK-V111','active',8000000,100,'Priya Nair','plan_eastcrest');
     INSERT INTO booking_applicant (id, booking_id, customer_id, display_name, role, phone, pan)
     VALUES ('a_v111','b_v111','c_meera','Meera Krishnan','primary','9845033344','XYZAB1234C');
     UPDATE unit SET sale_status = 'booked' WHERE id = 'u_v111';

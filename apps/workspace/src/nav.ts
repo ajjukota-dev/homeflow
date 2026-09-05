@@ -11,7 +11,8 @@ export type View =
   | "tower"
   | "admin-users"
   | "admin-teams"
-  | "admin-permissions";
+  | "admin-permissions"
+  | "admin-data";
 
 // Rule 7 / p44 §33.6 t3: which roles see which workspace. Site's write controls
 // (unit_progress) never render for roles without WRITE there — hiding the nav
@@ -31,6 +32,7 @@ export const ADMIN_NAV: { id: View; label: string }[] = [
   { id: "admin-users", label: "Users" },
   { id: "admin-teams", label: "Teams & assignments" },
   { id: "admin-permissions", label: "Permission matrix" },
+  { id: "admin-data", label: "Projects, units & customers" },
 ];
 
 // Rule 9: "workspace opens in the user's default Project" implies the role's

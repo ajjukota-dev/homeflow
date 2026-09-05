@@ -6,22 +6,32 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "start": "tsx src/server.ts",
+    "migrate": "tsx src/db/cli.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p ."
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.699.0",
+    "@aws-sdk/client-secrets-manager": "3.699.0",
+    "@aws-sdk/s3-request-presigner": "3.699.0",
     "@electric-sql/pglite": "^0.2.12",
     "@node-rs/argon2": "^2.2.0",
     "cookie": "^0.6.0",
     "cors": "^2.8.5",
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "nodemailer": "6.9.16",
+    "openai": "4.73.1",
+    "pg": "8.23.0",
+    "playwright": "1.49.0",
+    "tsx": "^4.19.0"
   },
   "devDependencies": {
     "@types/cookie": "^0.6.0",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/node": "^22.5.0",
-    "tsx": "^4.19.0",
+    "@types/nodemailer": "6.4.16",
+    "@types/pg": "8.11.10",
     "typescript": "^5.5.4",
     "vitest": "^2.0.5"
   }
