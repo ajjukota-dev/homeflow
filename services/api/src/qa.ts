@@ -6,6 +6,7 @@ import { bookingFinance } from "./finance";
 import { onHandoverCompleted } from "./warranty";
 import { componentsFor } from "./qa-evidence";
 import { listSnagsForUnit, snagCounts, type SnagRow } from "./qa-snags";
+import { dependencyBlockersForUnit } from "./qa/dependencies";
 import { openCommitmentsForBooking } from "./commitments/core";
 import { appendEvent, withTx, actorFields } from "./events";
 import { authorize } from "./authz/authorize";
@@ -117,12 +118,13 @@ async function policy(projectId: string) {
   const r = await db.query<{
     readiness_threshold: number;
     minor_snag_max: number;
+    major_snag_max: number;
   }>(
-    `SELECT readiness_threshold::float8 AS readiness_threshold, minor_snag_max
+    `SELECT readiness_threshold::float8 AS readiness_threshold, minor_snag_max, major_snag_max
        FROM handover_policy WHERE project_id = $1`,
     [projectId]
   );
-  return r.rows[0] ?? { readiness_threshold: 80, minor_snag_max: 2 };
+  return r.rows[0] ?? { readiness_threshold: 80, minor_snag_max: 2, major_snag_max: 0 };
 }
 
 export async function handoverForBooking(bookingId: string) {
@@ -164,6 +166,7 @@ export async function handoverForBooking(bookingId: string) {
     row.sale_status === "registered" ||
     row.sale_status === "handed_over";
   const openCommitments = await openCommitmentsForBooking(bookingId);
+  const dependencyBlockers = await dependencyBlockersForUnit(row.unit_id);
   const evald = evaluateHandover({
     readiness_value: ready.value,
     readiness_threshold: pol.readiness_threshold,
@@ -171,6 +174,9 @@ export async function handoverForBooking(bookingId: string) {
     critical_snags: snags.critical,
     minor_snags: snags.minor,
     minor_snag_max: pol.minor_snag_max,
+    major_snags: snags.major,
+    major_snag_max: pol.major_snag_max,
+    dependency_blockers: dependencyBlockers,
     qa_approved: ready.qa_approved,
     financial_cleared: finance.cleared,
     legal_executed: legal.rows.length > 0,

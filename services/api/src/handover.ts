@@ -9,7 +9,8 @@ export type GateType =
   | "quality"
   | "commitments"
   | "customer"
-  | "fm";
+  | "fm"
+  | "snags";
 
 export type GateClass = "hard" | "soft";
 export type GateRunState = "open" | "passed";
@@ -28,6 +29,12 @@ export interface HandoverInput {
   // 13-promise-ledger.md rule 8: any commitment on the booking still open by the spec's own
   // definition (DRAFT/APPROVED/ACTIVE/AT_RISK/BREACHED) blocks; only FULFILLED/WAIVED pass.
   open_commitments: { code: string; description: string }[];
+  // 15-qa-evidence-snags.md rule 7: open MAJOR snags above the project's policy count are a SOFT
+  // blocker (CRITICAL stays hard via critical_snags above). Rule 4: PENDING/IN_PROGRESS external
+  // dependencies on the unit's ancestor nodes surface on the FM/Community gate.
+  major_snags?: number;
+  major_snag_max?: number;
+  dependency_blockers?: string[];
 }
 
 export interface HandoverGateView {
@@ -75,7 +82,8 @@ export function evaluateHandover(input: HandoverInput) {
     // gate open," and docs/specs/ is the authoritative build contract over docs/spec/ (CLAUDE.md).
     gate("commitments", "soft", input.open_commitments.length === 0, input.open_commitments.map((c) => `${c.code}: ${c.description}`)),
     gate("customer", "soft", true, []),
-    gate("fm", "soft", true, []),
+    gate("fm", "soft", (input.dependency_blockers ?? []).length === 0, input.dependency_blockers ?? []),
+    gate("snags", "soft", (input.major_snags ?? 0) <= (input.major_snag_max ?? 0), [`${input.major_snags ?? 0} major snag(s) open, policy allows ${input.major_snag_max ?? 0}`]),
   ];
 
   const hardOpen = gates.filter((g) => g.classification === "hard" && g.state !== "passed");
