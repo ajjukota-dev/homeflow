@@ -10,7 +10,7 @@ Rewritten 2026-09-05 04:20 IST (Amarsh: "the technical specs were vibecoded; mov
 
 ## 0. Status board (updated on every merge — the "where are we" view)
 
-**Position:** run not started · **Live URL:** none yet · **Last deploy:** — · **Last updated:** 2026-09-05 06:20 IST
+**Position:** R0 launched · **Live URL:** none yet · **Last deploy:** — · **Last updated:** 2026-09-05 06:30 IST (Amarsh switched to Sonnet 5, said GO)
 
 ```
 Specs merged    [░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░]  0 / 33
@@ -21,11 +21,11 @@ Legend: ⬜ not started · 🟨 in progress (branch open) · 🟩 merged to main
 
 | Wave | Spec | Status | Notes |
 |---|---|---|---|
-| R0 | 03 platform & deploy | ⬜ | |
-| R0 | 01 identity & access | ⬜ | |
-| R0 | 32 design system | ⬜ | |
-| R0 | 02 event log | ⬜ | |
-| R0 | 04 canonical model | ⬜ | |
+| R0 | 03 platform & deploy | 🟨 | agent launched 06:30 |
+| R0 | 01 identity & access | 🟨 | agent launched 06:30 |
+| R0 | 32 design system | 🟨 | agent launched 06:30 |
+| R0 | 02 event log | 🟨 | agent launched 06:30 |
+| R0 | 04 canonical model | 🟨 | agent launched 06:30 |
 | R1 | screen migration + journeys + Roadmap page + demo seed | ⬜ | |
 | R2 | 05 journey templates | ⬜ | |
 | R2 | 06 timeline & SLA | ⬜ | |
