@@ -61,12 +61,19 @@ export async function seedLifecycleDemo(db: DbClient) {
     ]
   );
   await db.exec(`
-    INSERT INTO registration_case (id, booking_id, project_id, status)
-    VALUES ('reg_v110','b_v110','p_eastcrest','readiness_in_progress');
+    INSERT INTO registration_case (id, code, booking_id, unit_id, project_id, status)
+    VALUES ('reg_v110','REG-000001','b_v110','u_v110','p_eastcrest','readiness_in_progress');
   `);
 
   await seedKeysVilla(db);
   await seedHandedOverVilla(db);
+  // 23-registration.md: the 3 hardcoded codes above bypass nextCode's own code_sequence, so it
+  // must be bumped past them here or the first real loadOrCreateCase call would mint 'REG-000001'
+  // again and collide with reg_v110's own UNIQUE code.
+  await db.exec(`
+    INSERT INTO code_sequence (prefix, next_value) VALUES ('REG', 4)
+    ON CONFLICT (prefix) DO UPDATE SET next_value = GREATEST(code_sequence.next_value, 4);
+  `);
 }
 
 async function seedKeysVilla(db: DbClient) {
@@ -107,8 +114,8 @@ async function seedKeysVilla(db: DbClient) {
     VALUES ('doc_v112_aos','tpl_aos','b_v112','p_eastcrest','u_v112','AOS','executed',1,
       '{"applicant_name":"Ananya Rao","pan":"PQRST6789L","unit_number":"V112","consideration":"10000000"}',
       'Agreement for Villa V112 with Ananya Rao.','chk-v112');
-    INSERT INTO registration_case (id, booking_id, project_id, status, sro_reference, completed_at)
-    VALUES ('reg_v112','b_v112','p_eastcrest','completed','SRO/BNG/2026/4412', now());
+    INSERT INTO registration_case (id, code, booking_id, unit_id, project_id, status, sro_reference, completed_at)
+    VALUES ('reg_v112','REG-000002','b_v112','u_v112','p_eastcrest','completed','SRO/BNG/2026/4412', now());
   `);
 }
 
@@ -149,8 +156,8 @@ async function seedHandedOverVilla(db: DbClient) {
     VALUES ('doc_v113_aos','tpl_aos','b_v113','p_eastcrest','u_v113','AOS','archived',1,
       '{"applicant_name":"Rohan Desai","pan":"LMNOP4321K","unit_number":"V113","consideration":"9500000"}',
       'Agreement for Villa V113 with Rohan Desai.','chk-v113');
-    INSERT INTO registration_case (id, booking_id, project_id, status, sro_reference, completed_at)
-    VALUES ('reg_v113','b_v113','p_eastcrest','completed','SRO/BNG/2026/3301', now() - interval '45 days');
+    INSERT INTO registration_case (id, code, booking_id, unit_id, project_id, status, sro_reference, completed_at)
+    VALUES ('reg_v113','REG-000003','b_v113','u_v113','p_eastcrest','completed','SRO/BNG/2026/3301', now() - interval '45 days');
 
     INSERT INTO handover_record (id, booking_id, unit_id, project_id, status, completed_at)
     VALUES ('ho_v113','b_v113','u_v113','p_eastcrest','completed', now() - interval '20 days');

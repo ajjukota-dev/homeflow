@@ -57,7 +57,7 @@ describe("unit readiness (rule 1) — the score contract shape, and the acceptan
 
 describe("booking readiness (rule 2)", () => {
   it("returns the Score contract shape and flags the unbuilt documents component rather than guessing it", async () => {
-    const { bookingId } = await freshBooking();
+    const { bookingId, unitId } = await freshBooking();
     const score = await computeBookingReadiness(bookingId);
     expect(score.value).toBeGreaterThanOrEqual(0);
     expect(score.value).toBeLessThanOrEqual(100);
@@ -65,7 +65,11 @@ describe("booking readiness (rule 2)", () => {
     expect(score.confidence_reason).toMatch(/documents/);
 
     // Completing registration is a real, observable improvement — the score should reflect it.
-    await db.query(`INSERT INTO registration_case (id, booking_id, project_id, status, completed_at) VALUES ($1,$2,$3,'completed', now())`, ["reg_" + bookingId, bookingId, PROJECT_ID]);
+    // code/unit_id are real NOT NULL columns since 23-registration.md's migration (0038).
+    await db.query(
+      `INSERT INTO registration_case (id, code, booking_id, unit_id, project_id, status, completed_at) VALUES ($1,$2,$3,$4,$5,'completed', now())`,
+      ["reg_" + bookingId, "REG-TEST-" + bookingId, bookingId, unitId, PROJECT_ID]
+    );
     const improved = await computeBookingReadiness(bookingId);
     expect(improved.value).toBeGreaterThan(score.value);
   });
