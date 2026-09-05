@@ -48,7 +48,7 @@ $ cd apps/workspace && npx vitest run   → 64 passed (5 files)
 
 Scratch worktree path: `C:\Users\Vivek\AppData\Local\Temp\claude\c--Users-Vivek-Pranava-HomeFlow\065ebd73-d045-4964-b1af-5f1d8f61c8b7\scratchpad\amarsh-main`. Run `git worktree prune` after deleting it.
 
-### 2.2 Vivek — this working tree, uncommitted, base `5beee5b`
+### 2.2 Vivek — branch `vivek/v1-on-postgres` (was the uncommitted working tree, base `5beee5b`)
 
 ```
 $ git status --short | wc -l   → 136
