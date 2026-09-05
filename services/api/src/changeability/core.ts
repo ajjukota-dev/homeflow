@@ -9,8 +9,9 @@ import { unitsInScope } from "../progress/core";
 import { persistSnapshot, previousValue } from "../scores/store";
 import { trendFrom, type Score } from "../scores/contract";
 import {
-  evaluateGates, flexibilityScore, type ChangeGateRule, type EvaluatedGate, type GateCategoryInput, type GateComponentInput, type GateState, type ProgressState, type TriggerEvent,
+  evaluateGates, flexibilityScore, isMoreClosed, type ChangeGateRule, type EvaluatedGate, type GateCategoryInput, type GateComponentInput, type GateState, type ProgressState, type TriggerEvent,
 } from "../gates";
+import { activeHoldsForUnit } from "../sales/holds";
 
 // 08-changeability-engine.md over the real `change_category`/`change_gate_rule` tables
 // (0033_changeability.sql ALTERs them — SCHEMA.md drift #4). The engine itself is gates.ts
@@ -157,7 +158,7 @@ export async function evaluateUnit(unitId: string, opts: EvaluateOpts): Promise<
       components[code] = { ...(components[code] ?? { state: "not_started" }), state: lower, freshness: "FRESH" };
     }
     const { kinds, latestEventId } = await observedEvents(unitId, tx);
-    const evaluated = evaluateGates(categories, { components, events: kinds, rules, asOf });
+    const derived = evaluateGates(categories, { components, events: kinds, rules, asOf });
 
     const current = await tx.query<{ category_code: string; current_state: GateState; freshness_status: string }>(
       `SELECT category_code, current_state, freshness_status FROM unit_change_gate WHERE unit_id = $1`,
@@ -165,6 +166,18 @@ export async function evaluateUnit(unitId: string, opts: EvaluateOpts): Promise<
     );
     const before = new Map(current.rows.map((r) => [r.category_code, r]));
     const exceptions = await tx.query<ExceptionRow>(`${EXCEPTION_SELECT} WHERE unit_id = $1 AND status = 'ACTIVE'`, [unitId]);
+
+    // 24 rule 6: an APPROVED Change Window Hold keeps this unit/category's gate from moving to a
+    // more closed state while it lasts — the stored state stands, with the hold as the reason.
+    const holds = await activeHoldsForUnit(unitId, tx, asOf);
+    const evaluated: EvaluatedGate[] = derived.map((g) => {
+      const hold = holds.find((h) => h.category_code === g.category_code);
+      if (!hold) return g;
+      // A never-evaluated unit has no stored state — the hold was granted against an open window.
+      const baseline: GateState = before.get(g.category_code)?.current_state ?? "OPEN";
+      if (!isMoreClosed(g.state, baseline)) return g;
+      return { ...g, state: baseline, reason_code: "HOLD", reason_text: `held for a prospect until ${hold.approved_until} (${hold.code}) — would otherwise be ${g.state}` };
+    });
 
     const gates: GateView[] = [];
     for (const g of evaluated) {

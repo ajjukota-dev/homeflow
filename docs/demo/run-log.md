@@ -300,3 +300,13 @@ Amarsh: "dont stop - this was supposed to be an autonomous run." Continuing with
 - Found: seed.ts's demo rules land after migrations, so 0033's `code` back-fill saw an empty table — `COALESCE` in the loader. Second time today a "config" table turned out to be demo data (15's components).
 - Flagged: procurement/drawing/slab triggers have no producers; MANAGEMENT-by-default exception authority; publish always needs a reason.
 - Next: 24 (sales inventory & discovery) now has 07+08; 18 still needs 09/22/26. Surveying 09 vs 24.
+
+## 01:20 IST 2026-09-06 — R5: sales inventory, discovery, holds & booking backend merged (24-sales-inventory-discovery.md)
+
+- `0034_sales.sql`: `prospect`, `prospect_personalisation_need`, `unit_requirement_match`, `hold_policy`, `change_window_hold`, `sales_policy`; `booking` + prospect/discount/approval/needs columns. `sales/{match,policy,inventory,prospects,holds,booking,subscribers}.ts`, `routes-sales.ts`. 5 pure + 6 rule tests; tsc clean.
+- The inventory read model is a composition, not a new store: 04 unit master + 07 progress (construction %) + 08 `evaluateUnit` (flexibility, chips, closing-soon) + 14/qa readiness (ready-to-move) + 24 holds (held-until). Sales writes nothing on physics.
+- Hold → gate: an APPROVED Change Window Hold now clamps 08's evaluator for that unit/category (tested: mep_first_fix COMPLETE leaves kitchen_layout OPEN with reason HOLD while electrical closes), 07's bulk preview flags the unit `held`, and `scanHolds` expiry lets the gate close on the next read.
+- Booking from inventory is additive next to the pre-24 `createBooking` (17 test files on it). Discount approval reuses 25's matrix and 10's approval action; `payment.received` auto-confirms a DRAFT inventory booking.
+- Found: `action.booking_id` FKs `booking` — create the row before its approval action. Found: `booking_applicant.role` mixes `'primary'` with uppercase `CO_APPLICANT`.
+- Flagged: possession window bands and hold limits UNCONFIRMED; bathroom filter has no category; CRM can book from inventory (matrix), SITE cannot.
+- Next: 09 (specification baselines & revisions) — the last R5 spec with every dependency built (04/03); then 18 needs 09 + 22 + 26.

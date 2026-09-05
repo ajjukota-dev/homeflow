@@ -258,6 +258,7 @@ export interface BulkPreviewUnit {
   no_op: boolean;
   regression: boolean;
   gate_deltas: { category_code: string; from: DerivedGate["state"]; to: DerivedGate["state"] }[];
+  held: boolean; // 24 rule 6 — an APPROVED Change Window Hold covers a category this update would close
 }
 export interface BulkPreview {
   id: string;
@@ -287,7 +288,11 @@ export async function previewBulkUpdate(projectId: string, input: { scope: BulkS
       const gate_deltas = before
         .map((b, i) => ({ category_code: b.category_code, from: b.state, to: after[i]!.state }))
         .filter((d) => d.from !== d.to);
-      rows.push({ unit_id: u.id, unit_number: u.unit_number, current_state: toSpecProgressState(currentState), no_op: currentState === newState, regression: isRegression(currentState, newState), gate_deltas });
+      // 24 rule 6: a unit whose gate this update would close under an APPROVED Change Window Hold is
+      // surfaced as a suggested exception — the bulk screen shows it "held".
+      const heldCats = (await tx.query<{ category_code: string }>(`SELECT category_code FROM change_window_hold WHERE unit_id = $1 AND status = 'APPROVED'`, [u.id])).rows.map((h) => h.category_code);
+      const held = gate_deltas.some((d) => heldCats.includes(d.category_code));
+      rows.push({ unit_id: u.id, unit_number: u.unit_number, current_state: toSpecProgressState(currentState), no_op: currentState === newState, regression: isRegression(currentState, newState), gate_deltas, held });
     }
     const id = "pbu_" + randomUUID().slice(0, 8);
     const preview: BulkPreview = {
