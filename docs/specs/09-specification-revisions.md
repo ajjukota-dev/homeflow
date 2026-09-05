@@ -38,3 +38,14 @@ Depends on 04, 03 (files). Feeds 18, 08 (trigger), 15 (QA compares against relea
 
 ## Not in this feature
 Change request flow (18), pricing approval (18), procurement.
+
+## Build note (2026-09-06, backend)
+Migration is `0035_specification.sql` (0008 was taken, same collision class as 07/08/15/24's migration numbering). `unit.specification_baseline_id` (0003, unused, no FK) is kept in sync by `ensureUnitSpecification` alongside the real `unit_specification` pointer row; no SCHEMA.md collision entry needed since nothing pre-existing was renamed or reshaped.
+
+Rule 1 (attach at booking confirmation) subscribes to both `booking.status_changed` (24's inventory booking, `payload.to === 'CONFIRMED'`) and `booking.created` (the pre-24 path, where creation inserts status `'submitted'` directly — creation IS confirmation there). A unit whose project has no APPROVED baseline for its product/unit-type scope is left unattached with a named blocker on `GET /units/:id/specification`, not an error.
+
+Rules 2/4 (release, as-built) are plain `(tx, actor)` functions with no `ctx` gate — the spec's own API note ("creation/release only via 18 handlers") makes 18 the caller, composing them inside its own transaction. `drawing.released` carries `unit_id`, which 08's `changeability/core.ts::observedEvents` already maps to the DRAWING_RELEASED trigger — that mapping went live with zero changes to 08's code.
+
+Rule 3's superseded-lock is enforced twice: `addDrawing` refuses a non-DRAFT revision, and every revision view carries `is_current`/`banner` computed against `unit_specification.current_revision_id`. Rule 5's upload reuses 15's presigned-key pattern (`project/{project_id}/spec_revision/{id}/{uuid}.{ext}`) and the shared `ALLOWED_CONTENT_TYPES`/25 MB cap from the files port.
+
+Variation catalogue upsert follows 08/24's config pattern: a project-scoped row with the same code overrides the standard (NULL project) row. Tests: `specification/specification.test.ts`, one per rule (1–5) plus a baseline/catalogue CRUD test (7 tests total).

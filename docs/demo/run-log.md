@@ -310,3 +310,13 @@ Amarsh: "dont stop - this was supposed to be an autonomous run." Continuing with
 - Found: `action.booking_id` FKs `booking` — create the row before its approval action. Found: `booking_applicant.role` mixes `'primary'` with uppercase `CO_APPLICANT`.
 - Flagged: possession window bands and hold limits UNCONFIRMED; bathroom filter has no category; CRM can book from inventory (matrix), SITE cannot.
 - Next: 09 (specification baselines & revisions) — the last R5 spec with every dependency built (04/03); then 18 needs 09 + 22 + 26.
+
+## 01:45 IST — 09 spec revisions merged (PR #40)
+
+- Specification baseline (DRAFT/APPROVED/RETIRED, versioned per project/product/unit-type scope) attaches at booking confirmation as `spec_revision` 0 (BASELINE, RELEASED) — subscribed to both 24's `booking.status_changed` (DRAFT→CONFIRMED) and the pre-24 `booking.created` (creation IS confirmation on that path).
+- DRAFT→RELEASED customisation/as-built revisions supersede the prior current revision (`spec_revision.superseded`, read-only + banner) and emit `drawing.released` with `unit_id` — 08's `observedEvents` already mapped that event name to DRAWING_RELEASED, so the trigger started resolving with zero changes to `changeability/core.ts`.
+- As-built recording (`recordAsBuilt`) diffs released vs actual and is a no-op when they match. Drawings upload via the files port onto DRAFT revisions only. Variation catalogue: project row overrides the standard row, same pattern as 08's rules and 24's policies.
+- 18's handlers are the intended callers of revision creation/release/as-built — plain `(tx, actor)` functions, no ctx gate, so 18 composes them inside its own transaction (never nests a second `withTx` around them).
+- Flagged: `unit.specification_baseline_id` (pre-existing, unused) now kept in sync alongside the real `unit_specification` pointer row; a unit with no APPROVED baseline for its scope gets a named blocker, not a crash, at confirmation time.
+- Full suite: 88 files / 554 tests, `tsc --noEmit` clean.
+- Next: 18 (change requests) still needs 22 + 26; survey R5/R6 remainder (16 needs 22/23, 23, 26, 27, 30) for the next fully-unblocked spec.
