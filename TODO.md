@@ -26,6 +26,7 @@ Legend: ⬜ not started · 🟨 in progress (branch open) · 🟩 merged to main
 | R0 | 32 design system | 🟨 | agent launched 06:30 |
 | R0 | 02 event log | 🟨 | agent launched 06:30 |
 | R0 | 04 canonical model | 🟨 | agent launched 06:30 |
+| R0.5 | **schema reconciliation** — generate `docs/specs/SCHEMA.md` from merged 01/02/04 migrations (ground truth), diff against every downstream spec's assumed columns/FKs/enums, fix drift in spec text before R2 starts | ⬜ | gap flagged by Amarsh 06:35 — specs were never cross-checked against each other, only self-consistent |
 | R1 | screen migration + journeys + Roadmap page + demo seed | ⬜ | |
 | R2 | 05 journey templates | ⬜ | |
 | R2 | 06 timeline & SLA | ⬜ | |
