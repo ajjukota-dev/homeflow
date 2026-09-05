@@ -1,8 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { adminApi, type Assignment } from "../../auth/adminApi";
 import { ApiError } from "../../auth/api";
-import { Button } from "../../ui/Button";
-import { Card, CardBody, CardHeader } from "../../ui/Card";
+import { Button, Card, CardBody, CardHeader } from "@homeflow/ui";
 
 const inputCls = "w-full rounded-lg border border-line bg-surface px-3 py-2 text-subhead outline-none focus-visible:border-accent";
 const DEPARTMENTS = ["SALES", "CRM", "ACCOUNTS", "BANKING", "LEGAL", "REGISTRATION", "PROJECTS", "QA", "CUSTOMISATION", "HANDOVER", "FACILITY", "MANAGEMENT"];
@@ -138,7 +137,7 @@ export function AdminTeams({ projectId }: { projectId: string }) {
                       <td className="py-2 pr-4 text-fg-muted">{r.effective_to ? String(r.effective_to).slice(0, 10) : "—"}</td>
                       <td className="py-2 text-right">
                         {!r.effective_to && (
-                          <Button size="sm" variant="outline" onClick={() => end(r)}>
+                          <Button size="sm" variant="secondary" onClick={() => end(r)}>
                             End
                           </Button>
                         )}

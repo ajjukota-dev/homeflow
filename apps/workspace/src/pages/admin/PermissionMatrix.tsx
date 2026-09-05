@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { adminApi, type PermissionRow } from "../../auth/adminApi";
 import { ApiError } from "../../auth/api";
-import { Button } from "../../ui/Button";
+import { Button } from "@homeflow/ui";
 import { ROLE_CODES } from "./roles";
 
 const LEVELS = ["NONE", "READ_STATUS_ONLY", "READ_LIMITED", "READ", "WRITE", "ADMIN"] as const;

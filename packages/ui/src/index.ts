@@ -41,3 +41,4 @@ export { PageHeader, type PageHeaderProps } from "./components/PageHeader";
 export { Breadcrumb, type BreadcrumbProps, type BreadcrumbItem } from "./components/Breadcrumb";
 export { KeyValue, type KeyValueProps, type KeyValueItem } from "./components/KeyValue";
 export { Avatar, type AvatarProps } from "./components/Avatar";
+export { Card, CardHeader, CardBody } from "./components/Card";

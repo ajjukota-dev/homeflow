@@ -1,8 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { adminApi, type AdminUser } from "../../auth/adminApi";
 import { ApiError } from "../../auth/api";
-import { Button } from "../../ui/Button";
-import { Card, CardBody, CardHeader } from "../../ui/Card";
+import { Button, Card, CardBody, CardHeader } from "@homeflow/ui";
 import { ROLE_CODES } from "./roles";
 
 const inputCls = "w-full rounded-lg border border-line bg-surface px-3 py-2 text-subhead outline-none focus-visible:border-accent";
@@ -131,7 +130,7 @@ export function AdminUsers() {
                       <td className="py-2 pr-4 text-fg-muted">{u.roles.join(", ") || "—"}</td>
                       <td className="py-2 pr-4">{u.status}</td>
                       <td className="py-2 text-right">
-                        <Button size="sm" variant="outline" onClick={() => toggleStatus(u)}>
+                        <Button size="sm" variant="secondary" onClick={() => toggleStatus(u)}>
                           {u.status === "DISABLED" ? "Enable" : "Disable"}
                         </Button>
                       </td>

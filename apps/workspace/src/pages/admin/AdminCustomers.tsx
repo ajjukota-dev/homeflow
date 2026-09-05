@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, type CustomerRow } from "../../api";
 import type { MergePreview } from "../../api-model";
-import { Card, CardBody } from "../../ui/Card";
-import { Button } from "../../ui/Button";
+import { Card, CardBody, Button } from "@homeflow/ui";
 import { kycStatusLabel } from "../../lib/labels";
 
 // 04 §Screens "Customers" — search, merge with preview (rule 5, p27 §22 dedupe preserving history).
@@ -139,7 +138,7 @@ export function AdminCustomers() {
               </select>
             </label>
           </div>
-          <Button size="sm" variant="outline" className="mt-4" onClick={loadPreview}>
+          <Button size="sm" variant="secondary" className="mt-4" onClick={loadPreview}>
             Preview merge
           </Button>
 

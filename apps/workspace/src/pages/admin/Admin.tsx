@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Segmented } from "../../ui/Segmented";
+import { Segmented } from "@homeflow/ui";
 import { AdminProjects } from "./AdminProjects";
 import { AdminUnits } from "./AdminUnits";
 import { AdminCustomers } from "./AdminCustomers";
@@ -15,7 +15,7 @@ export function Admin() {
   return (
     <div>
       <Segmented
-        ariaLabel="Admin section"
+        aria-label="Admin section"
         value={tab}
         onChange={setTab}
         options={[

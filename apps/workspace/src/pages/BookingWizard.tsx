@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft, Check } from "lucide-react";
 import { api, type Booking, type DocItem, type Unit } from "../api";
-import { Card, CardBody } from "../ui/Card";
-import { Button } from "../ui/Button";
+import { Card, CardBody, Button } from "@homeflow/ui";
 import { ScoreDial } from "../ui/ScoreDial";
 import { cn } from "../lib/utils";
 

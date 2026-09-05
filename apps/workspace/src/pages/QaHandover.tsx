@@ -2,8 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ClipboardCheck, CircleDashed } from "lucide-react";
 import { api } from "../api";
 import type { HandoverRow, ReadinessRow } from "../api-lifecycle";
-import { Card, CardBody } from "../ui/Card";
-import { Button } from "../ui/Button";
+import { Card, CardBody, Button } from "@homeflow/ui";
 import { ScoreDial } from "../ui/ScoreDial";
 import { cn } from "../lib/utils";
 import { gateRunStateLabel, gateTypeLabel, snagSeverityLabel } from "../lib/labels";
@@ -96,7 +95,7 @@ export function QaHandover({ projectId }: { projectId: string }) {
                       ) : (
                         <Button
                           size="sm"
-                          variant="tinted"
+                          variant="secondary"
                           onClick={() => run(`${u.id}-${c.code}`, () => api.verifyQa(u.id, c.code))}
                           disabled={busy === `${u.id}-${c.code}`}
                         >

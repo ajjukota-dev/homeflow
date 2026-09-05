@@ -1,7 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { authApi } from "../auth/api";
-import { Button } from "../ui/Button";
-import { Card, CardBody } from "../ui/Card";
+import { Button, Card, CardBody } from "@homeflow/ui";
 
 const inputCls =
   "w-full rounded-lg border border-line bg-surface px-3.5 py-2.5 text-body outline-none focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/30 disabled:opacity-50";

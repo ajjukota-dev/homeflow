@@ -18,7 +18,7 @@ import { Admin as AdminData } from "./pages/admin/Admin";
 import type { useAuth } from "./auth/AuthContext";
 import { NAV, ADMIN_NAV, defaultViewFor, type View } from "./nav";
 import { api, type Project, type Unit } from "./api";
-import { Button } from "./ui/Button";
+import { Button } from "@homeflow/ui";
 import { cn } from "./lib/utils";
 
 const inputCls = "w-full rounded-lg border border-line bg-surface px-3 py-2 text-subhead outline-none focus:border-accent";

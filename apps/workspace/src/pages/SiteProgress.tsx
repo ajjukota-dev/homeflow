@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import { api, type ProgressState, type Unit } from "../api";
-import { Card, CardBody } from "../ui/Card";
+import { Card, CardBody, Segmented, Button } from "@homeflow/ui";
 import { GateChip } from "../ui/GateChip";
 import { ScoreDial } from "../ui/ScoreDial";
-import { Segmented } from "../ui/Segmented";
-import { Button } from "../ui/Button";
 import { cn } from "../lib/utils";
 
 const STATES: { value: ProgressState; label: string }[] = [
@@ -109,7 +107,7 @@ export function SiteProgress({ projectId }: { projectId: string }) {
               </button>
             ))}
             {!addOpen && (
-              <Button size="sm" variant="tinted" onClick={() => setAddOpen(true)}>
+              <Button size="sm" variant="secondary" onClick={() => setAddOpen(true)}>
                 <Plus className="h-4 w-4" /> New unit
               </Button>
             )}
@@ -162,7 +160,7 @@ export function SiteProgress({ projectId }: { projectId: string }) {
                         {saving === c.code && <span className="text-caption text-fg-subtle">saving…</span>}
                       </div>
                       <Segmented
-                        ariaLabel={`${c.label} progress`}
+                        aria-label={`${c.label} progress`}
                         options={STATES}
                         value={c.state_code}
                         onChange={(s) => setState(c.code, s)}

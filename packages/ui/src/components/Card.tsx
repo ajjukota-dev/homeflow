@@ -1,14 +1,11 @@
 import type { HTMLAttributes } from "react";
-import { cn } from "../lib/utils";
+import { cn } from "../lib/cn";
 
-/** Solid surface container — subtle border + soft shadow. No glass. */
+/** Card — a solid surface container (subtle border + panel shadow, no glass). Added during the
+ * R1 screen migration: docs/specs/32-design-system.md's original primitive list didn't include
+ * a generic container, but every workspace page needs one. */
 export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return (
-    <div
-      className={cn("rounded-xl border border-line bg-surface shadow-card", className)}
-      {...props}
-    />
-  );
+  return <div className={cn("rounded-card border border-line bg-surface shadow-panel", className)} {...props} />;
 }
 
 export function CardHeader({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
