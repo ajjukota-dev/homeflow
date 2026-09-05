@@ -36,8 +36,8 @@ export const EVENT_TYPES: EventTypeDef[] = [
   { name: "qa.inspection_failed", family: "qa", customer_visible: false, built: false },
   { name: "snag.opened", family: "snag", customer_visible: false, built: false },
   { name: "snag.closed", family: "snag", customer_visible: true, built: true },
-  { name: "commitment.created", family: "commitment", customer_visible: false, built: false },
-  { name: "commitment.status_changed", family: "commitment", customer_visible: false, built: false },
+  { name: "commitment.created", family: "commitment", customer_visible: false, built: true },
+  { name: "commitment.status_changed", family: "commitment", customer_visible: false, built: true },
   { name: "escalation.raised", family: "escalation", customer_visible: false, built: true },
   { name: "escalation.resolved", family: "escalation", customer_visible: false, built: true },
   { name: "handover.scheduled", family: "handover", customer_visible: true, built: false },
@@ -57,6 +57,12 @@ export const EVENT_TYPES: EventTypeDef[] = [
   { name: "escalation.closed", family: "escalation", customer_visible: false, built: true },
   { name: "notification.sent", family: "notification", customer_visible: false, built: true },
   { name: "digest.sent", family: "notification", customer_visible: false, built: true },
+  // 13-promise-ledger.md names commitment.created/status_changed (Appendix B, now built above)
+  // plus these 4 lifecycle-specific events its own Events list also requires.
+  { name: "commitment.at_risk", family: "commitment", customer_visible: false, built: true },
+  { name: "commitment.breached", family: "commitment", customer_visible: false, built: true },
+  { name: "commitment.fulfilled", family: "commitment", customer_visible: false, built: true },
+  { name: "commitment.waived", family: "commitment", customer_visible: false, built: true },
 
   // --- Canonical-model rule 8 events (04 §Rules "Every mutation emits: ...") ---
   // These aren't literal Appendix B names but 04 requires them, and 02 says event names

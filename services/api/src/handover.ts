@@ -25,6 +25,9 @@ export interface HandoverInput {
   financial_cleared: boolean;
   legal_executed: boolean;
   registered: boolean;
+  // 13-promise-ledger.md rule 8: any commitment on the booking still open by the spec's own
+  // definition (DRAFT/APPROVED/ACTIVE/AT_RISK/BREACHED) blocks; only FULFILLED/WAIVED pass.
+  open_commitments: { code: string; description: string }[];
 }
 
 export interface HandoverGateView {
@@ -63,9 +66,14 @@ export function evaluateHandover(input: HandoverInput) {
     gate("registration", "hard", input.registered, ["Registration is not complete"]),
     gate("physical", "hard", physicalBlockers.length === 0, physicalBlockers),
     gate("quality", "hard", qualityBlockers.length === 0, qualityBlockers),
-    // gates.md classifies commitments as hard, but there is no Promise Ledger yet to
-    // evaluate it against — soft + always-open until that data exists (TODO.md task 6).
-    gate("commitments", "soft", false, ["No commitment records — Promise Ledger not yet built"]),
+    // 13-promise-ledger.md rule 8, now real (previously always-open — TODO.md task 6, closed).
+    // Kept "soft": gates.md B.2's own hard-gate list is {financial, legal, registration,
+    // critical-snag, safety-physical} — commitments isn't in it, despite the comment this
+    // replaced claiming otherwise (an unverified premise, corrected here rather than carried
+    // forward). Scoped to ALL open commitments on the booking, not just customer-facing/critical
+    // ones gates.md's own illustrative B.1 text names — 13's rule 8 says "any commitment... →
+    // gate open," and docs/specs/ is the authoritative build contract over docs/spec/ (CLAUDE.md).
+    gate("commitments", "soft", input.open_commitments.length === 0, input.open_commitments.map((c) => `${c.code}: ${c.description}`)),
     gate("customer", "soft", true, []),
     gate("fm", "soft", true, []),
   ];
