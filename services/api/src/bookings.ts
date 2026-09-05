@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { db } from "./db";
 import type { BookingDetailRow, BookingListRow } from "./bookings-types";
-import { appendEvent, withTx } from "./events";
+import { appendEvent, withTx, actorFields } from "./events";
 import { nextCode } from "./model/codes";
 import { authorize } from "./authz/authorize";
 import type { Ctx } from "./authz/types";
@@ -92,6 +92,7 @@ export async function createBooking(unitId: string, input: BookingInput, ctx: Ct
       booking_id: bookingId,
       unit_id: unitId,
       payload: { booking_number: number, total_consideration: input.total_consideration },
+      ...actorFields(ctx),
     });
     await appendEvent(t, {
       type: "sales_handover.submitted",
@@ -101,6 +102,7 @@ export async function createBooking(unitId: string, input: BookingInput, ctx: Ct
       booking_id: bookingId,
       unit_id: unitId,
       payload: { completeness_score: score },
+      ...actorFields(ctx),
     });
     await appendEvent(t, {
       type: "unit.sale_status_changed",
@@ -109,6 +111,7 @@ export async function createBooking(unitId: string, input: BookingInput, ctx: Ct
       project_id: u.rows[0].project_id,
       unit_id: unitId,
       payload: { from: u.rows[0].sale_status, to: "held" },
+      ...actorFields(ctx),
     });
   });
   return getBooking(bookingId);

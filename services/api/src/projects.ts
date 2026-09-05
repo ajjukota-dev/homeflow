@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { db } from "./db";
 import { getUnit } from "./handlers";
-import { withTx, type DbLike } from "./events";
+import { withTx, actorFields, type DbLike } from "./events";
 import { defaultPortfolioId } from "./model/projects";
 import { defaultHierarchyNodeId, insertUnit, type UnitInput } from "./model/units";
 import { requireRole, SITE_SETUP_ROLES, STAFF_ROLES } from "./authz/requireRole";
@@ -47,7 +47,7 @@ export async function createUnit(
 
   const id = await withTx(tx, async (t) => {
     const hierarchyNodeId = input.hierarchy_node_id ?? (await defaultHierarchyNodeId(projectId, t));
-    return insertUnit(t, projectId, hierarchyNodeId, input);
+    return insertUnit(t, projectId, hierarchyNodeId, input, actorFields(ctx));
   });
   return getUnit(id);
 }

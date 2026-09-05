@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { db } from "../db";
-import { appendEvent, withTx, type DbLike } from "../events";
+import { appendEvent, withTx, actorFields, type DbLike } from "../events";
 import { ValidationError } from "./derive";
 import { authorize } from "../authz/authorize";
 import type { Ctx } from "../authz/types";
@@ -96,6 +96,7 @@ export async function setApplicants(bookingId: string, applicants: ApplicantInpu
         booking_id: bookingId,
         unit_id: unitId,
         payload: {},
+        ...actorFields(ctx),
       });
     }
     for (const a of applicants) {
@@ -121,6 +122,7 @@ export async function setApplicants(bookingId: string, applicants: ApplicantInpu
           booking_id: bookingId,
           unit_id: unitId,
           payload: { display_name: a.display_name, role: a.role },
+          ...actorFields(ctx),
         });
       }
     }

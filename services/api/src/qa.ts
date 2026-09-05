@@ -6,7 +6,7 @@ import { bookingFinance } from "./finance";
 import { onHandoverCompleted } from "./warranty";
 import { componentsFor } from "./qa-evidence";
 import { listSnagsForUnit, snagCounts, type SnagRow } from "./qa-snags";
-import { appendEvent, withTx } from "./events";
+import { appendEvent, withTx, actorFields } from "./events";
 import { authorize } from "./authz/authorize";
 import type { Ctx } from "./authz/types";
 
@@ -78,6 +78,7 @@ export async function verifyComponent(unitId: string, component: string, evidenc
       project_id: u.rows[0]?.project_id ?? null,
       unit_id: unitId,
       payload: { component, evidence_note: evidenceNote.trim() },
+      ...actorFields(ctx),
     });
   });
   return unitReadiness(unitId);
@@ -105,6 +106,7 @@ export async function closeSnag(id: string, beforeNote: string, afterNote: strin
       project_id: s.rows[0].project_id,
       unit_id: s.rows[0].unit_id,
       payload: { before_note: beforeNote.trim(), after_note: afterNote.trim() },
+      ...actorFields(ctx),
     });
   });
   return db.query<SnagRow>(`SELECT * FROM snag WHERE id = $1`, [id]).then((r) => r.rows[0]);
@@ -224,6 +226,7 @@ export async function completeHandover(bookingId: string, ctx: Ctx) {
       booking_id: bookingId,
       unit_id: unitId,
       payload: { readiness_value: view.readiness.value },
+      ...actorFields(ctx),
     });
     await appendEvent(t, {
       type: "unit.sale_status_changed",
@@ -232,6 +235,7 @@ export async function completeHandover(bookingId: string, ctx: Ctx) {
       project_id: projectId,
       unit_id: unitId,
       payload: { from: "registered", to: "handed_over" },
+      ...actorFields(ctx),
     });
   });
   await onHandoverCompleted(bookingId);

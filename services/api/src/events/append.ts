@@ -8,6 +8,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { db } from "../db";
 import { dispatchAll } from "./subscribers";
+import type { Ctx } from "../authz/types";
 
 /** The subset of PGlite's query surface every handler needs — satisfied by both `db` and a `tx`. */
 export type DbLike = { query: typeof db.query };
@@ -33,6 +34,14 @@ export interface AppendedEvent extends EventInput {
 }
 
 const pendingDispatch = new AsyncLocalStorage<AppendedEvent[]>();
+
+// R0.6c/P5 (SCHEMA.md "Known drift" #5): every handler has had ctx.actor since R0.6, but
+// appendEvent() calls kept defaulting actor_user_id/actor_kind to SYSTEM instead of threading
+// it through. One helper so every call site is a one-line `...actorFields(ctx)` rather than
+// re-deriving the STAFF/CUSTOMER → USER/CUSTOMER mapping at each of the ~50 sites.
+export function actorFields(ctx: Ctx): Pick<EventInput, "actor_user_id" | "actor_kind"> {
+  return { actor_user_id: ctx.actor.user_id, actor_kind: ctx.actor.kind === "CUSTOMER" ? "CUSTOMER" : "USER" };
+}
 
 /** Runs `fn` inside a transaction, reusing `maybeTx` if the caller already opened one. */
 export async function withTx<T>(maybeTx: DbLike | undefined, fn: (tx: DbLike) => Promise<T>): Promise<T> {

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { db } from "./db";
-import { appendEvent, withTx, type DbLike } from "./events";
+import { appendEvent, withTx, actorFields, type DbLike } from "./events";
 import { requiredApprovers } from "./approvals/matrix";
 import { requireRole, STAFF_ROLES } from "./authz/requireRole";
 import { AppError, type Ctx } from "./authz/types";
@@ -74,8 +74,8 @@ export async function requestWaiver(
       entity_id: id,
       project_id: d.project_id,
       booking_id: input.booking_id,
-      actor_user_id: ctx.actor.user_id,
       payload: { demand_id: input.demand_id, amount: input.amount, kind: input.kind, approver_role: approver.approver_role },
+      ...actorFields(ctx),
     });
     return requireWaiver(id, tx);
   });
@@ -104,8 +104,8 @@ export async function approveWaiver(id: string, ctx: Ctx): Promise<WaiverRow> {
       entity_type: "waiver",
       entity_id: id,
       booking_id: w.booking_id,
-      actor_user_id: ctx.actor.user_id,
       payload: { demand_id: w.demand_id, amount: w.amount },
+      ...actorFields(ctx),
     });
     return requireWaiver(id, tx);
   });
@@ -127,8 +127,8 @@ export async function rejectWaiver(id: string, reason: string, ctx: Ctx): Promis
       entity_type: "waiver",
       entity_id: id,
       booking_id: w.booking_id,
-      actor_user_id: ctx.actor.user_id,
       payload: { reason },
+      ...actorFields(ctx),
     });
     return requireWaiver(id, tx);
   });

@@ -9,7 +9,7 @@ import {
 } from "./legal";
 import { bookingFinance } from "./finance";
 import { checksum, getDocument, liveSnapshot, source } from "./legal-docs-source";
-import { appendEvent, withTx } from "./events";
+import { appendEvent, withTx, actorFields } from "./events";
 import { authorize } from "./authz/authorize";
 import type { Ctx } from "./authz/types";
 
@@ -84,6 +84,7 @@ export async function generateDocument(bookingId: string, documentFamily: string
       booking_id: bookingId,
       unit_id: row.unit_id,
       payload: { document_family: documentFamily, version },
+      ...actorFields(ctx),
     });
   });
   return getDocument(id);
@@ -114,6 +115,7 @@ export async function approveDocument(id: string, ctx: Ctx) {
       booking_id: doc.booking_id,
       unit_id: loc.unit_id,
       payload: { document_family: doc.document_family },
+      ...actorFields(ctx),
     });
   });
   return getDocument(id);
@@ -137,6 +139,7 @@ export async function executeDocument(id: string, ctx: Ctx) {
       booking_id: doc.booking_id,
       unit_id: loc.unit_id,
       payload: { document_family: doc.document_family, checksum: sum },
+      ...actorFields(ctx),
     });
   });
   return getDocument(id);
@@ -172,6 +175,7 @@ export async function completeRegistration(bookingId: string, sroReference: stri
       booking_id: bookingId,
       unit_id: row.unit_id,
       payload: { sro_reference: sroReference },
+      ...actorFields(ctx),
     });
   });
   return { booking_id: bookingId, status: "completed", sro_reference: sroReference };

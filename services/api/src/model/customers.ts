@@ -1,6 +1,6 @@
 import { db } from "../db";
 import type { CustomerListRow, CustomerRow } from "../bookings-types";
-import { appendEvent, withTx, type DbLike } from "../events";
+import { appendEvent, withTx, actorFields, type DbLike } from "../events";
 import { ValidationError } from "./derive";
 import { authorize } from "../authz/authorize";
 import type { Ctx } from "../authz/types";
@@ -82,6 +82,7 @@ export async function mergeCustomer(fromId: string, intoId: string, ctx: Ctx): P
       entity_id: fromId,
       customer_id: intoId,
       payload: { from: fromId, into: intoId },
+      ...actorFields(ctx),
     });
   });
 }
@@ -118,6 +119,7 @@ export async function updateCustomerResidency(
         booking_id: acceptedBooking.rows[0].id,
         customer_id: customerId,
         payload: { from: current.rows[0].residency, to: residency },
+        ...actorFields(ctx),
       });
     }
   });

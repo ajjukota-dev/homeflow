@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { db } from "../db";
-import { appendEvent, withTx, type DbLike } from "../events";
+import { appendEvent, withTx, actorFields, type DbLike } from "../events";
 import { requireRole, POLICY_STUDIO_ROLES } from "../authz/requireRole";
 import { AppError, type Ctx } from "../authz/types";
 import { validateConditionExpr, evaluateCondition, ConditionExprError } from "./dsl";
@@ -329,13 +329,12 @@ export async function publishVersion(versionId: string, input: { migration_rule?
         WHERE id = $1`,
       [versionId, ctx.actor.user_id, input.migration_rule ?? null, input.change_note ?? null]
     );
-    // R0.6c (tracked separately): appendEvent doesn't take an actor param anywhere in this
-    // codebase yet, so this follows the same convention as every existing call site.
     await appendEvent(tx, {
       type: "template.version_published",
       entity_type: "journey_template_version",
       entity_id: versionId,
       payload: { template_id: v.rows[0].template_id, version: v.rows[0].version },
+      ...actorFields(ctx),
     });
 
     // Rule 2: publishing never alters existing journey_instance rows. OFFER_MIGRATION just
@@ -347,6 +346,7 @@ export async function publishVersion(versionId: string, input: { migration_rule?
         entity_type: "journey_template_version",
         entity_id: versionId,
         payload: { template_id: v.rows[0].template_id, from_version_id: priorPublished.rows[0].id, to_version_id: versionId },
+        ...actorFields(ctx),
       });
     }
     return { id: versionId, status: "PUBLISHED" };
@@ -370,6 +370,7 @@ export async function assignTemplateToProject(projectId: string, versionId: stri
       entity_id: projectId,
       project_id: projectId,
       payload: { version_id: versionId },
+      ...actorFields(ctx),
     });
   });
 }

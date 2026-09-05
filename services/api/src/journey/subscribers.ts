@@ -12,6 +12,11 @@ export function registerJourneySubscribers(): void {
   registered = true;
   onEvent("sales_handover.accepted", "journey.instantiate", async (event: AppendedEvent) => {
     if (!event.booking_id) return;
-    await withTx(undefined, (tx) => instantiateJourneyForBooking(event.booking_id!, tx));
+    await withTx(undefined, (tx) =>
+      instantiateJourneyForBooking(event.booking_id!, tx, {
+        actor_user_id: event.actor_user_id,
+        actor_kind: event.actor_kind,
+      })
+    );
   });
 }

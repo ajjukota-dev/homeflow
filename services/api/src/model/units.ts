@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { db } from "../db";
-import { appendEvent, withTx, type DbLike } from "../events";
+import { appendEvent, withTx, actorFields, type DbLike, type EventInput } from "../events";
 import { nextCode } from "./codes";
 import { ValidationError } from "./derive";
 import { requireRole, SITE_SETUP_ROLES, STAFF_ROLES } from "../authz/requireRole";
@@ -48,7 +48,9 @@ export async function insertUnit(
   tx: DbLike,
   projectId: string,
   hierarchyNodeId: string,
-  input: UnitInput
+  input: UnitInput,
+  // seed-canonical.ts's demo-fixture calls have no ctx — SYSTEM stamp is correct there.
+  actor?: Pick<EventInput, "actor_user_id" | "actor_kind">
 ): Promise<string> {
   if (!input.unit_number?.trim()) throw new ValidationError("unit_number required", "unit_number");
   const id = "u_" + randomUUID().slice(0, 8);
@@ -89,6 +91,7 @@ export async function insertUnit(
     project_id: projectId,
     unit_id: id,
     payload: { unit_number: input.unit_number.trim(), code, unit_type: input.unit_type, facing: input.facing },
+    ...actor,
   });
   return id;
 }
@@ -148,15 +151,21 @@ export async function bulkCreateUnits(projectId: string, input: BulkUnitRangeInp
     const ids: string[] = [];
     for (let floor = input.floor_from; floor <= input.floor_to; floor++) {
       for (const letter of letters) {
-        const id = await insertUnit(t, projectId, hierarchyNodeId, {
-          unit_number: `${floor}${letter}`,
-          unit_type: input.unit_type,
-          facing: input.facing,
-          product_type: input.product_type,
-          base_price_inr: input.base_price_inr,
-          carpet_area_sqft: input.carpet_area_sqft,
-          floor_no: floor,
-        });
+        const id = await insertUnit(
+          t,
+          projectId,
+          hierarchyNodeId,
+          {
+            unit_number: `${floor}${letter}`,
+            unit_type: input.unit_type,
+            facing: input.facing,
+            product_type: input.product_type,
+            base_price_inr: input.base_price_inr,
+            carpet_area_sqft: input.carpet_area_sqft,
+            floor_no: floor,
+          },
+          actorFields(ctx)
+        );
         ids.push(id);
       }
     }

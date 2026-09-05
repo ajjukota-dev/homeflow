@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { db } from "./db";
-import { appendEvent, withTx } from "./events";
+import { appendEvent, withTx, actorFields } from "./events";
 import { authorize } from "./authz/authorize";
 import type { Ctx } from "./authz/types";
 
@@ -181,6 +181,7 @@ export async function closeWarranty(id: string, ctx: Ctx) {
       project_id: w.rows[0].project_id,
       unit_id: w.rows[0].unit_id,
       payload: { chargeable_amount: chargeable ? 1 : 0 },
+      ...actorFields(ctx),
     });
   });
   return db
@@ -223,6 +224,7 @@ export async function captureCheckin(id: string, satisfactionScore: number, ctx:
       booking_id: existing.rows[0].booking_id,
       unit_id: bk.rows[0]?.unit_id ?? null,
       payload: { satisfaction_score: satisfactionScore },
+      ...actorFields(ctx),
     });
   });
   return db

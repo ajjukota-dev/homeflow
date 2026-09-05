@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { db } from "./db";
 import { clock } from "./ports/clock";
 import { type DemandStatus } from "./collections";
-import { appendEvent, withTx, type DbLike } from "./events";
+import { appendEvent, withTx, actorFields, type DbLike } from "./events";
 import { createAction } from "./actions/core";
 import { authorize } from "./authz/authorize";
 import type { Ctx } from "./authz/types";
@@ -133,6 +133,7 @@ export async function setOverdueReason(demandId: string, reasonCode: string, ctx
       project_id: d.project_id,
       booking_id: d.booking_id,
       payload: { reason_code: reasonCode, action_id: actionId },
+      ...actorFields(ctx),
     });
   });
 
