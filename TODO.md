@@ -10,11 +10,11 @@ Rewritten 2026-09-05 04:20 IST (Amarsh: "the technical specs were vibecoded; mov
 
 ## 0. Status board (updated on every merge — the "where are we" view)
 
-**Position:** R0 nearly done (4/5 merged) · **Live URL:** https://we947t2rq2.ap-south-1.awsapprunner.com (`/health` → `{"ok":true,"db":true}` against real RDS) · **Last deploy:** 2026-09-05 R0-03 merge · **Last updated:** 2026-09-05 08:45 IST
+**Position:** R0 complete (5/5 merged) · **Live URL:** https://we947t2rq2.ap-south-1.awsapprunner.com (`/health` → `{"ok":true,"db":true}` against real RDS) · **Last deploy:** 2026-09-05 R0-03 merge · **Last updated:** 2026-09-05 09:00 IST
 
 ```
-Specs merged    [██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░]  4 / 33 (01 in final verification)
-Deployed + E2E  [██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░]  4 / 33
+Specs merged    [██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░]  5 / 33
+Deployed + E2E  [██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░]  5 / 33
 ```
 
 Legend: ⬜ not started · 🟨 in progress (branch open) · 🟩 merged to main · 🟦 deployed to URL with journey green · ⛔ blocked (see §9)
@@ -22,12 +22,12 @@ Legend: ⬜ not started · 🟨 in progress (branch open) · 🟩 merged to main
 | Wave | Spec | Status | Notes |
 |---|---|---|---|
 | R0 | 03 platform & deploy | 🟩 | merged (PR #12 + hotfix #14) — live URL above |
-| R0 | 01 identity & access | 🟨 | PR #13 — e2e re-verifying after merge-conflict + nav-locator fixes (agent af79a733190f00d5b) |
+| R0 | 01 identity & access | 🟩 | merged (PR #13) — login, sessions, demo accounts, PII leak fixed |
 | R0 | 32 design system | 🟩 | merged (PR #11) — Jost/Geist, tokens, 8 primitives, axe clean |
 | R0 | 02 event log | 🟩 | merged (PR #10) |
 | R0 | 04 canonical model | 🟩 | merged (PR #10) |
 | R0.5 | **schema reconciliation** — generate `docs/specs/SCHEMA.md` from merged 01/02/04 migrations (ground truth), diff against every downstream spec's assumed columns/FKs/enums, fix drift in spec text before R2 starts | ⬜ | gap flagged by Amarsh 06:35 — specs were never cross-checked against each other, only self-consistent |
-| R0.6 | **authorize()/mask()/assertProjectScope() wired into every route** — currently only `/api/admin/*` and the CUSTOMER branch of `/api/me/home` call the permission-matrix check; the other ~21 handlers in `server.ts` rely solely on `requireSession` (any authenticated user, any role, can call them) plus client-side nav filtering | ⬜ | flagged by the PR #13 build agent, confirmed by re-inspection 08:40 — real gap against the "prod-ready" claim (§7 decision 22) and against S2's own spike goal ("middleware on every route"); UI nav filtering means a demo click-through won't surface it, but a direct API call would. Needs: per-route module-name mapping (33-module list, `docs/specs/01-identity-access.md`) + minimum level per verb, then one pass through `server.ts`/`routes-model.ts`/`routes-lifecycle.ts`. Sized ~21 routes — its own lane, run after 01 merges, before or parallel with R2 |
+| R0.6 | **authorize()/mask()/assertProjectScope() wired into every route** — currently only `/api/admin/*` and the CUSTOMER branch of `/api/me/home` call the permission-matrix check; the other ~21 handlers in `server.ts` rely solely on `requireSession` (any authenticated user, any role, can call them) plus client-side nav filtering | 🟨 | in progress — 01 merged 09:00, starting now. `seed/permissions.ts`'s 33-module list (dashboard, customer_*, sales_handover, documents, collections, loans, legal, registrations, unit_readiness, snagging, handovers, commitments, communications, escalations, approvals, notifications, comments, reports, administration) is customer-workflow-centric; project/unit/booking CRUD routes don't map onto it 1:1 — needs the PDF's own module framework read properly before mapping, not guessed from column headers |
 | R1 | screen migration + journeys + Roadmap page + demo seed | ⬜ | |
 | R2 | 05 journey templates | ⬜ | |
 | R2 | 06 timeline & SLA | ⬜ | |
