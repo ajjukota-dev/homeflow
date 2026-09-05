@@ -48,3 +48,6 @@ Depends on 04, 10, 13, 22 (document checklist; until 22 lands, documents section
 
 ## Not in this feature
 Booking creation UI (24), document verification state machine (22), commitments lifecycle (13).
+
+## Build note (2026-09-05, backend)
+Built additively in `services/api/src/sales-handover/**` around the existing `createBooking`/`acceptBooking`/`returnBooking`, not as the Files list's "replace handover parts of `bookings.ts`" — 16 test files depend on those signatures; `acceptHandover`/`returnHandover` delegate the booking state change to them and layer the packet rules on top. Rule 5's `booking.status = CRM_ACCEPTED` deliberately NOT applied: five read sites filter `status = 'active'` and nothing moves crm_accepted→active — `sales_handover.status` is this feature's signal (see `model/status.ts`). Journey instantiation comes free from 06's existing `sales_handover.accepted` subscriber. `documents_section` scores against `booking.docs` (the `files` fallback table named here doesn't exist). Studio CRUD, `PUT …/sales-handover`, and all screens deferred; migration is `0030_sales_handover.sql` (0015 was taken).
