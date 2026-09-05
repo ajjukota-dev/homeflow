@@ -2,6 +2,7 @@ import { db } from "./db";
 import { pickFive, type TowerCandidate } from "./tower";
 import { projectCollections } from "./collections-view";
 import { projectHandover } from "./qa";
+import { appendEvent, withTx } from "./events";
 
 // Control Tower — five ranked interventions from live exceptions (management/spec.md, H11).
 
@@ -160,13 +161,29 @@ export async function controlTower(projectId: string) {
 }
 
 // Act is idempotent: only the first call stamps acted_at (acted_by awaits Cognito, H11).
+// Emits action.acted (extension — 02 §Appendix B "Extend with action.*").
 export async function actIntervention(id: string) {
-  const updated = await db.query<InterventionRow>(
-    `UPDATE intervention SET status = 'acted', acted_at = now(), acted_by = NULL
-     WHERE id = $1 AND status <> 'acted' RETURNING *`,
-    [id]
-  );
-  if (updated.rows[0]) return updated.rows[0];
+  let updated: InterventionRow | undefined;
+  await withTx(undefined, async (t) => {
+    const r = await t.query<InterventionRow>(
+      `UPDATE intervention SET status = 'acted', acted_at = now(), acted_by = NULL
+       WHERE id = $1 AND status <> 'acted' RETURNING *`,
+      [id]
+    );
+    updated = r.rows[0];
+    if (updated) {
+      await appendEvent(t, {
+        type: "action.acted",
+        entity_type: "intervention",
+        entity_id: id,
+        project_id: updated.project_id,
+        booking_id: updated.booking_id,
+        unit_id: updated.unit_id,
+        payload: { category: updated.category, headline: updated.headline },
+      });
+    }
+  });
+  if (updated) return updated;
   const r = await db.query<InterventionRow>(`SELECT * FROM intervention WHERE id = $1`, [id]);
   if (!r.rows[0]) throw new Error("not_found");
   return r.rows[0];

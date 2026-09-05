@@ -1,4 +1,5 @@
-import type { PGlite } from "@electric-sql/pglite";
+import type { DbClient } from "./db/types";
+import { nextCode } from "./model/codes";
 
 const AOS_BODY = `AGREEMENT FOR SALE
 
@@ -16,7 +17,7 @@ const AOS_FIELDS = JSON.stringify([
   { key: "consideration", label: "Consideration", source_ref: "booking.total_consideration", mandatory: true },
 ]);
 
-export async function seedLifecycleDemo(db: PGlite) {
+export async function seedLifecycleDemo(db: DbClient) {
   await db.query(
     `INSERT INTO document_template
       (id, document_family, project_id, property_type, transaction_type, status, version, body, mandatory_fields, checksum)
@@ -26,7 +27,8 @@ export async function seedLifecycleDemo(db: PGlite) {
 
   await db.exec(`
     INSERT INTO qa_evidence (unit_id, component_code, qa_verified)
-    SELECT u.id, c.code, false FROM unit u CROSS JOIN component_definition c;
+    SELECT u.id, c.code, false FROM unit u CROSS JOIN component_definition c
+     WHERE NOT EXISTS (SELECT 1 FROM qa_evidence q WHERE q.unit_id = u.id AND q.component_code = c.code);
     UPDATE qa_evidence SET qa_verified = true, evidence_note = 'Photo + checklist signed', verified_at = now()
      WHERE unit_id = 'u_v110' AND component_code = 'structure';
     UPDATE qa_evidence SET qa_verified = true, evidence_note = 'Photo + checklist signed', verified_at = now()
@@ -67,12 +69,22 @@ export async function seedLifecycleDemo(db: PGlite) {
   await seedHandedOverVilla(db);
 }
 
-async function seedKeysVilla(db: PGlite) {
+async function seedKeysVilla(db: DbClient) {
+  const ananyaCode = await nextCode(db, "CUS");
+  const v112Code = await nextCode(db, "BKG");
+  await db.query(
+    `INSERT INTO customer (id, display_name, primary_phone, kyc_status, code, primary_name)
+     VALUES ('c_ananya','Ananya Rao','9845055566','verified',$1,'Ananya Rao')`,
+    [ananyaCode]
+  );
+  await db.query(
+    `INSERT INTO booking
+      (id, project_id, unit_id, booking_number, status, total_consideration, completeness_score,
+       rm_owner, payment_plan_id, code, agreement_value_inr)
+     VALUES ('b_v112','p_eastcrest','u_v112','BK-V112','active',10000000,100,'Priya Nair','plan_eastcrest',$1,10000000)`,
+    [v112Code]
+  );
   await db.exec(`
-    INSERT INTO customer (id, display_name, primary_phone, kyc_status)
-    VALUES ('c_ananya','Ananya Rao','9845055566','verified');
-    INSERT INTO booking (id, project_id, unit_id, booking_number, status, total_consideration, completeness_score, rm_owner, payment_plan_id)
-    VALUES ('b_v112','p_eastcrest','u_v112','BK-V112','active',10000000,100,'Priya Nair','plan_eastcrest');
     INSERT INTO booking_applicant (id, booking_id, customer_id, display_name, role, phone, pan)
     VALUES ('a_v112','b_v112','c_ananya','Ananya Rao','primary','9845055566','PQRST6789L');
     UPDATE unit SET sale_status = 'registered' WHERE id = 'u_v112';
@@ -100,12 +112,22 @@ async function seedKeysVilla(db: PGlite) {
   `);
 }
 
-async function seedHandedOverVilla(db: PGlite) {
+async function seedHandedOverVilla(db: DbClient) {
+  const rohanCode = await nextCode(db, "CUS");
+  const v113Code = await nextCode(db, "BKG");
+  await db.query(
+    `INSERT INTO customer (id, display_name, primary_phone, kyc_status, code, primary_name)
+     VALUES ('c_rohan','Rohan Desai','9845077788','verified',$1,'Rohan Desai')`,
+    [rohanCode]
+  );
+  await db.query(
+    `INSERT INTO booking
+      (id, project_id, unit_id, booking_number, status, total_consideration, completeness_score,
+       rm_owner, payment_plan_id, code, agreement_value_inr)
+     VALUES ('b_v113','p_eastcrest','u_v113','BK-V113','active',9500000,100,'Priya Nair','plan_eastcrest',$1,9500000)`,
+    [v113Code]
+  );
   await db.exec(`
-    INSERT INTO customer (id, display_name, primary_phone, kyc_status)
-    VALUES ('c_rohan','Rohan Desai','9845077788','verified');
-    INSERT INTO booking (id, project_id, unit_id, booking_number, status, total_consideration, completeness_score, rm_owner, payment_plan_id)
-    VALUES ('b_v113','p_eastcrest','u_v113','BK-V113','active',9500000,100,'Priya Nair','plan_eastcrest');
     INSERT INTO booking_applicant (id, booking_id, customer_id, display_name, role, phone, pan)
     VALUES ('a_v113','b_v113','c_rohan','Rohan Desai','primary','9845077788','LMNOP4321K');
     UPDATE unit SET sale_status = 'handed_over' WHERE id = 'u_v113';

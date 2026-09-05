@@ -5,6 +5,7 @@ import { Card, CardBody } from "../ui/Card";
 import { MoneyFigure } from "../ui/MoneyFigure";
 import { cn } from "../lib/utils";
 import { bookingStatusLabel, kycStatusLabel } from "../lib/labels";
+import { ActivityFeed } from "../components/ActivityFeed";
 
 function initials(name: string) {
   return name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
@@ -71,6 +72,9 @@ export function Customer360({ customerId, onBack }: { customerId: string; onBack
               </Card>
             ))}
           </div>
+
+          <h2 className="mb-3 mt-8 text-title3 font-semibold">Activity</h2>
+          <ActivityFeed entityType="customer" entityId={customer.id} />
         </>
       )}
     </div>

@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { db } from "./db";
+import { clock } from "./ports/clock";
 import { type DemandStatus } from "./collections";
+import type { DbLike } from "./events";
 
 // Accounts money handlers — H3 demand rows, overdue reasons, PTP (accounts/spec.md).
 // Portable: no Express/AWS types. Schedule creation lives in demands-schedule.ts, receipt posting in demands-receipts.ts.
@@ -23,8 +25,10 @@ export interface DemandRow {
   has_active_ptp: boolean;
 }
 
+// Was UTC (`new Date().toISOString().slice(0,10)`) — fixed to IST via the
+// clock port (03-platform-deploy.md); callers/signature unchanged.
 export function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  return clock.todayIst();
 }
 
 export function asDate(value: string | Date): string;
@@ -52,8 +56,11 @@ export const DEMAND_SELECT = `
     LEFT JOIN overdue_reason o ON o.code = d.overdue_reason_code
 `;
 
-export async function mapDemands(sql: string, params: unknown[] = []): Promise<DemandRow[]> {
-  const r = await db.query<DemandRow>(sql, params);
+// `handle` defaults to the module-level `db`; pass the active `tx` when called from inside
+// a withTx callback — a bare `db.query` while a transaction is open on the same PGlite
+// instance deadlocks (single connection/mutex), it does not run as a separate session.
+export async function mapDemands(sql: string, params: unknown[] = [], handle: DbLike = db): Promise<DemandRow[]> {
+  const r = await handle.query<DemandRow>(sql, params);
   return r.rows.map((row) => ({
     ...row,
     loan_dependent: Boolean(row.loan_dependent),
@@ -61,8 +68,8 @@ export async function mapDemands(sql: string, params: unknown[] = []): Promise<D
   }));
 }
 
-export async function listDemands(bookingId: string) {
-  return mapDemands(`${DEMAND_SELECT} WHERE d.booking_id = $1 ORDER BY d.sequence`, [bookingId]);
+export async function listDemands(bookingId: string, handle: DbLike = db) {
+  return mapDemands(`${DEMAND_SELECT} WHERE d.booking_id = $1 ORDER BY d.sequence`, [bookingId], handle);
 }
 
 export async function setOverdueReason(demandId: string, reasonCode: string) {

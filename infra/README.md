@@ -1,46 +1,51 @@
-# HomeFlow · AWS Infrastructure (CDK)
+# HomeFlow — AWS infra (plain scripts, not CDK)
 
-Infrastructure-as-code for HomeFlow on AWS. **Written and validated (`cdk synth` passes), not yet deployed** — we build locally (PGlite + Express) and deploy here when a few slices are proven. Same domain code, re-pointed by env (architecture.md §6b).
+The old CDK stacks (Cognito, EventBridge, Aurora, Lambda, HTTP API — see
+git history) were never deployed and are deleted. This account's deploy
+is one container on **App Runner** + **RDS Postgres** + **S3**, built with
+idempotent AWS CLI scripts under `infra/scripts/` — chosen over CDK
+because App Runner's CDK L2 is still alpha, and getting a live URL fast
+mattered more than IaC polish for this account (see the r0/03-platform
+PR for the full reasoning).
 
-## Stacks
+Account `975050032697`, region `ap-south-1`, CLI profile `pranava`.
+Every resource is named `homeflow-*` and tagged `Project=homeflow` —
+this account also holds an unrelated `pranava-portal` project; never
+touch anything not carrying that tag/prefix.
 
-| Stack | Contains |
-|---|---|
-| `HomeFlow-Platform` | Cognito (workspace + customer clients), EventBridge bus (`homeflow-events`), encrypted+versioned S3 files bucket |
-| `HomeFlow-App` | VPC, **Aurora Serverless v2 (PostgreSQL 16)** system of record, API **Lambda** (Node 22) behind an **HTTP API Gateway** |
+## One-time setup
 
-The Lambda hosts the *same* domain handlers we run locally under Express (`services/api`); `infra/lambda/index.mjs` is the deployment shell, replaced by the bundled handlers at deploy time.
-
-## Prerequisites (when we deploy)
-
-1. AWS account + credentials configured locally (`aws configure` or SSO). Recommended region **ap-south-1 (Mumbai)**.
-2. Verify identity: `aws sts get-caller-identity`.
-3. Node 20+.
-
-## Commands
-
-```
-npm install
-npm run synth      # compile CDK → CloudFormation (no AWS account needed) ✅ verified
-npm run bootstrap  # one-time per account/region: cdk bootstrap
-npm run diff       # preview changes vs deployed
-npm run deploy     # cdk deploy --all  (provisions real infra — costs money)
-npm run destroy    # cdk destroy --all (tear down to stop billing)
+```bash
+export RDS_MASTER_PASSWORD=...   # only needed the first time (creates the RDS instance + its secret)
+export SMTP_PASS=...             # Gmail app password
+export OPENAI_API_KEY=...
+bash infra/scripts/provision.sh
 ```
 
-## Cost & safety notes
+Creates: ECR repo, S3 bucket (private, SSE-S3), RDS Postgres 16
+(db.t4g.micro, 20 GB gp3, single-AZ, 7-day backups, deletion protection,
+publicly accessible — see the PR for why), two IAM roles (ECR pull +
+S3/Secrets read), four Secrets Manager entries, the App Runner service,
+30-day CloudWatch log retention, and a ~₹5,000/month budget alert.
 
-- **Dev posture:** `removalPolicy: DESTROY` on Aurora + S3 and `autoDeleteObjects` so `destroy` cleans up. **Harden for production** (RETAIN, deletion protection).
-- Main cost drivers: Aurora Serverless v2 (min 0.5 ACU), 1 NAT gateway. Run `npm run destroy` when not in use to avoid idle billing.
-- No secrets in code: DB credentials are a generated Secrets Manager secret; the Lambda gets read access only.
+Re-running is safe — every step checks whether its resource already
+exists first.
 
-## Deploy path (future slice)
+## Every deploy
 
-1. `aws configure` (ap-south-1) → `aws sts get-caller-identity`.
-2. `cd infra && npm run bootstrap`.
-3. Bundle `services/api` handlers into `infra/lambda` (build step) — replaces the shell.
-4. `npm run deploy` → note the `ApiUrl` output.
-5. Run schema migrations against Aurora (same SQL as local).
-6. Point the frontend `/api` at the deployed `ApiUrl`.
+```bash
+npm run deploy   # = bash infra/scripts/deploy.sh
+```
 
-Until then, everything runs locally with no AWS dependency.
+Builds the image, pushes `:latest` to ECR, redeploys the App Runner
+service, runs `services/api`'s migrations against RDS, and smoke-tests
+`GET /health`.
+
+## Known deviation (fix before real customer data lands here)
+
+RDS is publicly accessible with a security group open on 5432 to
+0.0.0.0/0. App Runner without a VPC connector has no fixed egress IP
+range to scope that down to, and a VPC connector needs NAT (~$32/mo,
+blows the ₹5k budget) or VPC endpoints. Fine for now — this account
+holds no real customer PII (TODO §8) — but tighten this (VPC connector +
+NAT/endpoints, or move to Pranava's own account) before go-live.
