@@ -3,6 +3,7 @@ import { db } from "./db";
 import { setupFunding } from "./demands-schedule";
 import { getBooking } from "./bookings";
 import { appendEvent, withTx } from "./events";
+import { nextCode } from "./model/codes";
 
 // CRM decisions on a submitted booking — split out of bookings.ts to respect the 200-line
 // rule (Sales → CRM handoff, handshakes.md H2).
@@ -25,9 +26,11 @@ export async function acceptBooking(id: string, rm = "Priya Nair") {
   const a = app.rows[0];
   const custId = randomUUID();
   await withTx(undefined, async (t) => {
+    const custCode = await nextCode(t, "CUS");
     await t.query(
-      `INSERT INTO customer (id, display_name, primary_phone, kyc_status) VALUES ($1,$2,$3,'verified')`,
-      [custId, a.display_name, a.phone]
+      `INSERT INTO customer (id, display_name, primary_phone, kyc_status, code, primary_name)
+       VALUES ($1,$2,$3,'verified',$4,$2)`,
+      [custId, a.display_name, a.phone, custCode]
     );
     await appendEvent(t, {
       type: "customer.created",

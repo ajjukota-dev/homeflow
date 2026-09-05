@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { db } from "./db";
 import { getUnit } from "./handlers";
-import { appendEvent, withTx, type DbLike } from "./events";
+import { withTx, type DbLike } from "./events";
+import { defaultPortfolioId } from "./model/projects";
+import { defaultHierarchyNodeId, insertUnit, type UnitInput } from "./model/units";
 
 // Project/Site master-data creation. Project owns unit creation (data-model.md §2).
 // New units seed a progress row per component (all not_started) so gates derive immediately.
@@ -16,49 +18,30 @@ export async function listProjects() {
 export async function createProject(input: { code: string; name: string }) {
   if (!input.code?.trim() || !input.name?.trim()) throw new Error("code and name required");
   const id = "p_" + randomUUID().slice(0, 8);
-  await db.query(`INSERT INTO project (id, code, name) VALUES ($1,$2,$3)`, [
+  const portfolioId = await defaultPortfolioId();
+  await db.query(`INSERT INTO project (id, code, name, portfolio_id) VALUES ($1,$2,$3,$4)`, [
     id,
     input.code.trim().toUpperCase(),
     input.name.trim(),
+    portfolioId,
   ]);
   await cloneStandardPlan(id);
   return { id, code: input.code.trim().toUpperCase(), name: input.name.trim() };
 }
 
+/** Delegates to model/units.ts — kept here since it's the existing Sales/Site-facing entry
+ *  point; a caller who doesn't supply a hierarchy node gets the project's default one. */
 export async function createUnit(
   projectId: string,
-  input: { unit_number: string; unit_type: string; facing: string },
+  input: Omit<UnitInput, "product_type"> & { hierarchy_node_id?: string; product_type?: UnitInput["product_type"] },
   tx?: DbLike
 ) {
-  if (!input.unit_number?.trim()) throw new Error("unit_number required");
   const p = await db.query(`SELECT id FROM project WHERE id = $1`, [projectId]);
   if (p.rows.length === 0) throw new Error("project_not_found");
 
-  const id = "u_" + randomUUID().slice(0, 8);
-  await withTx(tx, async (t) => {
-    await t.query(
-      `INSERT INTO unit (id, project_id, unit_number, unit_type, facing) VALUES ($1,$2,$3,$4,$5)`,
-      [id, projectId, input.unit_number.trim(), input.unit_type.trim() || "3BHK", input.facing.trim() || "East"]
-    );
-    // seed a progress row per component so the gate engine has inputs
-    await t.query(
-      `INSERT INTO unit_progress (unit_id, component_code, state_code)
-       SELECT $1, code, 'not_started' FROM component_definition`,
-      [id]
-    );
-    await t.query(
-      `INSERT INTO qa_evidence (unit_id, component_code, qa_verified)
-       SELECT $1, code, false FROM component_definition`,
-      [id]
-    );
-    await appendEvent(t, {
-      type: "unit.created",
-      entity_type: "unit",
-      entity_id: id,
-      project_id: projectId,
-      unit_id: id,
-      payload: { unit_number: input.unit_number.trim(), unit_type: input.unit_type, facing: input.facing },
-    });
+  const id = await withTx(tx, async (t) => {
+    const hierarchyNodeId = input.hierarchy_node_id ?? (await defaultHierarchyNodeId(projectId, t));
+    return insertUnit(t, projectId, hierarchyNodeId, input);
   });
   return getUnit(id);
 }

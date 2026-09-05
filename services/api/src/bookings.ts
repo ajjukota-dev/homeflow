@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { db } from "./db";
 import type { BookingDetailRow, BookingListRow } from "./bookings-types";
 import { appendEvent, withTx } from "./events";
+import { nextCode } from "./model/codes";
 
 // Sales → CRM handoff (handshakes.md H2). Completeness gate → accept births a Customer Twin.
 
@@ -65,10 +66,13 @@ export async function createBooking(unitId: string, input: BookingInput) {
   const bookingId = randomUUID();
   const number = "BK-" + bookingId.slice(0, 8).toUpperCase();
   await withTx(undefined, async (t) => {
+    const code = await nextCode(t, "BKG");
     await t.query(
-      `INSERT INTO booking (id, project_id, unit_id, booking_number, status, total_consideration, completeness_score, docs)
-       VALUES ($1,$2,$3,$4,'submitted',$5,$6,$7)`,
-      [bookingId, u.rows[0].project_id, unitId, number, input.total_consideration, score, JSON.stringify(input.docs)]
+      `INSERT INTO booking
+        (id, project_id, unit_id, booking_number, status, total_consideration, completeness_score, docs,
+         code, agreement_value_inr)
+       VALUES ($1,$2,$3,$4,'submitted',$5,$6,$7,$8,$5)`,
+      [bookingId, u.rows[0].project_id, unitId, number, input.total_consideration, score, JSON.stringify(input.docs), code]
     );
     await t.query(
       `INSERT INTO booking_applicant (id, booking_id, display_name, role, phone, pan)
