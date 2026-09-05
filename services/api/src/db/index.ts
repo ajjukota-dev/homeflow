@@ -12,12 +12,14 @@ import { seedActionTypes } from "../seed/action-types";
 import { seedEscalationConfig } from "../seed/escalation-rules";
 import { seedHandoverChecklist } from "../seed/handover-checklist";
 import { seedSnagSlaPolicies, seedQaTemplates } from "../seed/qa-templates";
+import { seedDocumentChecklistRules } from "../seed/documents";
 import { registerJourneySubscribers } from "../journey/subscribers";
 import { registerNotificationSubscribers } from "../notifications/subscribers";
 import { registerEscalationSubscribers } from "../escalations/subscribers";
 import { registerChangeabilitySubscribers } from "../changeability/subscribers";
 import { registerSalesSubscribers } from "../sales/subscribers";
 import { registerSpecificationSubscribers } from "../specification/subscribers";
+import { registerDocumentSubscribers } from "../documents/subscribers";
 import type { DbClient } from "./types";
 
 export type { DbClient } from "./types";
@@ -92,12 +94,16 @@ export function initDb(): Promise<void> {
       // 15 config: snag SLA by severity (after the escalation seed so the snag sla_policy rows
       // can attach 12's standard ladder).
       await seedSnagSlaPolicies(db);
+      // 22 config: KYC document checklist rules by residency — same "every environment needs
+      // this" treatment as the SLA/escalation/handover-checklist config seeds above.
+      await seedDocumentChecklistRules(db);
       registerJourneySubscribers();
       registerNotificationSubscribers();
       registerEscalationSubscribers();
       registerChangeabilitySubscribers();
       registerSalesSubscribers();
       registerSpecificationSubscribers();
+      registerDocumentSubscribers();
       const seedAllowed = process.env.NODE_ENV !== "production" || process.env.SEED_DEMO === "1";
       if (!seedAllowed) return;
       const { rows } = await db.query<{ count: number }>(`SELECT count(*)::int AS count FROM project`);

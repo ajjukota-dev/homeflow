@@ -100,12 +100,12 @@ export const TAB_REGISTRY: TabDef[] = [
   { key: "20.cash_targets", label: "Cash targets", owner_spec: 20, built: false, edit_roles: MGMT },
   { key: "20.period_calendar", label: "Period calendar", owner_spec: 20, built: false, edit_roles: MGMT },
 
-  // 22 — document factory (not built)
-  { key: "22.templates", label: "Templates", owner_spec: 22, built: false, edit_roles: ["LEGAL"] },
-  { key: "22.clauses", label: "Clauses", owner_spec: 22, built: false, edit_roles: ["LEGAL"] },
-  { key: "22.selection_rules", label: "Selection rules", owner_spec: 22, built: false, edit_roles: ["LEGAL"] },
-  { key: "22.merge_fields", label: "Merge fields", owner_spec: 22, built: false, edit_roles: ["LEGAL"] },
-  { key: "22.document_checklist_rules", label: "Document checklist rules", owner_spec: 22, built: false, edit_roles: ["LEGAL"] },
+  // 22 — document factory (backend built; PUT routes are the real edit path, Studio UI deferred like every other spec's)
+  { key: "22.templates", label: "Templates", owner_spec: 22, built: true, edit_roles: ["LEGAL"] },
+  { key: "22.clauses", label: "Clauses", owner_spec: 22, built: true, edit_roles: ["LEGAL"] },
+  { key: "22.selection_rules", label: "Selection rules", owner_spec: 22, built: true, edit_roles: ["LEGAL"] },
+  { key: "22.merge_fields", label: "Merge fields", owner_spec: 22, built: true, edit_roles: ["LEGAL"] },
+  { key: "22.document_checklist_rules", label: "Document checklist rules", owner_spec: 22, built: true, edit_roles: ["LEGAL"] },
 
   // 23 — registration (not built)
   { key: "23.registration_checklists", label: "Registration checklists", owner_spec: 23, built: false, edit_roles: ["REGISTRATION"] },

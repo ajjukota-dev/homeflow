@@ -13,6 +13,9 @@ export interface FilesPort {
   putPresigned(key: string, contentType: string): Promise<PresignedUpload>;
   getPresigned(key: string): Promise<string>;
   delete(key: string): Promise<void>;
+  /** Server-generated content (rendered PDFs, not a user's presigned upload) — 22's Document Factory
+   *  is the first caller (rule 9: PDF via the files port). */
+  putBuffer(key: string, data: Buffer, contentType: string): Promise<void>;
 }
 
 export const MAX_FILE_BYTES = 25 * 1024 * 1024; // 25 MB (03-platform-deploy.md)
