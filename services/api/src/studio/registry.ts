@@ -74,7 +74,7 @@ export const TAB_REGISTRY: TabDef[] = [
   // 14 — readiness scores (not built)
   { key: "14.score_weights_thresholds", label: "Score weights & thresholds", owner_spec: 14, built: false, edit_roles: MGMT },
 
-  // 15 — QA evidence & snags (not built)
+  // 15 — QA evidence & snags (backend built; templates have PUT /qa/checklist-templates, Studio UI deferred like every other spec's)
   { key: "15.qa_checklist_templates", label: "QA checklist templates", owner_spec: 15, built: false, edit_roles: ["QA"] },
   { key: "15.snag_sla", label: "Snag SLA", owner_spec: 15, built: false, edit_roles: ["QA"] },
   { key: "15.contractors", label: "Contractors", owner_spec: 15, built: false, edit_roles: ["QA"] },

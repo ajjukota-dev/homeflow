@@ -280,3 +280,13 @@ Amarsh: "dont stop - this was supposed to be an autonomous run." Continuing with
 - `rework` added to `gates.ts::ProgressState`; the compiler found exactly two `Record<ProgressState, number>` sites (`gates.ts`, `customer.ts`) — both rank it with in_progress.
 - Registry coverage test caught a real gap: my rule-6 test asserted the stale sweep's action but not its `progress.stale` event — assertion added, not the test relaxed.
 - Next: 15 (QA evidence & snags) — the one spec 07 unblocks directly.
+
+## 00:55 IST 2026-09-06 — R6: QA checklists, evidence & snags backend merged (15-qa-evidence-snags.md)
+
+- `0032_qa.sql`: new `qa_checklist_template`, `qa_inspection`, `qa_inspection_evidence`, `external_dependency`, `contractor`, `snag_sla_policy`; `snag` ALTERed in place (22 columns, lowercase vocabulary kept, Appendix A names at the API); `sla_policy.applies_to` gains `SNAG_SEVERITY`; `handover_policy.major_snag_max`. Modules `qa/{templates,inspections,dependencies,snags}.ts`, `routes-qa.ts`, `seed/qa-templates.ts`. 8 rule tests; suite 83 files / 501 tests, tsc clean.
+- Collision handled without a rename: the real `qa_evidence` is the (unit, component) QA-verified flag 14 and the handover gate read — kept; 15's evidence-file table is `qa_inspection_evidence`, and every QA PASS/FAIL upserts the legacy flag so readiness never disagrees with the inspection log.
+- Rule 6 wired for real through 12: each snag owns an `exec_simple` action carrying its severity SLA clock, so `scanEscalations` raises the escalation once overdue (tested: CRITICAL due in exactly 2 calendar days, escalation to the assignee after +1 day).
+- Rule 1 + 07 together: site declaration → `complete/SITE_ENTRY`, QA fail → `rework/QA_VERIFICATION` + one snag per failed item + SITE re-inspection action, re-inspection pass → `verified`. 07's state write runs as its own transaction after the inspection's (the nested-withTx lesson from 17).
+- Found: `component_definition` rows are demo data, so a config seed that FKs onto them fails on a fresh DB before the demo seed — templates now seed after it and skip absent components. Same 07 question stands: components should become config.
+- Built to the matrix, flagged: MANAGEMENT can't reopen snags (READ only on `snagging`); `critical_snag_2d` stays unwired (12's rule match has no severity filter).
+- Next: 16 (handover gates) — still needs 22/23 for its document and registration inputs; will survey what's genuinely unblocked first.

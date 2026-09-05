@@ -11,6 +11,7 @@ import { seedSlaPolicies } from "../seed/sla-policies";
 import { seedActionTypes } from "../seed/action-types";
 import { seedEscalationConfig } from "../seed/escalation-rules";
 import { seedHandoverChecklist } from "../seed/handover-checklist";
+import { seedSnagSlaPolicies, seedQaTemplates } from "../seed/qa-templates";
 import { registerJourneySubscribers } from "../journey/subscribers";
 import { registerNotificationSubscribers } from "../notifications/subscribers";
 import { registerEscalationSubscribers } from "../escalations/subscribers";
@@ -85,6 +86,9 @@ export function initDb(): Promise<void> {
       // 17 config: handover checklist rules (by product/residency) + return-reason taxonomy —
       // config, not demo data, same as the SLA/escalation seeds above.
       await seedHandoverChecklist(db);
+      // 15 config: snag SLA by severity (after the escalation seed so the snag sla_policy rows
+      // can attach 12's standard ladder).
+      await seedSnagSlaPolicies(db);
       registerJourneySubscribers();
       registerNotificationSubscribers();
       registerEscalationSubscribers();
@@ -95,6 +99,8 @@ export function initDb(): Promise<void> {
         await seed(db);
         await seedUsers();
       }
+      // 15: checklist templates key on component_definition rows, which seed.ts owns today.
+      await seedQaTemplates(db);
     })();
   }
   return ready;

@@ -13,6 +13,7 @@ import {
   projectHandover,
   completeHandover,
 } from "./qa";
+import { closeSnagLifecycle } from "./qa/snags";
 import { projectWarranty, serviceHistory, closeWarranty, captureCheckin } from "./warranty";
 import { controlTower, actIntervention } from "./tower-view";
 import type { AuthedRequest } from "./auth/middleware";
@@ -92,11 +93,16 @@ export function registerLifecycleRoutes(app: Express) {
       fail(res, e);
     }
   });
+  // Pre-15 note-based close (before/after notes in the body) vs 15's lifecycle close
+  // (VERIFIED → CLOSED, no body) share one path — dispatched on the body shape.
   app.post("/api/snags/:id/close", async (req: AuthedRequest, res) => {
     try {
-      res.json({
-        data: await closeSnag(req.params.id, req.body?.before_note, req.body?.after_note, { actor: req.actor! }),
-      });
+      if (req.body?.before_note || req.body?.after_note) {
+        return res.json({
+          data: await closeSnag(req.params.id, req.body?.before_note, req.body?.after_note, { actor: req.actor! }),
+        });
+      }
+      res.json({ data: await closeSnagLifecycle(req.params.id, { actor: req.actor! }) });
     } catch (e) {
       fail(res, e);
     }

@@ -14,9 +14,9 @@ export async function snagCounts(unitId: string) {
       GROUP BY severity`,
     [unitId]
   );
-  const critical = r.rows.find((x) => x.severity === "critical")?.n ?? 0;
-  const minor = r.rows.find((x) => x.severity === "minor")?.n ?? 0;
-  return { critical, minor };
+  // Case-insensitive: rls.test.ts writes 'MINOR' while the seed and qa/snags.ts write lowercase.
+  const count = (sev: string) => r.rows.filter((x) => x.severity.toLowerCase() === sev).reduce((s, x) => s + x.n, 0);
+  return { critical: count("critical"), major: count("major"), minor: count("minor") };
 }
 
 export async function listSnagsForUnit(unitId: string) {
