@@ -224,6 +224,7 @@ Defaults accepted by silence (2026-09-05): staff-entered receipts/loans/SRO slot
 17. **Design system overhaul first** (05:40): Amarsh — "colours or spacing or font or size looks really cheap and bad, and animations are expected." Measured cause: no webfont (Segoe UI on Windows), generic blue accent, ghost cards, zero authored motion. Spec `docs/specs/32-design-system.md`; `packages/ui` shared by both apps (reverses the earlier `packages/` cut — a shared design system is the justifying consumer); previews synced to Claude Design for his review; tokens + primitives approved before screens migrate.
 18. **End-to-end journeys are the definition of done**, not unit tests: every feature ships a Playwright journey against real API + seeded data at 375/1440 with axe; cross-feature journeys in `e2e/journeys/`; same journeys run against the URL after each deploy; Claude reviews screenshots/traces before merge. (conventions §DoD updated)
 19. **Clean-code gates**: ESLint strict + Prettier + `knip` in CI alongside tsc/tests.
+21. **Brand (05:50):** researched from the logo file + pranavagroup.com — orange `#E74C0A` (logo `#E65123`), ink `#1C1F26`, charcoal `#424242`, Jost typeface, tagline "Presenting the Future". Assets in `docs/brand/`. Orange is the accent only; Jost for headings, Geist for body/data. Claude Design project "Pranava HomeFlow" created (`a9dbd115-c63e-4358-a8fe-a57754659c37`); `/design-login` done. Still ask Pranava for the SVG logo (§8).
 20. New dependencies approved for 32: `motion` (framer-motion v12), self-hosted Geist Sans/Mono + Newsreader woff2, `@axe-core/playwright`. Any other new dependency still needs a one-line ask.
 
 (Earlier Cognito note withdrawn — superseded by 12.)
@@ -249,7 +250,7 @@ Defaults accepted by silence (2026-09-05): staff-entered receipts/loans/SRO slot
 | **Google sign-in:** an OAuth client from Pranava's Google Workspace (client id/secret, allowed domain) — email/password works without it | A (Google method) |
 | **Email sender:** Pranava mailbox/domain for invites, resets, digests (SMTP or SES credentials) — Amarsh's Gmail is used meanwhile | A (email) |
 | App domain (e.g. `homeflow.pranava.in`) for HTTPS + cookies — App Runner default URL meanwhile | Deploy |
-| **Brand assets:** Pranava logo (SVG), brand colours, brand typeface if any, project photography — placeholder tokens + wordmark meanwhile | 32 design system |
+| **Logo SVG** + any brand guideline PDF + project photography (colours/typeface already taken from pranavagroup.com; JPEG/PNG logo in `docs/brand/`) | 32 polish |
 | Is anyone entering real data into the Emergent preview app? Rotate the tokens committed in its `qa/*.tok`. | Cut-over |
 | Check-in satisfaction scale (1–5 assumed) and default when skipped (p17 §8.14 names 7/30/90 only) | N |
 | May a customer pay an instalment before its trigger fires? | I |
