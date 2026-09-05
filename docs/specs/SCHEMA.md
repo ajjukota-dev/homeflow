@@ -19,6 +19,8 @@ doc blindly once R1+ starts adding `0004_*.sql` onward.
 | `0001_platform_llm_call.sql` | llm_call (03-platform-deploy) |
 | `0002_event.sql` | 02-event-log: event_type, event (append-only, triggers reject UPDATE/DELETE), event_delivery_failure |
 | `0003_canonical.sql` | 04-canonical-model: portfolio, project_hierarchy_node, code_sequence; ALTERs project/unit/customer/booking/booking_applicant; `unit_history` view |
+| `0004_journey_templates.sql`–`0024_collections.sql` | R1–R3 feature migrations (05, 06, 10, 25, 19) — not individually re-cataloged here yet; see each spec file's own Data section |
+| `0025_rls.sql` | P1 of `docs/reports/2026-09-05-branch-review.md`'s consolidation: `homeflow_app` non-superuser role, blanket grants + `ALTER DEFAULT PRIVILEGES`, RLS policies on the `project` table (scoped by `id`) and every table carrying a direct `project_id` column (staff realm only; customer-realm and join-reachable tables are follow-up work — the migration's own header comment has the full audit). Empirically verified against PGlite via `SET ROLE` — see `src/rls.test.ts`. GUCs are not yet wired into any request path (P1b, separate PR). |
 
 ## Real enums / vocabularies (as CHECK constraints or code, not spec prose)
 
