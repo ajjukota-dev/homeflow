@@ -207,7 +207,7 @@ export async function getUnitProgress(unitId: string, ctx?: Ctx, asOf?: string):
   };
 }
 
-async function unitsInScope(projectId: string, scope: { node_ids?: string[]; unit_ids?: string[] }, tx: DbLike): Promise<{ id: string; unit_number: string; hierarchy_node_id: string }[]> {
+export async function unitsInScope(projectId: string, scope: { node_ids?: string[]; unit_ids?: string[] }, tx: DbLike): Promise<{ id: string; unit_number: string; hierarchy_node_id: string }[]> {
   const nodeIds = scope.node_ids ?? [];
   const unitIds = scope.unit_ids ?? [];
   if (nodeIds.length === 0 && unitIds.length === 0) throw new AppError("validation", "scope needs node_ids or unit_ids", "scope");
@@ -345,7 +345,7 @@ export async function applyBulkUpdate(id: string, input: { exceptions?: { unit_i
     );
     await appendEvent(tx, {
       type: "progress.bulk_applied", entity_type: "progress_bulk_update", entity_id: id, project_id: pbu.project_id,
-      payload: { component: pbu.component_code, new_state: pbu.new_state, applied_count: applied.length, excluded_count: exceptions.length, conflict_count: conflicts.length },
+      payload: { component: pbu.component_code, new_state: pbu.new_state, applied_count: applied.length, excluded_count: exceptions.length, conflict_count: conflicts.length, unit_ids: applied },
       ...actorFields(ctx),
     });
     return { id, applied, excluded: exceptions, conflicts };

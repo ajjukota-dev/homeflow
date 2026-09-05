@@ -47,9 +47,9 @@ export const TAB_REGISTRY: TabDef[] = [
   { key: "07.progress_components", label: "Progress components", owner_spec: 7, built: false, edit_roles: ["SITE"] },
   { key: "07.freshness_thresholds", label: "Freshness thresholds", owner_spec: 7, built: false, edit_roles: ["SITE"] },
 
-  // 08 — changeability engine (not built)
+  // 08 — changeability engine (backend built; rule studio has its own draft/publish routes in routes-changeability.ts, UI deferred)
   { key: "08.change_categories", label: "Change categories", owner_spec: 8, built: false, edit_roles: ["SITE"] },
-  { key: "08.change_gate_rule_studio", label: "Change Gate Rule Studio", owner_spec: 8, built: false, edit_roles: ["SITE"] },
+  { key: "08.change_gate_rule_studio", label: "Change Gate Rule Studio", owner_spec: 8, built: true, edit_roles: ["SITE"] },
   { key: "08.gate_expiry_sources", label: "Gate-expiry sources", owner_spec: 8, built: false, edit_roles: ["SITE"] },
 
   // 09 — spec revisions (not built)

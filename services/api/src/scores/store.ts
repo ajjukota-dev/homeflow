@@ -7,8 +7,8 @@ import type { Score, ScoreType } from "./contract";
 // scheduler/event-debounce mechanism to do it on a 1-min-debounced event feed or nightly, same
 // gap already documented for 06/19/21/12/13; compute-on-read is the honest substitute).
 
-export async function previousValue(scoreType: ScoreType, subjectId: string): Promise<number | null> {
-  const r = await db.query<{ value: number }>(
+export async function previousValue(scoreType: ScoreType, subjectId: string, tx: DbLike = db): Promise<number | null> {
+  const r = await tx.query<{ value: number }>(
     `SELECT value::float8 AS value FROM score_snapshot
       WHERE score_type = $1 AND subject_id = $2 AND computed_at <= now() - interval '7 days'
       ORDER BY computed_at DESC LIMIT 1`,

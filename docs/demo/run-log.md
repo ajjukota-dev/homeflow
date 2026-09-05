@@ -290,3 +290,13 @@ Amarsh: "dont stop - this was supposed to be an autonomous run." Continuing with
 - Found: `component_definition` rows are demo data, so a config seed that FKs onto them fails on a fresh DB before the demo seed — templates now seed after it and skip absent components. Same 07 question stands: components should become config.
 - Built to the matrix, flagged: MANAGEMENT can't reopen snags (READ only on `snagging`); `critical_snag_2d` stays unwired (12's rule match has no severity filter).
 - Next: 16 (handover gates) — still needs 22/23 for its document and registration inputs; will survey what's genuinely unblocked first.
+
+## 01:05 IST 2026-09-06 — R5: changeability engine backend merged (08-changeability-engine.md)
+
+- Went to 08, not 16: 16 still needs 22 (skipped) and 23 for its LEGAL/REGISTRATION/CUSTOMER gate inputs; 08 needed only 07/02/01, all built, and unblocks 24/18/14.
+- `0033_changeability.sql` ALTERs `change_category`/`change_gate_rule` in place (SCHEMA.md drift #4 as written), adds `unit_change_gate`, `unit_gate_exception`, `gate_evaluation_log`. `gates.ts` gains the full pure engine (`evaluateCategory`, `flexibilityScore`) alongside the untouched `deriveGate`; `changeability/{core,subscribers}.ts`, `routes-changeability.ts`. 28-row engine table + 7 rule tests; tsc clean.
+- Rule 3 is now a real event loop: a 07 progress write → `progress.updated` → subscriber re-evaluates → `unit_change_gate` flips with `source_event_id` → `gate.state_changed`. Tested end to end through `updateProgress`, not by calling the evaluator directly.
+- Found: `scores/store.ts::previousValue` used the module-level `db`; called from inside my transaction it would have deadlocked PGlite — gave it an optional `tx`. Same lesson as 17's nested `withTx`, one layer down: anything that runs inside a transaction must take the transaction.
+- Found: seed.ts's demo rules land after migrations, so 0033's `code` back-fill saw an empty table — `COALESCE` in the loader. Second time today a "config" table turned out to be demo data (15's components).
+- Flagged: procurement/drawing/slab triggers have no producers; MANAGEMENT-by-default exception authority; publish always needs a reason.
+- Next: 24 (sales inventory & discovery) now has 07+08; 18 still needs 09/22/26. Surveying 09 vs 24.
