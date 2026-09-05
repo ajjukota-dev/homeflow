@@ -1,0 +1,166 @@
+/* HomeFlow design tokens — spec docs/specs/32-design-system.md.
+   Semantic CSS variables only; components/Tailwind preset consume these, never raw hex/px.
+   Light is default; dark via [data-theme="dark"] (elevation by lighter surfaces, not shadows).
+   Every colour is declared twice: `--x` (hex, for direct `var(--x)` use — SVGs, inline styles)
+   and `--x-rgb` (space-separated R G B, so the Tailwind preset can wire `rgb(var(--x-rgb) /
+   <alpha-value>)` and opacity modifiers like `bg-line/70` actually generate CSS — Tailwind can't
+   synthesize an alpha channel from a plain `var(--x)` value, so without the -rgb pair the utility
+   is silently dropped instead of erroring). */
+
+:root {
+  /* Surfaces */
+  --bg: #f7f8f9;
+  --bg-rgb: 247 248 249;
+  --surface: #ffffff;
+  --surface-rgb: 255 255 255;
+  --surface-raised: #fcfcfc;
+  --surface-raised-rgb: 252 252 252;
+  --line: #e6e6e6;
+  --line-rgb: 230 230 230;
+
+  /* Text */
+  --fg: #1c1f26;
+  --fg-rgb: 28 31 38;
+  --fg-muted: #6a6a6a;
+  --fg-muted-rgb: 106 106 106;
+  --fg-subtle: #9a9a9a;
+  --fg-subtle-rgb: 154 154 154;
+
+  /* Brand accent — orange is accent-only: primary action, focus ring, active nav, the logo */
+  --accent: #e74c0a;
+  --accent-rgb: 231 76 10;
+  /* Spec's researched value is #fff, but white-on-#E74C0A is 3.86:1 — below AA's 4.5:1 body-text
+     floor (00-conventions.md, this spec's own Rule 2) at the sizes Button/IconButton render text.
+     #1A1204 (the value already chosen for dark mode) reaches 4.8:1 against the light accent too,
+     so light and dark now share one accent-fg instead of diverging — flagged for Amarsh in the PR. */
+  --accent-fg: #1a1204;
+  --accent-fg-rgb: 26 18 4;
+  --accent-soft: #fdede6;
+  --accent-soft-rgb: 253 237 230;
+  /* Text color for accent-flavoured content ON --accent-soft (Badge tone="accent", Avatar
+     initials): plain --accent on --accent-soft is 3.39:1, below AA — this reaches 5.26:1. */
+  --accent-soft-fg: #b23a0e;
+  --accent-soft-fg-rgb: 178 58 14;
+
+  /* Status — never orange, so status never competes with the brand accent */
+  --ok: #1e7f4f;
+  --ok-rgb: 30 127 79;
+  --ok-soft: #e3f5ea;
+  --ok-soft-rgb: 227 245 234;
+  --ok-fg: #146238;
+  --ok-fg-rgb: 20 98 56;
+
+  --info: #2b6cb0;
+  --info-rgb: 43 108 176;
+  --info-soft: #e5f0fa;
+  --info-soft-rgb: 229 240 250;
+  --info-fg: #1d4e82;
+  --info-fg-rgb: 29 78 130;
+
+  --warn: #b7791f;
+  --warn-rgb: 183 121 31;
+  --warn-soft: #fbf0dc;
+  --warn-soft-rgb: 251 240 220;
+  --warn-fg: #8a5a12;
+  --warn-fg-rgb: 138 90 18;
+
+  --danger: #c0392b;
+  --danger-rgb: 192 57 43;
+  --danger-soft: #fbe8e6;
+  --danger-soft-rgb: 251 232 230;
+  --danger-fg: #8e2a1f;
+  --danger-fg-rgb: 142 42 31;
+
+  /* Elevation — declare once: hairline border OR shadow, never both */
+  --shadow-panel: 0 12px 32px -8px rgb(0 0 0 / 0.18);
+  --radius-card: 12px;
+  --radius-control: 8px;
+  --radius-pill: 999px;
+
+  /* Spacing — 4px base scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Container widths */
+  --container-workspace: 1280px;
+  --container-portal: 880px;
+
+  /* Motion — exponential ease-out; prefers-reduced-motion collapses these (see motion.ts) */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-micro: 160ms;
+  --duration-panel: 240ms;
+  --duration-page: 400ms;
+}
+
+[data-theme="dark"] {
+  --bg: #111214;
+  --bg-rgb: 17 18 20;
+  --surface: #1a1b1e;
+  --surface-rgb: 26 27 30;
+  --surface-raised: #22242a;
+  --surface-raised-rgb: 34 36 42;
+  --line: #2e3138;
+  --line-rgb: 46 49 56;
+
+  --fg: #f2f2f0;
+  --fg-rgb: 242 242 240;
+  --fg-muted: #a7a9ae;
+  --fg-muted-rgb: 167 169 174;
+  --fg-subtle: #7c7e84;
+  --fg-subtle-rgb: 124 126 132;
+
+  --accent: #ff6a3d;
+  --accent-rgb: 255 106 61;
+  --accent-fg: #1a1204;
+  --accent-fg-rgb: 26 18 4;
+  --accent-soft: #3a1f12;
+  --accent-soft-rgb: 58 31 18;
+  /* --accent itself already clears 4.5:1 (5.3:1) against the dark --accent-soft. */
+  --accent-soft-fg: #ff6a3d;
+  --accent-soft-fg-rgb: 255 106 61;
+
+  --ok: #3fbd80;
+  --ok-rgb: 63 189 128;
+  --ok-soft: #103322;
+  --ok-soft-rgb: 16 51 34;
+  --ok-fg: #86e0b4;
+  --ok-fg-rgb: 134 224 180;
+
+  --info: #5b9bdb;
+  --info-rgb: 91 155 219;
+  --info-soft: #12283d;
+  --info-soft-rgb: 18 40 61;
+  --info-fg: #a7cdf0;
+  --info-fg-rgb: 167 205 240;
+
+  --warn: #d9a441;
+  --warn-rgb: 217 164 65;
+  --warn-soft: #3a2c0e;
+  --warn-soft-rgb: 58 44 14;
+  --warn-fg: #f0cf8f;
+  --warn-fg-rgb: 240 207 143;
+
+  --danger: #e2685a;
+  --danger-rgb: 226 104 90;
+  --danger-soft: #3a1714;
+  --danger-soft-rgb: 58 23 20;
+  --danger-fg: #f3ada3;
+  --danger-fg-rgb: 243 173 163;
+
+  --shadow-panel: 0 12px 32px -8px rgb(0 0 0 / 0.5);
+}
+
+/* prefers-reduced-motion: transitions collapse to opacity <=120ms everywhere tokens drive motion */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-micro: 120ms;
+    --duration-panel: 120ms;
+    --duration-page: 120ms;
+  }
+}
