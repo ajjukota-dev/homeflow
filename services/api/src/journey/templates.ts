@@ -146,7 +146,9 @@ export async function getVersion(versionId: string, ctx: Ctx) {
   return { ...v.rows[0], ...content };
 }
 
-async function readVersionContent(versionId: string, tx: DbLike): Promise<VersionContentInput> {
+/** Exported for journey/instances.ts (06) — instantiating a journey needs the same nested
+ *  stages/tasks/dependencies/visibility read as the Studio's version editor. */
+export async function readVersionContent(versionId: string, tx: DbLike): Promise<VersionContentInput> {
   const stages = await tx.query<StageInput & { id: string }>(
     `SELECT id, code, name, customer_name, sort_order, stream, customer_visible, planned_duration_days,
             owner_department, entry_gate_expr, is_mandatory, condition_expr
