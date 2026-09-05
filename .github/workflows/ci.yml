@@ -18,7 +18,11 @@ jobs:
         # examples (this file, infra/README.md's placeholder) are excluded
         # deliberately — everything else must never match.
         run: |
-          if grep -rIn \
+          # `--exclude` only matches a basename, not a path, so infra/README.md
+          # (which spells out a placeholder like every other README) is
+          # filtered afterwards instead — found while testing this job
+          # actually runs (it never had before this PR).
+          MATCHES=$(grep -rIn \
             -e 'sk-[A-Za-z0-9]\{20,\}' \
             -e 'AKIA[0-9A-Z]\{16\}' \
             -e 'SMTP_PASS=[^"$]' \
@@ -26,9 +30,9 @@ jobs:
             --exclude=.env.example \
             --exclude=ci.yml \
             --exclude=03-platform-deploy.md \
-            --exclude=README.md \
-            .
-          then
+            . | grep -v '^\./infra/README\.md:' || true)
+          if [ -n "$MATCHES" ]; then
+            echo "$MATCHES"
             echo "::error::committed secret-shaped string found — see above"
             exit 1
           fi
@@ -55,7 +59,7 @@ jobs:
       # pdf port tests need a real Chromium (rule 2's PGlite parity tests
       # need nothing extra — DATABASE_URL is unset here, so they run
       # against pglite; the RDS/pg parity run is the nightly job below).
-      - run: npx --prefix services/api playwright install --with-deps chromium
+      - run: npm --prefix services/api exec -- playwright install --with-deps chromium
       - run: npm --prefix services/api test
       - run: npm --prefix apps/workspace test
 
@@ -92,7 +96,12 @@ jobs:
         env:
           DATABASE_URL: postgres://postgres:test@localhost:5432/postgres
         run: |
-          for f in src/*.test.ts; do
+          # Recursive glob — several ports (llm, mail, pdf, clock, files) keep
+          # their tests in subdirectories, not just src/*.test.ts directly
+          # (found while wiring this job; a flat glob silently skipped 6 of 22
+          # files, including the one that touches the llm_call table).
+          shopt -s globstar
+          for f in src/**/*.test.ts; do
             node -e "
               const { Pool } = require('pg');
               (async () => {

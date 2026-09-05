@@ -181,6 +181,11 @@ registerLifecycleRoutes(app);
 // s3 adapter needs no server route (real presigned URLs hit S3 directly).
 if (!process.env.FILES_BUCKET) registerLocalFileRoutes(app);
 
+// Any /api/* path not matched above is a real API 404, not the SPA shell —
+// without this, static.ts's catch-all `app.get("*")` would hand other lanes
+// an HTML index page for a typo'd or not-yet-built route (found in review).
+app.use("/api", (_req, res) => res.status(404).json({ errors: [{ code: "not_found" }] }));
+
 // Static SPA hosting (container only — see static.ts) must come after every
 // /api/* route so it never shadows them.
 registerStaticRoutes(app);

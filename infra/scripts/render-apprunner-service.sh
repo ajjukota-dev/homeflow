@@ -23,7 +23,11 @@ cat <<JSON
       "ImageRepositoryType": "ECR",
       "ImageConfiguration": {
         "Port": "8080",
-        "RuntimeEnvironmentVariables": { "NODE_ENV": "production", "PORT": "8080" },
+        "RuntimeEnvironmentVariables": {
+          "NODE_ENV": "production",
+          "PORT": "8080",
+          "SEED_DEMO": "1"
+        },
         "RuntimeEnvironmentSecrets": {
           "DATABASE_URL": "$DATABASE_URL_ARN",
           "SESSION_SECRET": "$SESSION_SECRET_ARN",

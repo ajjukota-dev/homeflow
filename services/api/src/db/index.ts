@@ -28,11 +28,15 @@ export async function setState(unitId: string, component: string, state: string)
 let ready: Promise<void> | null = null;
 // Applies migrations, then seeds demo data only on a fresh DB — a
 // disk-persisted dev DB must survive an API restart without duplicate-key
-// crashes on re-seed.
+// crashes on re-seed. Demo seed (East Crest / Karthik Iyer fixtures) must
+// never write itself into a real customer DB just because it's empty on
+// first boot (found in review) — require an explicit opt-in in prod.
 export function initDb(): Promise<void> {
   if (!ready) {
     ready = (async () => {
       await migrate(db);
+      const seedAllowed = process.env.NODE_ENV !== "production" || process.env.SEED_DEMO === "1";
+      if (!seedAllowed) return;
       const { rows } = await db.query<{ count: number }>(`SELECT count(*)::int AS count FROM project`);
       if (Number(rows[0]?.count ?? 0) === 0) {
         await seed(db);
