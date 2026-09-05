@@ -2,7 +2,7 @@
 
 Production-grade, scalable, maintainable. This is a real product we will scale and operate, not a prototype. Every change follows these rules. When in doubt, favour clarity and long-term maintainability over cleverness or speed.
 
-**Spec is authoritative.** The build contract lives in `docs/spec/`. `docs/spec/foundation/` wins over any role file; role files win over ad-hoc code. Read the relevant spec before implementing.
+**Spec is authoritative.** Requirement authority is the client PDF `docs/Pranava_HomeFlow_2.0_Full_Design_Spec_v8.pdf`. The build contract is `docs/specs/` (one file per feature; `00-conventions.md` applies to all) with the plan and decisions in `TODO.md`. `docs/spec/` and `docs/HOMEFLOW-OS.md` are legacy AI-derived drafts — cross-check only; where they disagree with `docs/specs/`, `docs/specs/` wins. Read the feature's spec file before implementing and touch only the paths in its "Files" list.
 
 ---
 
