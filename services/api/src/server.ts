@@ -13,7 +13,7 @@ import {
   listCustomers,
   getCustomer,
 } from "./bookings";
-import { getCustomerHome, firstActiveBooking } from "./customer";
+import { getCustomerHome, firstActiveBooking, bookingForCustomerUser } from "./customer";
 import { listProjects, createProject, createUnit } from "./projects";
 import {
   listDemands,
@@ -23,23 +23,31 @@ import {
 import { postReceipt } from "./demands-receipts";
 import { projectCollections, listOverdueReasons } from "./collections-view";
 import { registerLifecycleRoutes } from "./routes-lifecycle";
+import { registerAuthRoutes } from "./auth/routes";
+import { requireSession, type AuthedRequest } from "./auth/middleware";
 import { registerModelRoutes } from "./routes-model";
 import { getAudit } from "./events";
 
 // Local API gateway. Handlers are Lambda-portable; this Express wrapper is the local
 // mirror (architecture.md §6b) — the same handlers run behind API Gateway on AWS.
 const app = express();
-app.use(cors());
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
-// Container health check (03-platform-deploy.md) — checks the DB, used by
-// App Runner and the deploy smoke test.
+// Container health check (03-platform-deploy.md) — checks the DB, used by App
+// Runner and the deploy smoke test. Registered before requireSession: App
+// Runner's health probe carries no session cookie.
 app.get("/health", async (_req, res) => {
   const dbOk = await checkHealth();
   res.status(dbOk ? 200 : 503).json({ ok: dbOk, db: dbOk });
 });
+
+// 01-identity-access.md API: auth routes are public/self-gated; requireSession
+// below covers every other route ("on every non-auth route").
+registerAuthRoutes(app);
+app.use(requireSession);
 
 app.get("/api/units", async (req, res) => {
   res.json({ data: await listUnits(req.query.project_id as string | undefined) });
@@ -115,8 +123,14 @@ app.post("/api/bookings/:id/return", async (req, res) => {
 });
 
 // --- My Pranava Home (customer portal, H10-filtered) ---
-app.get("/api/me/home", async (req, res) => {
-  const bookingId = (req.query.booking_id as string) || (await firstActiveBooking());
+// 01-identity-access.md Rule 4: a CUSTOMER session always resolves to its own
+// booking via customer_login — booking_id/firstActiveBooking() fallbacks are
+// for staff previewing the portal only, never for an authenticated customer
+// (that used to leak whichever booking was "first active" to any customer).
+app.get("/api/me/home", async (req: AuthedRequest, res) => {
+  const actor = req.actor!;
+  const bookingId =
+    actor.kind === "CUSTOMER" ? await bookingForCustomerUser(actor.user_id) : (req.query.booking_id as string) || (await firstActiveBooking());
   if (!bookingId) return res.status(404).json({ errors: [{ code: "no_booking" }] });
   const home = await getCustomerHome(bookingId);
   if (!home) return res.status(404).json({ errors: [{ code: "not_found" }] });

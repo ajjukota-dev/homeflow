@@ -61,6 +61,11 @@ test.describe("Design system — accessibility (axe)", () => {
   for (const slug of PREVIEW_PAGES) {
     test(`${slug}.html has 0 serious/critical violations`, async ({ page }) => {
       await page.goto(`/${slug}.html`);
+      // motion.html's list-stagger demo starts its items at opacity:0 and
+      // animates in over <=440ms (40ms/item, capped at 400ms, +the item's own
+      // transition) — scanning mid-fade makes axe flag the momentarily
+      // near-invisible text as a color-contrast failure. Wait for it to settle.
+      if (slug === "motion") await page.waitForTimeout(600);
       const results = await new AxeBuilder({ page }).analyze();
       const seriousOrCritical = results.violations.filter(
         (v) => v.impact === "serious" || v.impact === "critical",
