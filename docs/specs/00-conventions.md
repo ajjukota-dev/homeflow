@@ -17,15 +17,17 @@ One file per feature (index in `TODO.md §10`). Each is written so an agent can 
 | Errors | `{ code, message, field?, source_ref? }`. `validation` → 400, `forbidden` → 403, `not_found` → 404 (also for rows outside the actor's project scope **[E]**), `conflict` → 409, `gate_blocked` → 422 with `blockers[]`. |
 | Status vocabularies | Appendix A (p41–42) verbatim for Action, Change Request, Commitment, Document, Snag, Handover. `SCREAMING_SNAKE` in code (`HARD_CLOSED`), human labels via `apps/workspace/src/lib/labels.ts`. |
 | Config over code | Anything the PDF lists in §21 Policy Studio (p26–27) is a table with `effective_from/effective_to`, `version`, `changed_by`, never a constant. Seed via `services/api/src/seed/*.ts`, one file per config family. East Crest values live only in `seed/demo-east-crest.ts`. |
-| UI | Design tokens only; loading/empty/error states on every list; WCAG AA; screenshots at 1440/768/375 reviewed before merge; no purple/indigo, no glass, no filler text. One `h1` per page. |
+| UI | Everything comes from `packages/ui` per `32-design-system.md`: tokens only (lint-enforced), Geist/Newsreader self-hosted, 4 px spacing scale, one authored motion moment per surface, seven control states, loading/empty/error on every list; WCAG AA via axe in E2E; screenshots at 1440/768/375 reviewed before merge; no purple/indigo, no glass, no filler text, no eyebrows, no ghost cards. One `h1` per page. Read `~/claude-setup/reference/impeccable/README.md` + `craft-floor.md` before any UI work. |
+| Clean code | ESLint (strict TS rules, no unused, no floating promises, token rule) + Prettier as CI gates; `knip` for dead exports; handlers pure and ≤ 200 lines; one module = one reason to change; names from the PDF's vocabulary; comments say *why* and cite the spec section. |
+| End-to-end testing | Every feature ships `apps/*/e2e/<feature>.spec.ts`: a Playwright **journey** that drives the real UI against the API with seeded data (not mocks) at 375 and 1440, asserts the feature's acceptance items, takes screenshots and a trace. Cross-feature journeys live in `e2e/journeys/` (e.g. `sale-to-handover.spec.ts`). After every deploy the same journeys run against the App Runner URL as smoke. Claude reviews screenshots/traces before merging — unit tests alone never close a feature. |
 | Explainability | Every score/flag exposes `value, trend, drivers[3], confidence, actions[]` (p8 §6). No number without a "why". |
 | Product awareness | `product_type ∈ {APARTMENT, VILLA, PLOT}` on Project (default for units) and Unit; templates, change categories, checklists and readiness components are keyed by product type. Plots have no interior components. |
 
 ## Definition of done (per PR)
 
-1. Failing test first for every rule below the "Rules" heading; `npm test` green in `services/api`, `apps/workspace`, `apps/my-pranava-home`; `tsc` 0 errors everywhere.
-2. Acceptance tests listed in the workstream file exist as automated tests, named after their PDF reference (e.g. `p35-30.5-t4`).
-3. Playwright screenshots of every new/changed screen at 3 breakpoints committed under `e2e/__screenshots__/` and looked at.
+1. Failing test first for every rule below the "Rules" heading; `npm test` green in `services/api`, `apps/workspace`, `apps/my-pranava-home`; `tsc` 0 errors, ESLint 0 errors, `knip` clean everywhere.
+2. Acceptance tests listed in the spec exist as automated tests, named after their PDF reference (e.g. `p35-30.5-t4`).
+3. The feature's Playwright journey passes at 375 and 1440 with axe clean; screenshots committed under `e2e/__screenshots__/` and reviewed against `craft-floor.md` "Verify"; the review note is in the PR.
 4. Migration is additive and applied on boot; seed updated; demo data still loads.
 5. Events emitted and asserted for every mutation named in the workstream's Events list.
 6. `TODO.md` updated: workstream status, anything found while building, new client questions.

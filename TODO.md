@@ -174,8 +174,8 @@ Ground rules: Sonnet agents, `isolation: "worktree"`, one branch + PR per lane, 
 
 | Step | Lanes in parallel | Exit criterion |
 |---|---|---|
-| R0 spikes | S1 → S3 · S2(+S7) · S5+S4 · S6+S8 | Demo URL live over HTTPS with login; 100 API + 52 UI tests green on Postgres; cost measured |
-| R1 demo hardening (same day) | seeded demo users per role · demo data for 3 products · smoke Playwright against the URL | Amarsh can log in as each role and walk Sales → CRM → Collections → QA → Handover → Portal on the URL |
+| R0 spikes + design foundation | S1 → S3 · S2(+S7) · S5+S4 · S6+S8 · **32 design system** (tokens, fonts, motion, first primitives, previews synced to Claude Design) | Demo URL live over HTTPS with login; 100 API + 52 UI tests green on Postgres; cost measured; Amarsh has approved tokens + primitives in Claude Design |
+| R1 demo hardening | migrate existing screens to `packages/ui` · seeded demo users per role · demo data for 3 products · **E2E journeys** for every existing feature at 375/1440 (`e2e/journeys/sale-to-handover.spec.ts` etc.) · smoke against the URL | Amarsh can log in as each role and walk Sales → CRM → Collections → QA → Handover → Portal on the URL, in the new design, with the journeys green |
 | R2 wave 1 | A (remaining: roles/permission matrix, project scoping, event log) · B · F | §26 audit/trace bullets, p37 §31.5 t1/t2/t9, p47 §34.7 all ten |
 | R3 wave 2 | C · G · L · K · E | p35 §30.5, p44 §33.6, commitments gate hard, My Day ranks real actions |
 | R4 wave 3 | H · I · J · D · Q tabs | p37 §31.5, p41 §32.11, §26 customisation + document bullets |
@@ -221,6 +221,11 @@ Defaults accepted by silence (2026-09-05): staff-entered receipts/loans/SRO slot
 15. **Parallelise** the autonomous run with Sonnet agents in worktrees, one PR per lane; Claude merges (worktrees removed before `gh pr merge --delete-branch` — see §9 lesson).
 16. **Specs:** one file per feature in `docs/specs/` (§10). `docs/spec/` (legacy, vibecoded) is deleted once `docs/specs/` covers it.
 
+17. **Design system overhaul first** (05:40): Amarsh — "colours or spacing or font or size looks really cheap and bad, and animations are expected." Measured cause: no webfont (Segoe UI on Windows), generic blue accent, ghost cards, zero authored motion. Spec `docs/specs/32-design-system.md`; `packages/ui` shared by both apps (reverses the earlier `packages/` cut — a shared design system is the justifying consumer); previews synced to Claude Design for his review; tokens + primitives approved before screens migrate.
+18. **End-to-end journeys are the definition of done**, not unit tests: every feature ships a Playwright journey against real API + seeded data at 375/1440 with axe; cross-feature journeys in `e2e/journeys/`; same journeys run against the URL after each deploy; Claude reviews screenshots/traces before merge. (conventions §DoD updated)
+19. **Clean-code gates**: ESLint strict + Prettier + `knip` in CI alongside tsc/tests.
+20. New dependencies approved for 32: `motion` (framer-motion v12), self-hosted Geist Sans/Mono + Newsreader woff2, `@axe-core/playwright`. Any other new dependency still needs a one-line ask.
+
 (Earlier Cognito note withdrawn — superseded by 12.)
 
 ### 7a. Spikes (each ends in a committed, working proof; run first, in parallel where the table allows)
@@ -244,6 +249,7 @@ Defaults accepted by silence (2026-09-05): staff-entered receipts/loans/SRO slot
 | **Google sign-in:** an OAuth client from Pranava's Google Workspace (client id/secret, allowed domain) — email/password works without it | A (Google method) |
 | **Email sender:** Pranava mailbox/domain for invites, resets, digests (SMTP or SES credentials) — Amarsh's Gmail is used meanwhile | A (email) |
 | App domain (e.g. `homeflow.pranava.in`) for HTTPS + cookies — App Runner default URL meanwhile | Deploy |
+| **Brand assets:** Pranava logo (SVG), brand colours, brand typeface if any, project photography — placeholder tokens + wordmark meanwhile | 32 design system |
 | Is anyone entering real data into the Emergent preview app? Rotate the tokens committed in its `qa/*.tok`. | Cut-over |
 | Check-in satisfaction scale (1–5 assumed) and default when skipped (p17 §8.14 names 7/30/90 only) | N |
 | May a customer pay an instalment before its trigger fires? | I |
@@ -301,3 +307,4 @@ One file per feature; the build contract for the autonomous run. `00-conventions
 | `29-communications.md` | Omnichannel log, internal vs customer-visible, templates + approval, guardrails | M | R5 |
 | `30-post-handover.md` | Move-in, DLP/warranty, Home Passport, service history, check-ins, advocacy | N | R5 |
 | `31-intelligence.md` | Rule-based risk/next-action/collection/commitment scores; OpenAI text tasks behind `llm` port | S | R6 |
+| `32-design-system.md` | `packages/ui`: tokens, Geist/Newsreader, spacing, colour, elevation, motion, primitives, Claude Design sync, migration | — (all) | R0–R1 |
