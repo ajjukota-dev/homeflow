@@ -11,4 +11,6 @@ playwright-report/
 blob-report/
 .data/
 .claude/worktrees/
+.claude/direction-last-check
+infra/cdk.out/
 
