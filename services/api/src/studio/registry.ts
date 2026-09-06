@@ -59,6 +59,13 @@ export const TAB_REGISTRY: TabDef[] = [
   // studio itself keeps its own bespoke draft/publish routes in routes-changeability.ts)
   { key: "08.change_categories", label: "Change categories", owner_spec: 8, built: true, edit_roles: ["SITE"] },
   { key: "08.change_gate_rule_studio", label: "Change Gate Rule Studio", owner_spec: 8, built: true, edit_roles: ["SITE"] },
+  // Investigated 2026-09-06: confirmed a documentation-only duplicate, not separate work. Spec
+  // 08's own Config line names "gate-expiry source mapping" alongside change_gate_rule, but its
+  // Data table backs no separate gate_expiry_source table — rule 2's expected_close_at derivation
+  // (the "source" of a gate's expiry) reads change_gate_rule's own trigger_component_code /
+  // trigger_event / closing_lead_days columns. Stays built:false (no dedicated screen exists yet
+  // either way) until 08.change_gate_rule_studio's own Studio screen ships, at which point editing
+  // those same columns there covers this tab too — not a second screen to build.
   { key: "08.gate_expiry_sources", label: "Gate-expiry sources", owner_spec: 8, built: false, edit_roles: ["SITE"] },
 
   // 09 — spec revisions (backend built; PUT routes are the real edit path, Studio UI deferred like every other spec's)
