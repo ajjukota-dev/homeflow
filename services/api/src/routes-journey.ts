@@ -1,12 +1,14 @@
 import type { Express } from "express";
 import {
   listTemplates,
+  listVersions,
   createTemplate,
   createVersion,
   getVersion,
   putVersionContent,
   publishVersion,
   assignTemplateToProject,
+  previewVersion,
 } from "./journey/templates";
 import type { AuthedRequest } from "./auth/middleware";
 import { failHttp } from "./authz/httpError";
@@ -31,9 +33,33 @@ export function registerJourneyRoutes(app: Express) {
     }
   });
 
+  app.get("/api/journey-templates/:id/versions", async (req: AuthedRequest, res) => {
+    try {
+      res.json({ data: await listVersions(req.params.id, { actor: req.actor! }) });
+    } catch (e) {
+      failHttp(res, e);
+    }
+  });
+
   app.post("/api/journey-templates/:id/versions", async (req: AuthedRequest, res) => {
     try {
       res.json({ data: { id: await createVersion(req.params.id, { actor: req.actor! }) } });
+    } catch (e) {
+      failHttp(res, e);
+    }
+  });
+
+  // 05's own API line: `GET /journey-templates/versions/:vid/preview?product_type&residency`
+  // ("which tasks instantiate"). previewVersion is pure (content in, result out) — read the
+  // version through the same ctx-gated getVersion the editor uses, then evaluate.
+  app.get("/api/journey-template-versions/:id/preview", async (req: AuthedRequest, res) => {
+    try {
+      const version = await getVersion(req.params.id, { actor: req.actor! });
+      const result = previewVersion(
+        { stages: version.stages, dependencies: version.dependencies },
+        { product_type: req.query.product_type as string | undefined, residency: req.query.residency as string | undefined }
+      );
+      res.json({ data: result });
     } catch (e) {
       failHttp(res, e);
     }

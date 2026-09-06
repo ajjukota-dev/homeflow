@@ -87,6 +87,17 @@ export async function listTemplates(ctx: Ctx) {
   return rows;
 }
 
+/** Studio's version picker + the publish dialog's "diff vs previous version" both need every
+ *  version of a template, not just the latest `listTemplates` already returns. */
+export async function listVersions(templateId: string, ctx: Ctx) {
+  requireRole(ctx, POLICY_STUDIO_ROLES);
+  const { rows } = await db.query<{ id: string; version: number; status: string; published_at: string | null; change_note: string | null }>(
+    `SELECT id, version, status, published_at, change_note FROM journey_template_version WHERE template_id = $1 ORDER BY version DESC`,
+    [templateId]
+  );
+  return rows;
+}
+
 export async function createTemplate(
   input: { code: string; name: string; scope: "STANDARD" | "PROJECT"; project_id?: string; parent_template_id?: string; product_type?: string },
   ctx: Ctx,

@@ -5,6 +5,7 @@ import type { Ctx } from "../authz/types";
 import {
   createTemplate,
   listTemplates,
+  listVersions,
   createVersion,
   getVersion,
   putVersionContent,
@@ -157,6 +158,21 @@ describe("journey templates (05-journey-templates.md)", () => {
     expect(v2Content.version).toBe(2);
     expect(v2Content.status).toBe("DRAFT");
     expect(v2Content.stages.map((s) => s.code)).toEqual(["BOOKING", "LEGAL"]);
+  });
+
+  it("listVersions returns every version of a template newest-first, for the Studio's version picker and publish-diff", async () => {
+    const templateId = await createTemplate({ code: "list_versions", name: "List Versions", scope: "STANDARD" }, adminCtx);
+    const v1 = await createVersion(templateId, adminCtx);
+    await putVersionContent(v1, minimalContent(), adminCtx);
+    await publishVersion(v1, {}, adminCtx);
+    const v2 = await createVersion(templateId, adminCtx);
+
+    const versions = await listVersions(templateId, adminCtx);
+    expect(versions.map((v) => [v.version, v.status])).toEqual([
+      [2, "DRAFT"],
+      [1, "PUBLISHED"],
+    ]);
+    expect(versions.find((v) => v.id === v2)).toBeTruthy();
   });
 
   it("rule 1: only a PUBLISHED version can be assigned to a project; emits template.assigned_to_project", async () => {

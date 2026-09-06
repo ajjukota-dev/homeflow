@@ -1,10 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Skeleton, EmptyState, Badge } from "@homeflow/ui";
 import { Settings2 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { studioApi, type TabDef } from "./api";
 import { GENERIC_TABLES, TAB_TO_TABLE } from "./registry";
 import { GenericTableEditor } from "./GenericTableEditor";
+import { JourneyTemplateStudio } from "./JourneyTemplateStudio";
+
+// Tabs with their own bespoke screen (not the generic /studio/:table envelope) — same "flag,
+// don't fake" spirit as GENERIC_TABLES, but for tabs whose edit surface isn't a plain table.
+const BESPOKE_TABS: Record<string, (canEdit: boolean) => ReactNode> = {
+  "05.journey_template_studio": (canEdit) => <JourneyTemplateStudio canEdit={canEdit} />,
+};
 
 /** Policy Studio shell (25-policy-studio.md Screens): left nav grouped by owning spec, one
  *  content pane. A tab either resolves to a generic-envelope table (GENERIC_TABLES) and gets the
@@ -85,14 +92,16 @@ export function Studio() {
       </nav>
 
       <div className="min-w-0 flex-1">
-        {activeTab && tableDef ? (
+        {activeTab && BESPOKE_TABS[activeTab.key] ? (
+          BESPOKE_TABS[activeTab.key](activeTab.can_edit)
+        ) : activeTab && tableDef ? (
           <GenericTableEditor table={tableName!} label={activeTab.label} def={tableDef} canEdit={activeTab.can_edit} />
         ) : activeTab ? (
           <EmptyState
             icon={Settings2}
             message={
               activeTab.built
-                ? `${activeTab.label} has its own dedicated screen elsewhere in the app, not this generic table editor — Studio UI for it isn't built here yet.`
+                ? `${activeTab.label} is built on the backend, but this Studio tab's editor UI isn't built here yet — flagged in TODO.md.`
                 : `${activeTab.label} has no edit path yet — flagged in TODO.md, not built.`
             }
           />
