@@ -11,6 +11,7 @@ import { QaHandover } from "./pages/QaHandover";
 import { PostHandover } from "./pages/PostHandover";
 import { ControlTower } from "./pages/ControlTower";
 import { Roadmap } from "./pages/management/Roadmap";
+import { Studio } from "./pages/studio/Shell";
 import { AdminUsers } from "./pages/admin/Users";
 import { AdminTeams } from "./pages/admin/Teams";
 import { AdminPermissionMatrix } from "./pages/admin/PermissionMatrix";
@@ -99,6 +100,7 @@ export function Workspace({ me, onLogout }: { me: NonNullable<ReturnType<typeof 
     after: <PostHandover projectId={projectId} />,
     tower: <ControlTower projectId={projectId} />,
     roadmap: <Roadmap />,
+    studio: <Studio />,
     "admin-users": <AdminUsers />,
     "admin-teams": <AdminTeams projectId={projectId} />,
     "admin-permissions": <AdminPermissionMatrix />,
