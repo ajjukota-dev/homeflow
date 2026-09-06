@@ -26,9 +26,10 @@ export async function getExceptions(projectId: string, ctx: Ctx, kind?: string):
   }
 
   if (!kind || kind === "GATE_EXCEPTION") {
-    const r = await db.query<{ id: string; unit_id: string; category_code: string; granted_by: string; created_at: string }>(
-      `SELECT uge.id, uge.unit_id, uge.category_code, uge.granted_by, uge.created_at::text AS created_at
+    const r = await db.query<{ id: string; unit_id: string; category_code: string; granted_by: string | null; created_at: string }>(
+      `SELECT uge.id, uge.unit_id, uge.category_code, u2.display_name AS granted_by, uge.created_at::text AS created_at
          FROM unit_gate_exception uge JOIN unit u ON u.id = uge.unit_id
+         LEFT JOIN "user" u2 ON u2.id = uge.granted_by
         WHERE u.project_id = $1 AND uge.status = 'ACTIVE'`,
       [projectId]
     );
@@ -36,9 +37,10 @@ export async function getExceptions(projectId: string, ctx: Ctx, kind?: string):
   }
 
   if (!kind || kind === "ACTIVE_HOLD") {
-    const r = await db.query<{ id: string; unit_id: string; booking_id: string | null; requested_by: string; created_at: string }>(
-      `SELECT id, unit_id, booking_id, requested_by, requested_until::text AS created_at
-         FROM change_window_hold WHERE project_id = $1 AND status = 'APPROVED' AND approved_until >= CURRENT_DATE`,
+    const r = await db.query<{ id: string; unit_id: string; booking_id: string | null; requested_by: string | null; created_at: string }>(
+      `SELECT h.id, h.unit_id, h.booking_id, u2.display_name AS requested_by, h.requested_until::text AS created_at
+         FROM change_window_hold h LEFT JOIN "user" u2 ON u2.id = h.requested_by
+        WHERE h.project_id = $1 AND h.status = 'APPROVED' AND h.approved_until >= CURRENT_DATE`,
       [projectId]
     );
     out.push(...r.rows.map((x) => ({ kind: "ACTIVE_HOLD", id: x.id, unit_id: x.unit_id, booking_id: x.booking_id, owner: x.requested_by, headline: "Active hold affecting schedule", occurred_at: x.created_at })));
@@ -63,7 +65,7 @@ export async function getExceptions(projectId: string, ctx: Ctx, kind?: string):
          FROM change_request cr WHERE cr.project_id = $1 AND cr.status <> 'DRAFT'`,
       [projectId]
     );
-    out.push(...r.rows.filter((x) => x.contribution < 0).map((x) => ({ kind: "CR_NEGATIVE_CONTRIBUTION", id: x.id, unit_id: x.unit_id, booking_id: x.booking_id, owner: "CUSTOMISATION", headline: `Negative contribution ₹${x.contribution.toFixed(0)}`, occurred_at: x.created_at })));
+    out.push(...r.rows.filter((x) => x.contribution < 0).map((x) => ({ kind: "CR_NEGATIVE_CONTRIBUTION", id: x.id, unit_id: x.unit_id, booking_id: x.booking_id, owner: "CUSTOMISATION", headline: `Negative contribution ₹${x.contribution.toLocaleString("en-IN")}`, occurred_at: x.created_at })));
   }
 
   if (!kind || kind === "HANDOVER_OVERRIDE") {
@@ -81,7 +83,7 @@ export async function getExceptions(projectId: string, ctx: Ctx, kind?: string):
          FROM forecast_line WHERE project_id = $1 AND source_type = 'MANUAL_FINANCE_OVERRIDE' AND status = 'ACTIVE'`,
       [projectId]
     );
-    out.push(...r.rows.map((x) => ({ kind: "FORECAST_MANUAL_OVERRIDE", id: x.id, unit_id: null, booking_id: x.booking_id, owner: "ACCOUNTS", headline: `Manual forecast override ₹${x.amount_inr.toFixed(0)}`, occurred_at: x.created_at })));
+    out.push(...r.rows.map((x) => ({ kind: "FORECAST_MANUAL_OVERRIDE", id: x.id, unit_id: null, booking_id: x.booking_id, owner: "ACCOUNTS", headline: `Manual forecast override ₹${x.amount_inr.toLocaleString("en-IN")}`, occurred_at: x.created_at })));
   }
 
   return out;

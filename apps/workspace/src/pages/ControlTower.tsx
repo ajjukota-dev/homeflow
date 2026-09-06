@@ -2,13 +2,58 @@ import { useCallback, useEffect, useState } from "react";
 import { Landmark } from "lucide-react";
 import { api } from "../api";
 import type { Intervention } from "../api-lifecycle";
-import { Card, CardBody, Button } from "@homeflow/ui";
+import { lifecycleApi } from "../api-lifecycle";
+import { Card, CardBody, Button, Dialog, DialogContent, Tabs, TabsList, TabsTrigger } from "@homeflow/ui";
 import { MoneyFigure } from "../ui/MoneyFigure";
 import { cn, formatIstDateTime } from "../lib/utils";
 import { interventionCategoryLabel } from "../lib/labels";
+import { CashFlowPlanner } from "./finance/CashFlowPlanner";
+import { PortfolioCompare } from "./finance/PortfolioCompare";
+import { PortfolioView } from "./management/PortfolioView";
+import { ProfitabilityView } from "./management/ProfitabilityView";
+import { ExceptionsView } from "./management/ExceptionsView";
+import { KpisView } from "./management/KpisView";
+import { TeamBottlenecksView } from "./management/TeamBottlenecksView";
 
-/** Five interventions — not fifty charts (management/spec.md §3.1). */
-export function ControlTower({ projectId }: { projectId: string }) {
+function DismissDialog({ item, onDismissed }: { item: Intervention; onDismissed: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function dismiss() {
+    if (!reason.trim()) return;
+    setBusy(true);
+    try {
+      await lifecycleApi.dismissIntervention(item.id, reason.trim());
+      setOpen(false);
+      setReason("");
+      onDismissed();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <Button size="sm" variant="ghost" onClick={() => setOpen(true)}>
+        Dismiss
+      </Button>
+      <DialogContent title="Dismiss this intervention" description="Requires a reason (rule 2). Can't reappear for the same underlying issue for 14 days.">
+        <div className="flex flex-col gap-3">
+          <label className="text-footnote font-medium text-fg-muted">
+            Reason (required)
+            <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} className="mt-1 w-full rounded-lg border border-line bg-surface p-2 text-body" />
+          </label>
+          <Button onClick={dismiss} disabled={!reason.trim() || busy}>
+            {busy ? "Dismissing…" : "Dismiss"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function Interventions({ projectId }: { projectId: string }) {
   const [items, setItems] = useState<Intervention[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -38,15 +83,9 @@ export function ControlTower({ projectId }: { projectId: string }) {
 
   return (
     <div>
-      <header className="mb-6">
-        <h1 className="text-large font-bold">Control tower</h1>
-        <p className="mt-1 max-w-2xl text-subhead text-fg-muted">
-          Five problems that need a decision today — a customer, cash, a handover, reputation, and margin.
-        </p>
-      </header>
       {error && (
         <Card>
-          <CardBody className="text-subhead text-overdue">Couldn’t reach the API on :3001.</CardBody>
+          <CardBody className="text-subhead text-overdue">Couldn't reach the API on :3001.</CardBody>
         </Card>
       )}
       {loading && !error && (
@@ -69,27 +108,34 @@ export function ControlTower({ projectId }: { projectId: string }) {
                   <div className="min-w-0 flex-1">
                     <div className="text-caption font-medium uppercase tracking-wide text-fg-subtle">
                       {interventionCategoryLabel(item.category)}
-                      {item.status === "acted" && item.acted_at
-                        ? ` · Acted · ${formatIstDateTime(item.acted_at)}`
-                        : ""}
+                      {item.status === "acted" && item.acted_at ? ` · Acted · ${formatIstDateTime(item.acted_at)}` : ""}
+                      {item.status === "dismissed" ? " · Dismissed" : ""}
                     </div>
                     <h2 className="mt-1 text-title3 font-semibold">{item.headline}</h2>
                     <p className="mt-2 text-footnote text-fg-muted">{item.decision_pack.recommended_decision}</p>
                     <div className="mt-3 flex flex-wrap items-center gap-3">
-                      <span className={cn("text-footnote", item.decision_pack.impact.rupee > 0 ? "text-fg" : "text-fg-subtle")}>
-                        {item.decision_pack.impact.rupee > 0 ? (
-                          <MoneyFigure amount={item.decision_pack.impact.rupee} risk="overdue" />
+                      <span className={cn("text-footnote", item.decision_pack.impact.inr > 0 ? "text-fg" : "text-fg-subtle")}>
+                        {item.decision_pack.impact.inr > 0 ? (
+                          <MoneyFigure amount={item.decision_pack.impact.inr} risk="overdue" />
                         ) : (
                           "No rupee at risk"
                         )}
                       </span>
+                      {item.decision_pack.impact.customers > 0 && (
+                        <span className="text-footnote text-fg-muted">
+                          {item.decision_pack.impact.customers} customer{item.decision_pack.impact.customers === 1 ? "" : "s"}
+                        </span>
+                      )}
                       <Button size="sm" variant="ghost" onClick={() => setOpenId(expanded ? null : item.id)}>
                         {expanded ? "Hide pack" : "Decision pack"}
                       </Button>
-                      {item.status !== "acted" && item.material && (
-                        <Button size="sm" onClick={() => act(item.id)} disabled={busy === item.id}>
-                          Act
-                        </Button>
+                      {item.status === "open" && item.material && (
+                        <>
+                          <Button size="sm" onClick={() => act(item.id)} disabled={busy === item.id}>
+                            Act
+                          </Button>
+                          <DismissDialog item={item} onDismissed={load} />
+                        </>
                       )}
                     </div>
                     {expanded && (
@@ -116,6 +162,55 @@ export function ControlTower({ projectId }: { projectId: string }) {
           </CardBody>
         </Card>
       )}
+    </div>
+  );
+}
+
+type Tab = "interventions" | "portfolio" | "cash" | "planner" | "profitability" | "exceptions" | "kpis" | "teams";
+
+/** Five interventions — not fifty charts (p21 §14). Extended (spec 27) with the Views tabs the
+ *  spec names: Portfolio, Cash (reuses 20's Portfolio Comparison), Project Cash Flow (reuses 20's
+ *  Cash Flow Planner), Profitability, Exceptions, KPIs (domain tabs + drill), Team bottlenecks.
+ *  Project Performance / Experience / Execution are deliberately not built here — no dedicated
+ *  backend combines 06/16/07/08's own data into a single view; see this spec's own Build note. */
+export function ControlTower({ projectId, roles, onOpenProject }: { projectId: string; roles: string[]; onOpenProject: (projectId: string) => void }) {
+  const [tab, setTab] = useState<Tab>("interventions");
+
+  return (
+    <div>
+      <header className="mb-6">
+        <h1 className="text-large font-bold">Control tower</h1>
+        <p className="mt-1 max-w-2xl text-subhead text-fg-muted">
+          Five problems that need a decision today — a customer, cash, a handover, reputation, and margin.
+        </p>
+      </header>
+
+      {/* shrink-0 on every trigger: without it, a flex child inside overflow-x-auto shrinks and
+          wraps its own text (found live at 768px — "Project Cash Flow" broke onto 3 lines and the
+          remaining tabs were pushed out of view) instead of the row scrolling horizontally. */}
+      <div className="mb-6 overflow-x-auto">
+        <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
+          <TabsList className="flex-nowrap">
+            <TabsTrigger value="interventions" className="shrink-0 whitespace-nowrap">Interventions</TabsTrigger>
+            <TabsTrigger value="portfolio" className="shrink-0 whitespace-nowrap">Portfolio</TabsTrigger>
+            <TabsTrigger value="cash" className="shrink-0 whitespace-nowrap">Cash</TabsTrigger>
+            <TabsTrigger value="planner" className="shrink-0 whitespace-nowrap">Project Cash Flow</TabsTrigger>
+            <TabsTrigger value="profitability" className="shrink-0 whitespace-nowrap">Profitability</TabsTrigger>
+            <TabsTrigger value="exceptions" className="shrink-0 whitespace-nowrap">Exceptions</TabsTrigger>
+            <TabsTrigger value="kpis" className="shrink-0 whitespace-nowrap">KPIs</TabsTrigger>
+            <TabsTrigger value="teams" className="shrink-0 whitespace-nowrap">Teams</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+
+      {tab === "interventions" && <Interventions projectId={projectId} />}
+      {tab === "portfolio" && <PortfolioView onOpenProject={onOpenProject} />}
+      {tab === "cash" && <PortfolioCompare onOpenProject={onOpenProject} />}
+      {tab === "planner" && <CashFlowPlanner projectId={projectId} roles={roles} />}
+      {tab === "profitability" && <ProfitabilityView projectId={projectId} />}
+      {tab === "exceptions" && <ExceptionsView projectId={projectId} />}
+      {tab === "kpis" && <KpisView projectId={projectId} />}
+      {tab === "teams" && <TeamBottlenecksView projectId={projectId} />}
     </div>
   );
 }
