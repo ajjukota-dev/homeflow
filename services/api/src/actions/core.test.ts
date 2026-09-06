@@ -23,6 +23,7 @@ import {
   setExternalReference,
   listActions,
   getQueue,
+  getAction,
 } from "./core";
 
 // Universal Action (10-universal-action.md). action.*'s *_by/actor columns FK to "user"(id) —
@@ -277,6 +278,28 @@ describe("actions/core: reads", () => {
 
     const queue = await getQueue("CUSTOMISATION", crmA());
     expect(queue.some((q) => q.status === "New" && q.count >= 1)).toBe(true);
+  });
+
+  it("getAction returns full drawer detail: family, checklist, evidence, transition history", async () => {
+    const id = await makeAction("exec_simple", { owner_role: "LEGAL", checklist: [{ label: "Step 1", required: true }] });
+    await startAction(id, legalA());
+    await addEvidence(id, "k1", "photo", legalA());
+
+    const detail = await getAction(id, crmA());
+    expect(detail.id).toBe(id);
+    expect(detail.family).toBe("TASK");
+    expect(detail.status).toBe("In Progress");
+    expect(detail.checklist).toHaveLength(1);
+    expect(detail.checklist[0].label).toBe("Step 1");
+    expect(detail.evidence).toHaveLength(1);
+    expect(detail.evidence[0].file_key).toBe("k1");
+    expect(detail.transitions.map((t) => t.to_status)).toEqual(["In Progress"]);
+    expect(detail.sla_state).toBeNull(); // no sla_clock_id on this fixture
+    expect(detail.task_instance_id).toBeNull(); // this fixture isn't journey-created
+  });
+
+  it("getAction throws not_found for an unknown id", async () => {
+    await expect(getAction("nope", crmA())).rejects.toThrow(/not found/);
   });
 });
 

@@ -5,6 +5,7 @@ import { requireRole, STAFF_ROLES } from "../authz/requireRole";
 import { AppError, type Ctx } from "../authz/types";
 import { nextCode } from "../model/codes";
 import { stopClock } from "../journey/sla";
+import { deriveStatus, type ClockStatus } from "../journey/engine";
 
 // Universal Action (10-universal-action.md). Rules 1, 3, 4, 5, 8 fully built; rule 6 (customer
 // portal "action required from you" surface) is data-model-ready (customer_visible/
@@ -139,6 +140,26 @@ async function requireAction(actionId: string, tx: DbLike): Promise<ActionRow> {
 async function actionFamily(type: string, tx: DbLike): Promise<ActionFamily> {
   const r = await tx.query<{ family: ActionFamily }>(`SELECT family FROM action_type WHERE code = $1`, [type]);
   return r.rows[0]!.family;
+}
+
+/** True when a `task_instance` row backs this action (set by journey/instances.ts's
+ *  cascadeActionable). `completeTaskInstance` (instances.ts:378-380) is the only caller allowed
+ *  to close/approve such an action — it's what keeps `task_instance`/the journey's stage roll-up
+ *  in sync. There is no `action.closed` subscriber that does this the other way around (rule 7's
+ *  originally-planned mechanism, still not built), so an external caller closing/approving/
+ *  cancelling a task-backed action directly would silently desync the journey: the action reports
+ *  success, the task and its stage never move. Real risk now that ActionDrawer surfaces these
+ *  actions (via My Day) with its own Close/Approve/Cancel buttons — refused here rather than left
+ *  to look like it worked.
+ *
+ *  `cancelAction` blocks this UNCONDITIONALLY (no `maybeTx` escape hatch) because no internal
+ *  caller cancels a task-backed action today — that's conservative, not necessarily final: a
+ *  journey closed/cancelled at the journey level (closeJourney, a cancelled booking) currently has
+ *  no way to terminate its still-open task-backed actions. A future journey-side cancel path
+ *  should use the same `!maybeTx` discriminator close/approve already do, not lift this guard. */
+async function isTaskBacked(actionId: string, tx: DbLike): Promise<boolean> {
+  const r = await tx.query<{ count: string }>(`SELECT count(*)::text FROM task_instance WHERE action_id = $1`, [actionId]);
+  return Number(r.rows[0]!.count) > 0;
 }
 
 /** Lets journey/instances.ts's completeTaskInstance branch to approveAction instead of
@@ -295,6 +316,9 @@ export async function approveAction(actionId: string, note: string | undefined, 
   await withTx(maybeTx, async (tx) => {
     const a = await requireAction(actionId, tx);
     if (a.status !== "Ready for Approval") throw new AppError("conflict", "action is not Ready for Approval");
+    if (!maybeTx && (await isTaskBacked(actionId, tx))) {
+      throw new AppError("conflict", "this action completes through its journey task — approve the task instead");
+    }
     const isSA = ctx.actor.roles.includes("SUPER_ADMIN") || ctx.actor.roles.includes("MANAGEMENT");
     if (!isSA && !(a.approver_role && ctx.actor.roles.includes(a.approver_role))) {
       throw new AppError("forbidden", `requires role ${a.approver_role ?? "(none configured)"}, MANAGEMENT or SUPER_ADMIN`);
@@ -379,6 +403,9 @@ export async function closeAction(actionId: string, note: string | undefined, ct
   await withTx(maybeTx, async (tx) => {
     const a = await requireAction(actionId, tx);
     if (a.status === "Closed" || a.status === "Cancelled") throw new AppError("conflict", `action already ${a.status}`);
+    if (!maybeTx && (await isTaskBacked(actionId, tx))) {
+      throw new AppError("conflict", "this action completes through its journey task — close the task instead");
+    }
     const family = await actionFamily(a.type, tx);
     if (family === "VERIFICATION") {
       // The verifier (not the doer) closes directly — no separate /verify endpoint at the
@@ -407,6 +434,9 @@ export async function cancelAction(actionId: string, reason: string, ctx: Ctx): 
   await withTx(undefined, async (tx) => {
     const a = await requireAction(actionId, tx);
     if (a.status === "Closed" || a.status === "Cancelled") throw new AppError("conflict", `action already ${a.status}`);
+    if (await isTaskBacked(actionId, tx)) {
+      throw new AppError("conflict", "this action completes through its journey task — cancel via the journey instead");
+    }
     const isMgmt = ctx.actor.roles.includes("MANAGEMENT") || ctx.actor.roles.includes("SUPER_ADMIN");
     if (!isMgmt) {
       const creator = await tx.query<{ created_by: string | null }>(`SELECT created_by FROM action WHERE id = $1`, [actionId]);
@@ -538,4 +568,75 @@ export async function getQueue(role: string, ctx: Ctx): Promise<QueueRow[]> {
   requireRole(ctx, STAFF_ROLES);
   const r = await db.query<QueueRow>(`SELECT owner_role, status, count FROM departmental_queue WHERE owner_role = $1`, [role]);
   return r.rows;
+}
+
+async function slaStateFor(slaClockId: string | null): Promise<ClockStatus | null> {
+  if (!slaClockId) return null;
+  const c = await db.query<{ due_at: string; stopped_at: string | null; outcome: string | null; due_soon_lead_days: number }>(
+    `SELECT c.due_at::text AS due_at, c.stopped_at::text AS stopped_at, c.outcome, p.due_soon_lead_days
+       FROM sla_clock c JOIN sla_policy p ON p.id = c.policy_id WHERE c.id = $1`,
+    [slaClockId]
+  );
+  if (!c.rows[0]) return null;
+  return deriveStatus({ now: new Date().toISOString(), dueAt: c.rows[0].due_at, stoppedAt: c.rows[0].stopped_at, outcome: c.rows[0].outcome as "ON_TIME" | "LATE" | null, dueSoonLeadDays: c.rows[0].due_soon_lead_days, atRisk: false });
+}
+
+export interface ActionDetail {
+  id: string; code: string; type: string; family: ActionFamily; title: string; description: string | null;
+  project_id: string | null; source_module: string; source_entity_type: string; source_entity_id: string;
+  booking_id: string | null; unit_id: string | null; customer_id: string | null;
+  owner_user_id: string | null; owner_role: string; backup_owner_user_id: string | null;
+  due_at: string | null; priority: Priority; status: ActionStatus; sla_state: ClockStatus | null;
+  blocking_reason: string | null; depends_on_action_id: string | null;
+  customer_visible: boolean; customer_title: string | null;
+  evidence_requirement: EvidenceRequirement; approver_role: string | null; verifier_role: string | null;
+  external_reference: string | null; escalation_tier: string; origin: "AUTO" | "MANUAL";
+  created_by: string | null; closed_at: string | null; closed_by: string | null; close_note: string | null;
+  // Set when a `task_instance` backs this action (journey/instances.ts). Close/Approve/Cancel are
+  // refused server-side for such actions outside completeTaskInstance's own internal call —
+  // there's no reverse-direction event subscriber yet to keep the journey in sync (see this
+  // file's isTaskBacked doc comment) — so the drawer uses this to hide those buttons rather than
+  // let the user hit a 409 after already reading the confirm panel.
+  task_instance_id: string | null;
+  checklist: { id: string; label: string; required: boolean; checked_at: string | null; checked_by: string | null }[];
+  evidence: { id: string; file_key: string; kind: string | null; uploaded_by: string; verification_status: "UPLOADED" | "VERIFIED" | "REJECTED"; verified_by: string | null; note: string | null; created_at: string }[];
+  transitions: { id: string; from_status: string; to_status: string; at: string; actor: string | null; reason: string | null }[];
+}
+
+/** Screens: "Action detail drawer (reused everywhere)" — title, why it exists (source entity
+ *  link), owner/backup, due + SLA badge, status stepper, evidence panel, checklist, blocking
+ *  reason, history. One query per related table rather than a wide join — the drawer opens on
+ *  demand for a single action, not in a list's hot path (unlike listActions/getQueue). */
+export async function getAction(actionId: string, ctx: Ctx): Promise<ActionDetail> {
+  requireRole(ctx, STAFF_ROLES);
+  const r = await db.query<Omit<ActionDetail, "family" | "sla_state" | "checklist" | "evidence" | "transitions"> & { sla_clock_id: string | null }>(
+    `SELECT id, code, type, title, description, project_id, source_module, source_entity_type, source_entity_id,
+            booking_id, unit_id, customer_id, owner_user_id, owner_role, backup_owner_user_id,
+            due_at::text AS due_at, priority, status, blocking_reason, depends_on_action_id,
+            customer_visible, customer_title, evidence_requirement, approver_role, verifier_role,
+            external_reference, escalation_tier, origin, created_by,
+            closed_at::text AS closed_at, closed_by, close_note, sla_clock_id,
+            (SELECT id FROM task_instance WHERE action_id = action.id) AS task_instance_id
+       FROM action WHERE id = $1`,
+    [actionId]
+  );
+  const a = r.rows[0];
+  if (!a) throw new AppError("not_found", "action not found");
+  const [family, slaState, checklist, evidence, transitions] = await Promise.all([
+    actionFamily(a.type, db),
+    slaStateFor(a.sla_clock_id),
+    db.query<ActionDetail["checklist"][number]>(
+      `SELECT id, label, required, checked_at::text AS checked_at, checked_by FROM action_checklist_item WHERE action_id = $1 ORDER BY label`,
+      [actionId]
+    ),
+    db.query<ActionDetail["evidence"][number]>(
+      `SELECT id, file_key, kind, uploaded_by, verification_status, verified_by, note, created_at::text AS created_at FROM action_evidence WHERE action_id = $1 ORDER BY created_at`,
+      [actionId]
+    ),
+    db.query<ActionDetail["transitions"][number]>(
+      `SELECT id, from_status, to_status, at::text AS at, actor, reason FROM action_transition WHERE action_id = $1 ORDER BY at`,
+      [actionId]
+    ),
+  ]);
+  return { ...a, family, sla_state: slaState, checklist: checklist.rows, evidence: evidence.rows, transitions: transitions.rows };
 }
