@@ -377,3 +377,16 @@ Amarsh: "dont stop - this was supposed to be an autonomous run." Continuing with
 - 32 new tests (pure units + a 200-generated-facts double-counting property test + a real-DB lifecycle/scenario/snapshot integration block), tsc clean, 92/93 API test files, 617/622 tests.
 - Scoped the client's "how much time is left" question into TODO.md §0a: ≈3–5 hours to backend-complete on the remaining 6 specs (measured cadence); the full UI+deployed stack is a separate, unmeasured ~15–25 hour estimate, dominated by the ~16-spec UI backlog, not backend logic.
 - Next: 26 (customer portal) — advisor/TODO-flagged as the right next pick among the circularly-blocked 26/27/29/30 group, since it has the most downstream consumers.
+
+## 06:20 IST — 26 customer portal backend merged (autonomous run, no check-ins)
+
+- Amarsh logged off at 05:36 IST with explicit instructions to build everything in the specs without stopping or asking questions. Continuing solo from here per that instruction.
+- Built additively as new `src/portal/**` rather than "replace `transparency.ts`/`customer.ts`" per the Files line — 6 other files depend on them, measured before deciding not to touch either.
+- This codebase had already anticipated 26 heavily: 8 dedicated `customer_*` permission_matrix modules, a `customerCtx()` test helper, and 2 existing `ctx.actor.kind === "CUSTOMER"` branches (change-requests, qa/snags) all pre-dated this build. Reused directly: `t2Payments`, `t4Passport`, `bookingForCustomerUser`, `currentItems` (wrapped, see below), `raiseChangeRequest`/`acceptQuotation`, `createNotification`/`createAction`.
+- Widened `registration/core.ts::confirmAvailability` and `handover/core.ts::confirmAppointment`/`rescheduleAppointment` to accept a CUSTOMER ctx on their own booking — both specs' own prior Build notes had named 26 as the unlock for their CRM-on-behalf-only fallback.
+- Real bug caught before merge: `uploadCustomerDocument` was first written against a non-existent `customer_document.file_id` column and an unused `RECEIVED` status — fixed by delegating to 22's real `uploadDocument` lifecycle instead of inventing a parallel one.
+- Advisor review caught one over-widening: an earlier draft opened `CUSTOMER_MODULES.customer_documents` to WRITE in the shared seeded permission matrix to satisfy a check this build wrote itself — reverted once the ownership check became the real gate, per the module's own documented "own-booking check, not the matrix" pattern.
+- New deadlock variant found and fixed on the single-connection PGlite adapter: a bare `db.query()` from a function called *inside* an open transaction hangs, same as the already-known nested-`withTx` case but with no second transaction involved (`bookingHeader` inside `submitCheckIn`'s tx).
+- Confirmed (again, via `git stash`) that `registration.test.ts`'s intermittent full-suite timeouts are pre-existing worker-pool contention, not this spec's regression — same flake already logged at 20's landing.
+- Full detail in `docs/specs/26-customer-portal.md`'s own Build note and TODO.md §9. Full suite: 94 files / 638 tests, `tsc --noEmit` clean.
+- Next: land this PR, then proceed to 27 (management control tower), 29 (communications, now unblocked), 30 (post-handover, now unblocked), 31 (intelligence) — continuing autonomously per standing instruction.

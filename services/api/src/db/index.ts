@@ -24,6 +24,7 @@ import { registerChangeabilitySubscribers } from "../changeability/subscribers";
 import { registerSalesSubscribers } from "../sales/subscribers";
 import { registerSpecificationSubscribers } from "../specification/subscribers";
 import { registerDocumentSubscribers } from "../documents/subscribers";
+import { registerPortalSubscribers } from "../portal/subscribers";
 import type { DbClient } from "./types";
 
 export type { DbClient } from "./types";
@@ -119,6 +120,7 @@ export function initDb(): Promise<void> {
       registerSalesSubscribers();
       registerSpecificationSubscribers();
       registerDocumentSubscribers();
+      registerPortalSubscribers();
       const seedAllowed = process.env.NODE_ENV !== "production" || process.env.SEED_DEMO === "1";
       if (!seedAllowed) return;
       const { rows } = await db.query<{ count: number }>(`SELECT count(*)::int AS count FROM project`);

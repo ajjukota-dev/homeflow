@@ -49,3 +49,77 @@ Depends on 01, 06, 10, 13, 15, 16, 18, 19, 21, 22, 23, 30, 09. Feeds 27 (custome
 
 ## Not in this feature
 Payment gateway; chat; native app; multilingual.
+
+## Build note (2026-09-06)
+
+Backend only — `apps/my-pranava-home` and `apps/workspace`'s CustomerUpdates/Studio-visibility-tab
+UIs are deferred, same as every other spec's UI this run. Built additively as a new `src/portal/`
+module rather than "replace `transparency.ts`/`customer.ts`" per the Files line — measured the
+blast radius first (6 other files import them: `routes-*.ts`, `scores/booking-readiness.ts`,
+`qa.ts`) before deciding not to touch either.
+
+`services/api/migrations/0041_portal.sql` (`customer_visibility_rule`, `customer_update`,
+`customer_check_in`), `src/portal/denylist.ts` (rule 2's `CUSTOMER_DENYLIST` + `assertNoDenylistedKeys`
+property check), `src/portal/core.ts` (every area function — journey/payments/documents/
+registration/handover/requests/commitments/passport/my-home/overview/updates/check-ins),
+`src/portal/subscribers.ts` (drafts a `customer_update` on `booking.created`/`payment.received`/
+`registration.completed`/`handover.completed`), `src/routes-portal.ts`; `src/events/registry.ts`
+gains 5 event types; `src/studio/core.ts`/`registry.ts` register `customer_visibility_rule` in the
+generic table envelope (no versioning columns of its own, same fit as 20's three tables).
+
+This codebase had extensively anticipated spec 26 before this segment: `seed/permissions.ts`
+already seeded 8 dedicated `customer_*` permission_matrix modules, `authz/test-helpers.ts` already
+had a `customerCtx()` builder, and `change-requests/store.ts`/`qa/snags.ts` already branched on
+`ctx.actor.kind === "CUSTOMER"`. Reused directly rather than reimplemented: `t2Payments`
+(collections-view), `t4Passport` (transparency), `bookingForCustomerUser` (customer.ts),
+`currentItems` (specification/revisions — wrapped in a new `safeCurrentItems` try/catch, since a
+unit with no baseline attached — a real, named case per 09's own Build note — made it throw; this
+was a genuine pre-existing bug in the My Home/Passport read path, not a portal-only issue),
+`raiseChangeRequest`/`acceptQuotation` (18), `confirmAvailability`/`confirmAppointment`/
+`rescheduleAppointment` (23/16 — both already had a `CUSTOMER`-branch TODO in their own prior Build
+notes naming 26 as the unlock), `createNotification`/`createAction`.
+
+**Real bug found and fixed, not test-only**: `uploadCustomerDocument` was initially written against
+a `customer_document.file_id` column that doesn't exist — the real schema has `file_keys text[]`.
+Rather than patch the column name, it now delegates the actual upload (presigned URL, `file_keys`
+append, `VALIDATING` status, `document.received` event) to 22's own `documents/checklist.ts::
+uploadDocument` — the real, already-tested lifecycle every staff route already uses — and only adds
+the own-booking ownership check that function itself doesn't do (it's shared with staff-on-behalf,
+so it can't assume caller == owner) plus a `customer.action_completed` audit event. `RECEIVED` was
+dead status text nowhere else in the codebase; not resurrected. Consequently `CUSTOMER_MODULES.
+customer_documents` stayed `READ` in `seed/permissions.ts` (an earlier draft of this change widened
+it to `WRITE`, but nothing needs that once the ownership check gates the actual write — reverted
+per the module's own documented pattern that every customer write in 26 is gated by an own-booking
+row check, not the matrix; CLAUDE.md lists "widening customer-visible data" under Ask-first, so not
+touching a shared seeded config beyond what's actually required matters here).
+
+Widened two pre-existing staff-only functions to accept a CUSTOMER ctx on their own booking, rather
+than building parallel customer-only functions — `registration/core.ts::confirmAvailability` and
+`handover/core.ts::confirmAppointment`/`rescheduleAppointment`, via an inlined `assertOwnBooking`
+helper (same `customer_login` lookup as `change-requests/store.ts::assertCrActor`/`qa/snags.ts::
+reopenSnag`, not shared — each caller checks a slightly different condition). Both functions'
+success-path return statement had to change from a STAFF_ROLES-gated `getXCase`/`getRegistrationCase`
+to a role-agnostic `refresh(...)`/`buildHandoverView(...)` — the customer ctx that just passed
+`assertOwnBooking` can never pass `requireRole(STAFF_ROLES)` on the way out.
+
+Single-connection-PGlite deadlock, same class already documented for nested `withTx`/
+`db.transaction()`, hit a new variant: a plain `db.query()` call (module-level `db`, not the open
+tx) from a function invoked *inside* an open transaction also hangs — no second transaction has to
+open for it to deadlock. Root-caused to `bookingHeader(bookingId)` (bare `db`) being called from
+`submitCheckIn`'s open `withTx` on the score-≤2 branch; fixed by giving it a `handle: DbLike = db`
+parameter and passing `tx` explicitly at that call site.
+
+Scope cuts, flagged not faked: `service_history`/`statement_pdf`/`drawings` in Home Passport return
+empty/null (30/22's listing queries for these don't exist yet); no scheduler exists anywhere in
+this codebase (same pre-existing gap 06/12/19/21 already document) — `sendCheckIn` and the welcome-
+message subscriber logic are directly callable, not delayed-by-schedule.
+
+`src/portal/portal.test.ts`: 16 tests (denylist property test across all 11 area functions incl. a
+200-iteration synthetic tripwire, rules 1/4/5/6/7/8/9/10 + the registration/handover authorization-
+widening test proving a customer reaches the identical `gate_blocked` a staff caller would — no
+privilege bypass, ownership checked first for a different customer). Full suite: 94 files / 638
+tests, `tsc --noEmit` clean. `registration.test.ts` intermittently times out 4-6 tests under full
+`vitest run` parallel load — reproduced identically with `git stash -- src/registration/core.ts`
+(this segment's own edit reverted), so genuinely pre-existing worker-pool contention, same flake
+already logged at 20's landing (confirmed there via `git stash -u` on pure pre-spec-20 `main`), not
+this spec's regression. Not fixed (out of scope); logged in TODO.md.

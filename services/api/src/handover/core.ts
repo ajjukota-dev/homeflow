@@ -13,6 +13,14 @@ import { loadOrCreateCase, loadCaseByBooking, loadGateConfig, GATE_DB_TO_TYPE, t
 // checked separately in overrideGate below — this allow-list is the case-mutation floor.
 export const HANDOVER_ROLES = ["QA", "FM", "MANAGEMENT", "SUPER_ADMIN"];
 
+/** 26's own rule 1: a customer may only act on their own booking — same pattern as
+ *  `registration/core.ts::assertOwnBooking` (inlined per-module, not shared: each call site
+ *  checks a slightly different condition, per that module's own comment). */
+async function assertOwnBooking(ctx: Ctx, bookingId: string): Promise<void> {
+  const r = await db.query<{ booking_id: string }>(`SELECT booking_id FROM customer_login WHERE user_id = $1`, [ctx.actor.user_id]);
+  if (r.rows[0]?.booking_id !== bookingId) throw new AppError("forbidden", "customers may act only on their own booking");
+}
+
 interface ChecklistRow { groups: Record<string, Record<string, unknown>>; customer_signature_file_id: string | null; company_signature_file_id: string | null; photos: string[] }
 interface AppointmentRow { proposed_slots: string[]; confirmed_slot: string | null; confirmed_by: string | null; confirmed_at: string | null; attendees: Record<string, unknown>[]; rescheduled_count: number; reschedule_reasons: { reason: string; at: string }[] }
 
@@ -56,11 +64,15 @@ export interface HandoverView extends CaseView {
   appointment: AppointmentRow | null;
 }
 
-export async function getHandoverCase(bookingId: string, ctx: Ctx): Promise<HandoverView> {
-  requireRole(ctx, STAFF_ROLES);
+async function buildHandoverView(bookingId: string): Promise<HandoverView> {
   const view = await evaluateCase(bookingId);
   const [checklist, appointment] = await Promise.all([loadChecklist(view.case.id), loadAppointment(view.case.id)]);
   return { ...view, checklist, appointment };
+}
+
+export async function getHandoverCase(bookingId: string, ctx: Ctx): Promise<HandoverView> {
+  requireRole(ctx, STAFF_ROLES);
+  return buildHandoverView(bookingId);
 }
 
 /** `POST /handover/:id/evaluate` — rule 7's "on demand" half. Every other read (GET the case,
@@ -114,7 +126,12 @@ export async function confirmAppointment(
   input: { slot: string; confirmed_by: "CUSTOMER_PORTAL" | "CRM_ON_BEHALF"; note?: string; attendees?: Record<string, unknown>[] },
   ctx: Ctx
 ): Promise<HandoverView> {
-  requireRole(ctx, [...HANDOVER_ROLES, "CRM"]);
+  if (ctx.actor.kind === "CUSTOMER") {
+    await assertOwnBooking(ctx, bookingId);
+    if (input.confirmed_by !== "CUSTOMER_PORTAL") throw new AppError("forbidden", "customers may only confirm as CUSTOMER_PORTAL");
+  } else {
+    requireRole(ctx, [...HANDOVER_ROLES, "CRM"]);
+  }
   if (input.confirmed_by === "CRM_ON_BEHALF" && !input.note?.trim()) throw new AppError("validation", "note is required for CRM_ON_BEHALF confirmation", "note");
   const view = await evaluateCase(bookingId);
   const appt = await loadAppointment(view.case.id);
@@ -148,14 +165,15 @@ export async function confirmAppointment(
       });
     }
   });
-  return getHandoverCase(bookingId, ctx);
+  return buildHandoverView(bookingId);
 }
 
 /** Rule 4: "reschedule requires reason and recreates the customer action (10)." The action-type
  *  used here (`handover_appointment_reschedule`) must exist in action_type — seeded by
  *  seed/handover-gates.ts, same convention as every other createAction caller in this codebase. */
 export async function rescheduleAppointment(bookingId: string, input: { slot: string; reason: string }, ctx: Ctx): Promise<HandoverView> {
-  requireRole(ctx, [...HANDOVER_ROLES, "CRM"]);
+  if (ctx.actor.kind === "CUSTOMER") await assertOwnBooking(ctx, bookingId);
+  else requireRole(ctx, [...HANDOVER_ROLES, "CRM"]);
   if (!input.reason?.trim()) throw new AppError("validation", "reason is required", "reason");
   const view = await evaluateCase(bookingId);
   const appt = await loadAppointment(view.case.id);
@@ -187,7 +205,7 @@ export async function rescheduleAppointment(bookingId: string, input: { slot: st
       tx
     );
   });
-  return getHandoverCase(bookingId, ctx);
+  return buildHandoverView(bookingId);
 }
 
 export async function updateChecklist(bookingId: string, patch: Partial<ChecklistRow>, ctx: Ctx): Promise<HandoverView> {
