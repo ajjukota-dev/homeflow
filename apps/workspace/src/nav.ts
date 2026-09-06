@@ -1,4 +1,4 @@
-import { Building2, Store, Users, Banknote, Scale, ClipboardCheck, HeartHandshake, Landmark, Map, Settings2, CalendarClock, Inbox, Route, Handshake, FileText } from "lucide-react";
+import { Building2, Store, Users, Banknote, Scale, ClipboardCheck, HeartHandshake, Landmark, Map, Settings2, CalendarClock, Inbox, Route, Handshake, FileText, Bell } from "lucide-react";
 import { ROLE_CODES } from "./pages/admin/roles";
 
 export type View =
@@ -20,7 +20,8 @@ export type View =
   | "admin-data"
   | "journey-control"
   | "promise-ledger"
-  | "sales-handover";
+  | "sales-handover"
+  | "customer-updates";
 
 // Rule 3: read access is any staff role; per-tab edit eligibility is enforced server-side
 // (studio/registry.ts's tabsForRoles/can_edit) — every seeded staff role except CUSTOMER sees
@@ -68,6 +69,10 @@ export const NAV: { id: View; label: string; role: string; short: string; Icon: 
   // Roles match the seed/permissions.ts "sales_handover" matrix row: SALES/CRM=WRITE,
   // MANAGEMENT=READ, plus SUPER_ADMIN per this file's own precedent for every other entry.
   { id: "sales-handover", label: "Handover Packets", role: "Sales → CRM packet, completeness, accept/return", short: "Handover", Icon: FileText, roles: ["SALES", "CRM", "MANAGEMENT", "SUPER_ADMIN"] },
+  // 26-customer-portal.md Screens — "CRM → Customer updates queue (drafts from events, edit,
+  // publish)". Roles match portal/core.ts's own CRM_UPDATE_ROLES exactly (listDraftUpdates/
+  // publishUpdate's server-side gate), not the broader "customer_*" READ modules.
+  { id: "customer-updates", label: "Customer Updates", role: "Review & publish drafts to the portal", short: "Updates", Icon: Bell, roles: ["CRM", "MANAGEMENT", "SUPER_ADMIN"] },
 ];
 
 export const ADMIN_NAV: { id: View; label: string }[] = [

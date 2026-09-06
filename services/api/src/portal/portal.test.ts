@@ -177,8 +177,8 @@ describe("26 rule 9 — Home Passport (reuses transparency.ts::t4Passport)", () 
 
 describe("26 rule 7 — requests: customer can raise a real change request via 18's own flow", () => {
   it("raises a customisation request that appears in the customer's own requests list", async () => {
-    const { bookingId, ctx } = await freshCustomerBooking();
-    const raised = await raiseCustomerRequest({ booking_id: bookingId, title: "Add a wardrobe" }, ctx);
+    const { ctx } = await freshCustomerBooking();
+    const raised = await raiseCustomerRequest({ title: "Add a wardrobe" }, ctx);
     expect(raised.code).toMatch(/^CR-/);
     const requests = await getRequests(ctx);
     expect(requests.requests.some((r) => r.id === raised.id)).toBe(true);
@@ -206,6 +206,15 @@ describe("26 rule 10 — check-ins", () => {
     const sent = await sendCheckIn(bookingId, "DAY_7");
     const sentEvt = await db.query(`SELECT type FROM event WHERE type = 'check_in.sent' AND entity_id = $1`, [sent.id]);
     expect(sentEvt.rows.length).toBe(1);
+
+    // Rule 10's "portal prompt" half (my-pranava-home's Home screen) has no dedicated "my pending
+    // check-ins" endpoint — it finds this via the generic notification feed's entity_ref, so that
+    // link has to actually be there or the portal UI can never discover a pending check-in exists.
+    const notif = await db.query<{ entity_ref: { entity_type: string; entity_id: string } | null }>(
+      `SELECT entity_ref FROM notification WHERE type = 'check_in.sent' AND entity_ref->>'entity_id' = $1`,
+      [sent.id]
+    );
+    expect(notif.rows[0]?.entity_ref).toEqual({ entity_type: "customer_check_in", entity_id: sent.id });
 
     await expect(submitCheckIn(sent.id, { score: 9 }, ctx)).rejects.toThrow("between 1 and 5");
     await submitCheckIn(sent.id, { score: 2, comment: "Slow response from site team" }, ctx);
