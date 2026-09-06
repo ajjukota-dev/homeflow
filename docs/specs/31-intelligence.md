@@ -48,3 +48,81 @@ Depends on 14, 10, 11, 12, 13, 19, 20, 21, 22, 29, 30, 03 (llm). Feeds 11, 27, 2
 
 ## Not in this feature
 Chatbot/copilots; vendor learning models; ML training.
+
+## Build note (2026-09-06)
+
+Backend built: `intelligence/{customer-health,financial-health,journey-risk,collection-risk,
+commitment-risk,next-best-action,shared}.ts`, `intelligence/llm-tasks/{store,commitment-detection,
+communication-summary,document-intelligence,snag-root-cause,index}.ts`, `routes-intelligence.ts`,
+migration `0046_intelligence.sql` (sequential build-order numbering, not spec-number — same
+convention every prior spec used). 15 tests in `intelligence.test.ts` (rules 1-7 + events coverage),
+all real seeded fixtures (`c_karthik`/`b_v110`/`d_v110_3`), real seeded `user` ids
+(`user_crm`/`user_fm`) for actor FKs. `tsc --noEmit` clean; full suite green except the
+pre-existing Windows vitest worker-pool contention flake in `documents.test.ts`/
+`registration.test.ts` (both re-verified passing in isolation).
+
+**Two bugs caught by advisor before landing, both fixed:**
+- `llm-tasks/store.ts::withinBudget` read `LLM_MONTHLY_BUDGET_INR=0` as "unset" because
+  `Number("0")` is falsy — a zero budget (meant to stop all LLM spend) was silently treated as
+  unlimited. Fixed to distinguish `undefined`/`""` (unlimited) from any parsed number including 0
+  (a real cap). Added a test asserting `"0"` blocks every task.
+- `collection-risk.ts::computeCollectionRisk` called `computeCustomerHealth` (which persists a
+  `CUSTOMER_HEALTH` snapshot as a side effect via `recordScore`) as part of computing a demand's
+  risk — so `GET /demands/:id/risk` was silently writing a snapshot for a different subject
+  (the customer) on every read. Same write-on-read class advisor caught at specs 16, 27, and 28.
+  Fixed by switching to `explainCustomerHealth` (identical computation, no persistence).
+  `financial-health.ts` also collapsed a redundant duplicate `bookingFinance()` call surfaced
+  during the same review (harmless, just wasteful).
+
+**Corrections to inherited/prior work, self-caught before writing any test:**
+- `journey-risk.ts`'s dependency-blocked driver was first written against
+  `GateState === "BLOCKED"` — `GateState` (`changeability/gates.ts`) has no such value
+  (`OPEN|CLOSING|CONDITIONAL|EXCEPTION_ONLY|HARD_CLOSED`). The real signal is
+  `stage_instance.status = 'BLOCKED'`, a genuine CHECK-constrained value
+  (`migrations/0005_journey_instances.sql`) already exposed on `JourneyReadModel.stages[].status`.
+  Fixed before running any test.
+- Spec 30's own landed `post-handover/warranty.ts` header comment claims `snag` "has no room
+  field, incompatible category enums" as the reason `warranty_case.snag_id` is left unwired.
+  Checked against `qa/snags.ts::insertSnag` and `migrations/0032_qa.sql`: **this is false** —
+  `snag.room`, `snag.category`, and `snag.root_cause` all exist as real columns (added by 15's own
+  migration), and `warranty_case.category` (from `0000_init.sql`) has no CHECK constraint at all
+  (freeform text). Both stated reasons are unfounded. Did not reopen spec 30's merged PR #50 to fix
+  a comment (surgical scope discipline) — instead wrote 31's own `snag-root-cause.ts` to correctly
+  write `snag.root_cause` on accept, and record this finding here for the record. The
+  `warranty_case.snag_id` linkage itself remains unwired — that's still open follow-up, just not
+  for the reason spec 30's comment gives.
+
+**Spec-document gap fixed, not code:** `studio/registry.test.ts`'s "no invented tabs" test parses
+`25-policy-studio.md`'s own master "## Tabs" line as the authoritative tab list; that line had
+never been updated past spec 30, even though 31's own Screens section explicitly names "Studio:
+Risk rules, LLM budget/usage." Appended `· 31 Risk rules, LLM budget.` to `25-policy-studio.md`
+line 23 — a spec-document correction (spec is authoritative; it had a real omission), not an
+invented tab.
+
+**Deliberate deviations/gaps, all flagged in code:**
+- `GET /api/commitments/:id/risk` added — the spec's API section shorthand list only names
+  customer-health/financial-health/journey-risk plus `/demands/:id/risk`, but rule 3 says
+  commitment risk is "All exposed via `/scores/*`"; added symmetric with the demand-risk route.
+- `DOCUMENT_FIELD_EXTRACTION` is close to unusable as shipped: the `llm` port's `LlmCompleteInput`
+  is text-only (no image/file field) and `customer_document.file_keys` are opaque object-store keys
+  with no OCR anywhere in the codebase, so this kind can only pass category/filename metadata to
+  the LLM (confidence defaults to 0.1). "6 LLM task kinds built" should not be read as "6 working" —
+  this one needs real OCR/vision before it's useful. `DOCUMENT_INCONSISTENCY` has no such gap (a
+  genuine text/JSON comparison of `doc_factory_document.data_snapshot` against source records).
+- `risk_rule` is seeded (19 rows, `seed/intelligence.ts`) for Policy Studio visibility only — no
+  scorer reads it; the in-code weight constants in each `*-health.ts`/`*-risk.ts` file are
+  authoritative, same precedent as 14's own `score_weight` table. Don't expect editing a
+  `risk_rule` row to change a score.
+- `journey-risk` scores 0/LOW for the demo seed's `b_v110` because no `journey_instance` exists for
+  it — the only journey-risk test coverage exercises the "no instance" branch, not the MEDIUM-
+  confidence scoring math itself (SLA-state/slippage/blocked-gate/stale-gate weights). That branch
+  is implemented but untested against real data in this seed.
+- All weight constants (BASELINE=80 for Customer Health; the 5 Financial Health weights; the 4
+  Journey Risk weights; PROBABILITY_WEIGHT/CUSTOMER_HEALTH_WEIGHT for Collection Risk) are
+  UNCONFIRMED placeholders — no PDF number given, same convention as 14's own score weights.
+
+**Fake-LLM-adapter design constraint:** `llm/fake-adapter.ts` returns `{fake: true, echo: ...}` for
+any `json_schema` call under test, never a realistic structured output. Every "accept" flow
+therefore requires the human's own explicit edited/override fields (matching rule 5's literal "CRM
+accepts/edits" wording) rather than trusting raw LLM JSON — sidesteps the fake adapter entirely
+rather than fighting it in tests.

@@ -22,6 +22,7 @@ import { seedCommunicationsConfig } from "../seed/communications";
 import { seedPostHandoverConfig } from "../seed/post-handover";
 import { registerPostHandoverSubscribers } from "../post-handover/core";
 import { registerAdvocacySubscribers } from "../post-handover/advocacy";
+import { seedIntelligenceConfig } from "../seed/intelligence";
 import { registerJourneySubscribers } from "../journey/subscribers";
 import { registerNotificationSubscribers } from "../notifications/subscribers";
 import { registerEscalationSubscribers } from "../escalations/subscribers";
@@ -129,6 +130,9 @@ export function initDb(): Promise<void> {
       // warranty-severity sla_policy rows for the response clock — same "config, every
       // environment" treatment as the seeds above.
       await seedPostHandoverConfig(db);
+      // 31 config: risk_rule rows for Policy Studio (schema-completeness only — the scorers use
+      // in-code weight constants, same class as 0029's own score_weight/probability_rule gap).
+      await seedIntelligenceConfig(db);
       registerJourneySubscribers();
       registerNotificationSubscribers();
       registerEscalationSubscribers();

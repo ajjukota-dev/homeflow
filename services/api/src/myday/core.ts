@@ -130,7 +130,16 @@ function toRankInput(row: ActionRow, medians: Map<string, number>): RankInput {
   };
 }
 
-async function buildRanked(rows: ActionRow[], asOf: string): Promise<{ row: ActionRow; input: RankInput; ranked: RankedAction }[]> {
+export type { ActionRow };
+
+/** 31-intelligence.md rule 4's "next best action" — booking-scoped, no ctx ownership filter
+ *  (unlike `candidateActions`, which is the per-actor My Day feed). Same `ACTION_QUERY` base. */
+export async function actionsForBooking(bookingId: string): Promise<ActionRow[]> {
+  const r = await db.query<ActionRow>(`${ACTION_QUERY} AND a.booking_id = $1`, [bookingId]);
+  return r.rows;
+}
+
+export async function buildRanked(rows: ActionRow[], asOf: string): Promise<{ row: ActionRow; input: RankInput; ranked: RankedAction }[]> {
   const projectIds = [...new Set(rows.map((r) => r.project_id).filter((p): p is string => !!p))];
   const medians = new Map<string, number>();
   for (const p of projectIds) medians.set(p, await medianDemandForProject(p));

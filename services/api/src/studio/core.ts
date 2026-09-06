@@ -58,6 +58,11 @@ export const TABLE_REGISTRY: Record<string, TableRegistryEntry> = {
   // frequency_guardrail above. No product_types column: DLP windows are per-category, not
   // per-product-type (a villa and an apartment share the same structural/electrical categories).
   dlp_policy: { primaryKey: "id", columns: ["project_id", "product_type", "windows", "response_sla_by_severity", "unconfirmed"], jsonColumns: ["windows", "response_sla_by_severity"], editRoles: POLICY_STUDIO_ROLES },
+  // 31-intelligence.md rules 1-3 — carries its own effective_from/effective_to/version columns as
+  // plain editable fields, same fit as 20's probability_rule above (not the policy_version
+  // draft/publish envelope; those columns are edited directly, not derived from diff history). No
+  // product_types column: risk signals aren't product-type-scoped in the spec's own Data row.
+  risk_rule: { primaryKey: "id", columns: ["service", "signal", "condition", "weight", "driver_text", "effective_from", "effective_to", "version"], jsonColumns: ["condition"], editRoles: POLICY_STUDIO_ROLES },
 };
 
 function columnSql(entry: TableRegistryEntry, col: string, placeholder: string): string {

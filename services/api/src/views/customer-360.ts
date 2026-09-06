@@ -1,7 +1,11 @@
 // 28-360-views.md rule 2 — Customer 360's Overview tab, plus a manifest for the rest. Health
-// score (31) isn't built — rule 2's own text names the interim formula ("until 31: derived from
-// check-ins + escalations + overdue"), built here as a real weighted composite, UNCONFIRMED
-// weights (no PDF numbers given), same class as 06/14's other placeholder formulas.
+// score now calls 31's own real `intelligence/customer-health.ts` (rule 2's own text named 31 as
+// the eventual owner: "until 31: derived from check-ins + escalations + overdue") — 31 has since
+// landed. Kept this file's own simpler `{score, drivers: {label, delta}}` shape (rather than
+// switching to 31's richer `Score` contract with unsigned `contribution`) to avoid a breaking
+// change to `Customer360View`/`views.test.ts` for a view that only ever needed a headline number
+// and signed deltas — a thin adapter, not a re-derivation: every driver 31 computes is a penalty,
+// so `delta = -contribution` always.
 
 import { db } from "../db";
 import { authorize } from "../authz/authorize";
@@ -9,51 +13,17 @@ import { AppError, type Ctx } from "../authz/types";
 import { commitmentsForBooking, type CommitmentView } from "../commitments/core";
 import { listChangeRequests } from "../change-requests/capture";
 import type { CrRow } from "../change-requests/store";
+import { computeCustomerHealth as computeRealCustomerHealth } from "../intelligence/customer-health";
 import { tab, type TabManifestEntry } from "./tabs";
 
 export interface CustomerHealth { score: number; drivers: { label: string; delta: number }[] }
 
 async function computeCustomerHealth(customerId: string): Promise<CustomerHealth> {
-  const drivers: { label: string; delta: number }[] = [];
-  let score = 80; // neutral baseline — UNCONFIRMED, no PDF number for the interim formula
-
-  const checkins = await db.query<{ avg: number | null; count: string }>(
-    `SELECT avg(cr.satisfaction_score)::float8 AS avg, count(*) AS count FROM checkin_record cr
-       JOIN booking b ON b.id = cr.booking_id JOIN booking_applicant a ON a.booking_id = b.id
-      WHERE a.customer_id = $1 AND cr.satisfaction_score IS NOT NULL`,
-    [customerId]
-  );
-  if (checkins.rows[0]?.avg !== null && checkins.rows[0]?.avg !== undefined) {
-    const delta = Math.round((checkins.rows[0].avg - 3) * 8); // 1-5 scale, 3 = neutral
-    score += delta;
-    drivers.push({ label: `Check-in satisfaction avg ${checkins.rows[0].avg.toFixed(1)}/5`, delta });
-  }
-
-  const escalations = await db.query<{ count: string }>(
-    `SELECT count(*) AS count FROM escalation e JOIN action a ON a.id = e.action_id
-      WHERE a.customer_id = $1 AND e.status NOT IN ('RESOLVED', 'CLOSED')`,
-    [customerId]
-  );
-  const escalationCount = Number(escalations.rows[0]?.count ?? 0);
-  if (escalationCount > 0) {
-    const delta = -10 * escalationCount;
-    score += delta;
-    drivers.push({ label: `${escalationCount} open escalation(s)`, delta });
-  }
-
-  const overdue = await db.query<{ total: number }>(
-    `SELECT COALESCE(SUM(d.amount), 0)::float8 AS total FROM demand d
-       JOIN booking b ON b.id = d.booking_id JOIN booking_applicant a ON a.booking_id = b.id
-      WHERE a.customer_id = $1 AND d.status = 'overdue'`,
-    [customerId]
-  );
-  if ((overdue.rows[0]?.total ?? 0) > 0) {
-    const delta = -15;
-    score += delta;
-    drivers.push({ label: `₹${overdue.rows[0]!.total.toLocaleString("en-IN")} overdue`, delta });
-  }
-
-  return { score: Math.max(0, Math.min(100, score)), drivers };
+  const real = await computeRealCustomerHealth(customerId);
+  return {
+    score: real.value,
+    drivers: real.drivers.map((d) => ({ label: d.fact, delta: -d.contribution })),
+  };
 }
 
 export interface Customer360View {
