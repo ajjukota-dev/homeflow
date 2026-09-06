@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ShieldCheck, Route } from "lucide-react";
 import { api, type Customer } from "../api";
-import { Card, CardBody } from "@homeflow/ui";
+import { Card, CardBody, Button } from "@homeflow/ui";
 import { MoneyFigure } from "../ui/MoneyFigure";
 import { cn } from "../lib/utils";
 import { bookingStatusLabel, kycStatusLabel } from "../lib/labels";
 import { ActivityFeed } from "../components/ActivityFeed";
+import { JourneyTimeline } from "./journey/JourneyTimeline";
 
 function initials(name: string) {
   return name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
@@ -20,10 +21,15 @@ const statusTone: Record<string, string> = {
 export function Customer360({ customerId, onBack }: { customerId: string; onBack: () => void }) {
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [loading, setLoading] = useState(true);
+  const [viewingBookingId, setViewingBookingId] = useState<string | null>(null);
 
   useEffect(() => {
     api.getCustomer(customerId).then(setCustomer).finally(() => setLoading(false));
   }, [customerId]);
+
+  if (viewingBookingId) {
+    return <JourneyTimeline bookingId={viewingBookingId} onBack={() => setViewingBookingId(null)} />;
+  }
 
   return (
     <div>
@@ -68,6 +74,9 @@ export function Customer360({ customerId, onBack }: { customerId: string; onBack
                       {bookingStatusLabel(b.status)}
                     </div>
                   </div>
+                  <Button variant="secondary" size="sm" onClick={() => setViewingBookingId(b.booking_id)}>
+                    <Route className="h-4 w-4" /> View journey
+                  </Button>
                 </CardBody>
               </Card>
             ))}

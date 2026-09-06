@@ -154,6 +154,9 @@ export const EVENT_TYPES: EventTypeDef[] = [
   { name: "journey.resumed", family: "journey", customer_visible: false, built: true },
   { name: "journey.closed", family: "journey", customer_visible: false, built: true },
   { name: "stage.completed", family: "stage", customer_visible: true, built: true },
+  // 06's own Events list also names plan.revised — never registered until plan-revision.ts
+  // (createPlanRevision) became the first real emitter of it.
+  { name: "plan.revised", family: "journey", customer_visible: false, built: true },
   // Not a literal 06 name — rule 7 ("reopening requires a reason ... logs why") needs a real
   // emit site, same class of sanctioned extension as 05's 3.
   { name: "task_instance.reopened", family: "task_instance", customer_visible: false, built: true },

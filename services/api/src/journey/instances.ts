@@ -219,7 +219,7 @@ export async function instantiateJourneyForBooking(
   return journeyId;
 }
 
-async function requireJourney(journeyId: string, tx: DbLike): Promise<{ status: string; project_id: string }> {
+export async function requireJourney(journeyId: string, tx: DbLike): Promise<{ status: string; project_id: string }> {
   const r = await tx.query<{ status: string; project_id: string }>(
     `SELECT status, project_id FROM journey_instance WHERE id = $1`,
     [journeyId]
@@ -450,7 +450,14 @@ export interface JourneyReadModel {
   hold_reason: string | null;
   started_at: string;
   stages: {
+    stage_instance_id: string;
     stage_code: string;
+    name: string;
+    customer_name: string | null;
+    stream: string;
+    customer_visible: boolean;
+    owner_department: string;
+    owner_user_id: string | null;
     status: string;
     progress_pct: number;
     baseline_start: string;
@@ -461,7 +468,18 @@ export interface JourneyReadModel {
     forecast_end: string;
     variance_days: number;
     slippage_days: number;
-    tasks: { task_code: string; status: string; clock_status: ClockStatus | null; due_at: string | null }[];
+    tasks: {
+      task_instance_id: string;
+      task_code: string;
+      title: string;
+      customer_title: string | null;
+      customer_visible: boolean;
+      execution_type: string;
+      action_id: string | null;
+      status: string;
+      clock_status: ClockStatus | null;
+      due_at: string | null;
+    }[];
   }[];
 }
 
@@ -469,36 +487,56 @@ function daysBetween(a: string | Date, b: string | Date): number {
   return Math.round((new Date(a).getTime() - new Date(b).getTime()) / (24 * 60 * 60 * 1000));
 }
 
-/** Rule 3: variance = planned - baseline, slippage = forecast - planned, exposed per stage. */
+/** Rule 3: variance = planned - baseline, slippage = forecast - planned, exposed per stage.
+ *  Stage/task labels (name, customer_title, stream, execution_type, ...) come from the journey's
+ *  own template_version_id via readVersionContent (05) — stage_instance/task_instance only carry
+ *  the *_code, not a label, by design (the label can change on the template without rewriting
+ *  every instance that already used it). */
 export async function getJourneyForBooking(bookingId: string, ctx: Ctx): Promise<JourneyReadModel | null> {
   requireRole(ctx, STAFF_ROLES);
-  const journey = await db.query<{ id: string; status: string; health: string; hold_reason: string | null; started_at: string }>(
-    `SELECT id, status, health, hold_reason, started_at FROM journey_instance WHERE booking_id = $1`,
+  const journey = await db.query<{ id: string; status: string; health: string; hold_reason: string | null; started_at: string; template_version_id: string }>(
+    `SELECT id, status, health, hold_reason, started_at, template_version_id FROM journey_instance WHERE booking_id = $1`,
     [bookingId]
   );
   if (!journey.rows[0]) return null;
   const j = journey.rows[0];
 
+  const { stages: stageTemplates } = await readVersionContent(j.template_version_id, db);
+  const stageTemplateByCode = new Map(stageTemplates.map((s) => [s.code, s]));
+  const taskTemplateByCode = new Map(stageTemplates.flatMap((s) => s.tasks.map((t) => [t.code, t] as const)));
+
   const stages = await db.query<{
-    id: string; stage_code: string; status: string; progress_pct: number;
+    id: string; stage_code: string; status: string; progress_pct: number; owner_user_id: string | null;
     baseline_start: string | Date; baseline_end: string | Date; planned_start: string | Date; planned_end: string | Date;
     forecast_start: string | Date; forecast_end: string | Date;
   }>(
-    `SELECT id, stage_code, status, progress_pct, baseline_start, baseline_end, planned_start, planned_end, forecast_start, forecast_end
+    `SELECT id, stage_code, status, progress_pct, owner_user_id, baseline_start, baseline_end, planned_start, planned_end, forecast_start, forecast_end
        FROM stage_instance WHERE journey_id = $1 ORDER BY baseline_start`,
     [j.id]
   );
 
   const result: JourneyReadModel["stages"] = [];
   for (const stage of stages.rows) {
-    const tasks = await db.query<{ task_code: string; status: string; sla_clock_id: string | null }>(
-      `SELECT task_code, status, sla_clock_id FROM task_instance WHERE stage_instance_id = $1 ORDER BY task_code`,
+    const stageTemplate = stageTemplateByCode.get(stage.stage_code);
+    const tasks = await db.query<{ id: string; task_code: string; status: string; sla_clock_id: string | null; action_id: string | null }>(
+      `SELECT id, task_code, status, sla_clock_id, action_id FROM task_instance WHERE stage_instance_id = $1 ORDER BY task_code`,
       [stage.id]
     );
     const taskRows: JourneyReadModel["stages"][number]["tasks"] = [];
     for (const t of tasks.rows) {
+      const taskTemplate = taskTemplateByCode.get(t.task_code);
+      const base = {
+        task_instance_id: t.id,
+        task_code: t.task_code,
+        title: taskTemplate?.title ?? t.task_code,
+        customer_title: taskTemplate?.customer_title ?? null,
+        customer_visible: taskTemplate?.customer_visible ?? false,
+        execution_type: taskTemplate?.execution_type ?? "SIMPLE",
+        action_id: t.action_id,
+        status: t.status,
+      };
       if (!t.sla_clock_id) {
-        taskRows.push({ task_code: t.task_code, status: t.status, clock_status: null, due_at: null });
+        taskRows.push({ ...base, clock_status: null, due_at: null });
         continue;
       }
       const clock = await db.query<{ due_at: string; stopped_at: string | null; outcome: "ON_TIME" | "LATE" | null; due_soon_lead_days: number }>(
@@ -507,10 +545,17 @@ export async function getJourneyForBooking(bookingId: string, ctx: Ctx): Promise
       );
       const c = clock.rows[0];
       const status = deriveStatus({ now: new Date().toISOString(), dueAt: c.due_at, stoppedAt: c.stopped_at, outcome: c.outcome, dueSoonLeadDays: c.due_soon_lead_days, atRisk: false });
-      taskRows.push({ task_code: t.task_code, status: t.status, clock_status: status, due_at: new Date(c.due_at).toISOString() });
+      taskRows.push({ ...base, clock_status: status, due_at: new Date(c.due_at).toISOString() });
     }
     result.push({
+      stage_instance_id: stage.id,
       stage_code: stage.stage_code,
+      name: stageTemplate?.name ?? stage.stage_code,
+      customer_name: stageTemplate?.customer_name ?? null,
+      stream: stageTemplate?.stream ?? "CONSTRUCTION",
+      customer_visible: stageTemplate?.customer_visible ?? false,
+      owner_department: stageTemplate?.owner_department ?? "",
+      owner_user_id: stage.owner_user_id,
       status: stage.status,
       progress_pct: stage.progress_pct,
       baseline_start: asDateStr(stage.baseline_start),

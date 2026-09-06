@@ -68,6 +68,7 @@ export interface Customer {
   primary_phone: string;
   kyc_status: string;
   bookings: {
+    booking_id: string;
     booking_number: string;
     status: string;
     total_consideration: number;

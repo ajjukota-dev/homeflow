@@ -7,6 +7,9 @@ import {
   reopenTaskInstance,
   completeTaskInstance,
 } from "./journey/instances";
+import { createPlanRevision, listPlanRevisions } from "./journey/plan-revision";
+import { getTaskInstanceDetail } from "./journey/task-detail";
+import { getProjectJourneyControl } from "./journey/control";
 import type { AuthedRequest } from "./auth/middleware";
 import { failHttp } from "./authz/httpError";
 
@@ -64,6 +67,43 @@ export function registerJourneyInstanceRoutes(app: Express) {
     try {
       await completeTaskInstance(req.params.id, { actor: req.actor! });
       res.json({ data: { ok: true } });
+    } catch (e) {
+      failHttp(res, e);
+    }
+  });
+
+  app.get("/api/task-instances/:id", async (req: AuthedRequest, res) => {
+    try {
+      res.json({ data: await getTaskInstanceDetail(req.params.id, { actor: req.actor! }) });
+    } catch (e) {
+      failHttp(res, e);
+    }
+  });
+
+  app.post("/api/journeys/:id/plan-revision", async (req: AuthedRequest, res) => {
+    try {
+      const data = await createPlanRevision(
+        req.params.id,
+        { changes: req.body?.changes ?? [], reason_code: req.body?.reason_code, note: req.body?.note ?? null },
+        { actor: req.actor! }
+      );
+      res.json({ data });
+    } catch (e) {
+      failHttp(res, e);
+    }
+  });
+
+  app.get("/api/journeys/:id/revisions", async (req: AuthedRequest, res) => {
+    try {
+      res.json({ data: await listPlanRevisions(req.params.id, { actor: req.actor! }) });
+    } catch (e) {
+      failHttp(res, e);
+    }
+  });
+
+  app.get("/api/projects/:id/journey-control", async (req: AuthedRequest, res) => {
+    try {
+      res.json({ data: await getProjectJourneyControl(req.params.id, { actor: req.actor! }) });
     } catch (e) {
       failHttp(res, e);
     }
