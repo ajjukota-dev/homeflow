@@ -38,6 +38,71 @@ templates, guardrails, quiet hours (12 preferences reused).
 ## Acceptance
 p16 §8.12 bullets each ≥1 test · Appendix B two events · rule tests 1–8 · visibility test: INTERNAL never appears in portal projection.
 
+## Build note (2026-09-06)
+
+**Scope.** Backend only — `communications/{core,templates,notes}.ts`, `routes-communications.ts`,
+migration `0044_communications.sql`, `seed/communications.ts`. Frontend (Customer 360 →
+Communications tab, internal-notes panel, Studio's two new tabs) deferred per this session's
+backend-first pass; the tabs are marked `built:true` in `studio/registry.ts` for the *table*
+CRUD, not for any UI.
+
+**Reuse decisions.**
+- Rule 2's publish-to-portal reuses 26's `customer_update` table/feed directly (`kind='MESSAGE'`)
+  rather than building a second portal-integration path — `getUpdates` already reads
+  `WHERE status='PUBLISHED'`.
+- Rule 3's merge-field resolution reuses 22's `buildSourceContext`/`resolvePath`/
+  `formatMergeValue` and the `merge_field_definition` table as-is; `renderTemplateBody` is a new,
+  lighter `{{code}}` substitution for plain-text email/log bodies — it doesn't route through 22's
+  clause/PDF document machinery, which communications don't need.
+- Rule 6's 48h follow-up escalation reuses the existing SLA-clock/escalation-ladder mechanism
+  (`journey/sla.ts::startClock`, `escalations/core.ts::scanEscalations`) end-to-end, not a new
+  timer. `customer_query_48h` is the first of the 13 seeded escalation rules actually wired
+  (`wired: true`) — its `sla_policy` row sets `escalation_ladder_id` directly at seed time (the
+  known gotcha already solved once for `snag_sla_policy`: `seedEscalationConfig`'s own backfill
+  only touches rows that exist at that exact moment, so a rule seeded after boot must set the
+  column itself).
+
+**Template approval.** Purpose-conditional dual approver: `PAYMENT_REMINDER`/`DELAY_NOTICE`
+require LEGAL; every other purpose is approved by CRM-lead (CRM role), per rule 3's text. The
+spec's prose also names "cancellation" as legal-bearing, but the Data table's own `purpose` enum
+has no `CANCELLATION` value — flagged as `LEGAL_BEARING_PURPOSES`'s own comment rather than
+inventing an enum value the schema doesn't name.
+
+**Known gaps, flagged not faked.**
+- `sendCommunicationEmail` originally called `mailer.send` before the `communication` insert;
+  advisor caught that a failed insert (bad customer/booking id) would leave a real email sent with
+  no logged row, violating rule 1. Fixed: insert (+ event) happens first inside `withTx`, mail
+  goes out last — `mailer.send` isn't a DB call so it's safe inside the open transaction.
+- Rule 4's frequency guardrail only runs when a `template_id` is given — a free-text send with the
+  same reminder copy pasted in bypasses the cap. Defensible (there's no `purpose` to cap against
+  without a template) but a real gap; not fixed this pass.
+- `customer_query_48h`'s `wired: true` flip only reaches a fresh DB. `seedEscalationConfig` early-
+  returns once any `escalation_ladder` row exists, so an already-booted dev/demo DB keeps the old
+  `wired: false` value — same shape as the migration-vs-seed-order gap already documented for spec
+  08. Not worth a one-off data migration at demo scale; noted here for whoever next touches
+  escalation seeding.
+
+**Test coverage.** 14 tests in `communications.test.ts`, all real end-to-end behavior, not
+shape-only: rule 6's test drives `scanEscalations` with a controlled `asOf` 49h after logging an
+inbound follow-up and asserts a genuine `escalation` row (`rule_key='customer_query_48h'`,
+`category='REPUTATION'`) — proving the SLA clock actually fires, not just that a due date gets
+set. Rule 4's guardrail test sends 3 real emails then asserts the 4th is blocked, then proves the
+CRM-lead override path and that SALES can't self-override. Event-registry coverage test requires
+literal `type` strings in test-file source, not just indirect exercise, satisfied via explicit
+`db.query` assertions on the `event` table at each of the 4 newly-`built:true` event points.
+
+**Cross-spec follow-through.** Landing 29 turned spec 28's Customer 360 / Booking 360
+"Communications" tab from a `notYetAvailable` placeholder into a real endpoint
+(`/api/customers/:id/communications`) — updated `customer-360.ts`, `booking-360.ts` and their
+`views.test.ts` assertions accordingly, per 28's own manifest design ("degrades to placeholder
+until 29 lands").
+
+**Verification.** `npx tsc --noEmit` clean. Full suite: 94/95 files, 676/682 in one run — the one
+failing file (`registration/registration.test.ts`, untouched by this build) passes 6/6 in
+isolation; failures were `Error: Worker exited unexpectedly` timeouts, the same Windows
+vitest worker-pool contention already diagnosed and documented earlier this session, not a
+regression from this spec.
+
 ## Depends on / Feeds
 Depends on 01, 03, 10, 12, 22 (merge fields), 26. Feeds 13 (source of commitments), 31 (summary/sentiment), 27 (experience KPIs).
 

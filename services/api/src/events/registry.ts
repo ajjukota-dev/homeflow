@@ -100,8 +100,8 @@ export const EVENT_TYPES: EventTypeDef[] = [
   { name: "handover.closed", family: "handover", customer_visible: false, built: true },
   { name: "warranty.case_opened", family: "warranty", customer_visible: true, built: false },
   { name: "warranty.case_closed", family: "warranty", customer_visible: true, built: true },
-  { name: "customer_contact.sent", family: "customer_contact", customer_visible: false, built: false },
-  { name: "customer_contact.response_received", family: "customer_contact", customer_visible: false, built: false },
+  { name: "customer_contact.sent", family: "customer_contact", customer_visible: false, built: true },
+  { name: "customer_contact.response_received", family: "customer_contact", customer_visible: false, built: true },
 
   // --- Sanctioned extensions (02 §Appendix B "Extend with ...") ---
   { name: "document.approved", family: "document", customer_visible: false, built: true },
@@ -118,6 +118,9 @@ export const EVENT_TYPES: EventTypeDef[] = [
   { name: "commitment.breached", family: "commitment", customer_visible: false, built: true },
   { name: "commitment.fulfilled", family: "commitment", customer_visible: false, built: true },
   { name: "commitment.waived", family: "commitment", customer_visible: false, built: true },
+  // 29-communications.md's own Events list, beyond the customer_contact Appendix B pair above.
+  { name: "communication.published", family: "communication", customer_visible: false, built: true },
+  { name: "template.approved", family: "communication", customer_visible: false, built: true },
 
   // --- Canonical-model rule 8 events (04 §Rules "Every mutation emits: ...") ---
   // These aren't literal Appendix B names but 04 requires them, and 02 says event names

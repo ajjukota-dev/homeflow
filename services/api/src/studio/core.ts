@@ -50,6 +50,10 @@ export const TABLE_REGISTRY: Record<string, TableRegistryEntry> = {
   // customer_wording (per-project via project_id already) — visibility doesn't vary by product
   // type, so PRODUCT_TYPES_COL isn't force-fit onto a row shape that doesn't ask for it.
   customer_visibility_rule: { primaryKey: "id", columns: ["entity", "field", "project_id", "visible", "customer_wording"], editRoles: POLICY_STUDIO_ROLES },
+  // 29-communications.md rule 4 — no versioning columns of its own, same generic-envelope fit as
+  // customer_visibility_rule above. No product_types column: a frequency cap applies per
+  // communication purpose, not per product type.
+  frequency_guardrail: { primaryKey: "purpose", columns: ["max_per_customer_per_window", "window_days", "quiet_hours_start", "quiet_hours_end"], editRoles: POLICY_STUDIO_ROLES },
 };
 
 function columnSql(entry: TableRegistryEntry, col: string, placeholder: string): string {
