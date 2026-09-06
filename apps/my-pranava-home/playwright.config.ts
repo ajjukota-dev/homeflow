@@ -7,6 +7,6 @@ export default defineConfig({
   globalSetup: "./e2e/global-setup.ts",
   use: {
     baseURL: "http://localhost:5174",
-    storageState: "e2e/.auth/superadmin.json",
+    storageState: "e2e/.auth/customer.json",
   },
 });

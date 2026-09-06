@@ -25,5 +25,5 @@ test("wrong password shows an error and does not sign in", async ({ page }) => {
 
 test("customer signs in and lands on their booking's home screen", async ({ page }) => {
   await login(page, "customer@demo.pranava", "Demo@2026");
-  await expect(page.getByRole("heading", { name: /Building your home/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^Hello,/ })).toBeVisible();
 });

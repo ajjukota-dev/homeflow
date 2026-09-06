@@ -338,9 +338,16 @@ export async function getRequests(ctx: Ctx) {
   };
 }
 
-export async function raiseCustomerRequest(input: Omit<RaiseCrInput, "raised_by_kind">, ctx: Ctx) {
-  await myBooking(ctx);
-  const cr = await raiseChangeRequest({ ...input, raised_by_kind: "CUSTOMER_PORTAL" }, ctx);
+// Bug found live-verifying the portal UI (2026-09-07): this used to require the CALLER to supply
+// `booking_id` even though `myBooking(ctx)` already resolved it and rule 1 bans exactly that
+// ("every API call scoped to customer_login.booking_id... never a raw bookingId parameter from
+// the caller") — no area read endpoint (overview/myHome/journey) exposes booking_id, so a real
+// frontend had no value to pass. `raiseChangeRequest` itself already re-validates booking
+// ownership (change-requests/capture.ts), so this was never a privilege gap, just a caller
+// contract the actual UI couldn't satisfy. Now resolves and injects it, matching rule 1.
+export async function raiseCustomerRequest(input: Omit<RaiseCrInput, "raised_by_kind" | "booking_id">, ctx: Ctx) {
+  const bookingId = await myBooking(ctx);
+  const cr = await raiseChangeRequest({ ...input, booking_id: bookingId, raised_by_kind: "CUSTOMER_PORTAL" }, ctx);
   return { id: cr.id, code: cr.code, status: CR_STATUS_WORDING[cr.status] ?? cr.status };
 }
 
@@ -481,7 +488,14 @@ export async function sendCheckIn(bookingId: string, kind: "DAY_7" | "DAY_30" | 
     });
     const login = await tx.query<{ user_id: string }>(`SELECT user_id FROM customer_login WHERE booking_id = $1 LIMIT 1`, [bookingId]);
     if (login.rows[0]) {
-      await createNotification({ user_id: login.rows[0].user_id, type: "check_in.sent", title: "How's everything going?", body: "We'd love to hear how things are going — please take a moment to rate your experience." }, tx);
+      // entity_ref is what lets the portal Home screen find this specific check-in to render a
+      // score prompt against — without it there was no way for a customer UI to ever discover a
+      // check-in was pending (found while wiring the Home screen, 2026-09-07; rule 10 requires
+      // "portal prompts + email", and only the email half worked without this).
+      await createNotification(
+        { user_id: login.rows[0].user_id, type: "check_in.sent", title: "How's everything going?", body: "We'd love to hear how things are going — please take a moment to rate your experience.", entity_ref: { entity_type: "customer_check_in", entity_id: id } },
+        tx
+      );
     }
   });
   return { id };

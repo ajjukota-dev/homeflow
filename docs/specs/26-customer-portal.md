@@ -123,3 +123,49 @@ tests, `tsc --noEmit` clean. `registration.test.ts` intermittently times out 4-6
 (this segment's own edit reverted), so genuinely pre-existing worker-pool contention, same flake
 already logged at 20's landing (confirmed there via `git stash -u` on pure pre-spec-20 `main`), not
 this spec's regression. Not fixed (out of scope); logged in TODO.md.
+
+## Build note (2026-09-07) — Portal UI + CRM Customer Updates queue
+
+Built the two UI pieces the 2026-09-06 backend note deferred. `apps/my-pranava-home` was a
+single-screen, single-hardcoded-booking placeholder on the old `/api/me/home` (`transparency.ts`)
+endpoint — replaced entirely with a real multi-area app on the actual `/api/portal/*` API: a bottom
+tab bar (Home/Journey/Payments/Documents — the 4 areas customers open most, rule 11's mobile-first)
+plus a "More" menu for the rest (My Home, Registration, Handover, Requests, Commitments, Home
+Passport, Updates, Profile — 10 areas is too many for one tab bar). Old `Home.tsx`/`HomeExtras.tsx`/
+`api.ts` deleted (nothing else referenced them). No booking chooser (rule 1's "chooser if several")
+since `bookingForCustomerUser` only ever resolves one booking per login — a documented, pre-existing
+simplification, not a new scope cut here. Files: `App.tsx`, `nav.ts`, `portal-api.ts`,
+`lib/useArea.ts`, `components/AreaScreen.tsx`, `pages/{Home,Journey,Payments,Documents,MyHome,
+Registration,Handover,Requests,Commitments,Passport,Profile,Updates,More}.tsx`.
+
+**Real bug found and fixed**: `raiseCustomerRequest` required the caller to supply `booking_id`
+even though `myBooking(ctx)` already resolves it and rule 1 explicitly bans exactly that ("never a
+raw bookingId parameter from the caller") — no portal read endpoint exposes `booking_id` in its
+response, so a real frontend had no value to pass. Not a privilege gap (`raiseChangeRequest` itself
+already re-validates booking ownership), but the contract a real UI couldn't satisfy — found while
+wiring `Requests.tsx`, not by the unit tests (the existing test called the function directly with a
+`bookingId` it already had from setup). Fixed by resolving and injecting it server-side; updated the
+one unit test that used to pass it explicitly.
+
+CRM side: `apps/workspace/src/pages/customer-updates/{api,CustomerUpdates}.tsx`, new "Customer
+Updates" nav entry (roles matched to `portal/core.ts`'s own `CRM_UPDATE_ROLES` exactly, not the
+broader `customer_*` READ modules). No bulk "drafts across all bookings" endpoint exists
+(`listDraftUpdates` is per-booking) — fetches every real booking and its updates, same N+1 scale as
+the rest of this ~10-booking demo dataset; flagged, not a new backend surface. Live-verified
+end-to-end (not just via test): booked a real villa through the UI (a real `booking.created` event,
+unlike the seed's direct-SQL bookings, which never fire subscribers), confirmed the resulting
+"Welcome to your Pranava Home journey" draft appeared in the queue, edited it, published it, and
+confirmed the queue emptied correctly. Studio's "Customer visibility & wording" tab (Spec 26)
+live-verified rendering correctly with zero new frontend code, same registry-only pattern as every
+other spec-17-onward Studio tab — empty state is correct (no rows seeded; `visibilityFor()`'s own
+documented fallback defaults to visible when a rule is missing, so this is safe, not a gap).
+
+`e2e/customer-updates.spec.ts` (workspace): real booking → draft appears → edit → publish → empty,
+plus empty-state screenshots at 3 breakpoints. `apps/my-pranava-home/e2e/visual.spec.ts` and
+`auth.spec.ts` rewritten for the new multi-screen app (the old assertions targeted headings that no
+longer exist); `global-setup.ts` and `playwright.config.ts` switched their default storageState from
+SUPER_ADMIN to the seeded demo customer — every `/api/portal/*` endpoint requires a real
+`CUSTOMER`-kind actor (`myBooking(ctx)` rejects any STAFF session, SUPER_ADMIN included), so the old
+staff-preview convenience the placeholder app relied on no longer applies. Both apps' full e2e
+suites re-run clean from a fresh DB (workspace: 111 passed/1 pre-existing unrelated flake/1 skipped;
+my-pranava-home: 12/12); both `tsc --noEmit` and `vite build` clean.
