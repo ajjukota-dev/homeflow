@@ -14,7 +14,7 @@ import {
 } from "./instances";
 import { withTx } from "../events";
 import type { Ctx } from "../authz/types";
-import { startAction, submitForApproval, approveAction, addEvidence, verifyEvidence } from "../actions/core";
+import { startAction, submitForApproval, approveAction, closeAction, cancelAction, addEvidence, verifyEvidence, getAction } from "../actions/core";
 
 // FK'd to a real "user" row now that completeTaskInstance/reopenTaskInstance write
 // action/action_transition rows (10) — seed/users.ts's demo super admin, not the fake
@@ -360,5 +360,47 @@ describe("journey/instances: APPROVAL-family task (T6) closes via completeTaskIn
     // T9 depends on both T6 and T8 (rule 4) — T6 alone must not make it actionable.
     const t9 = after!.stages.flatMap((s) => s.tasks).find((t) => t.task_code === "T9")!;
     expect(t9.clock_status).toBeNull();
+  });
+});
+
+// 10-universal-action.md's own Build note: ActionDrawer now surfaces task-backed actions (via My
+// Day) with direct Close/Approve/Cancel buttons. There is no action.closed event subscriber
+// syncing task_instance back (rule 7's still-unbuilt half), so calling those routes directly on a
+// task-backed action — bypassing completeTaskInstance, which is the only caller that keeps
+// task_instance/the journey's stage roll-up in sync — must be refused, not silently accepted.
+describe("journey/instances: a task-backed action refuses direct close/approve/cancel", () => {
+  it("closeAction and cancelAction refuse a task-backed action outside completeTaskInstance", async () => {
+    const bookingId = await bookAndAccept();
+    const journey = await getJourneyForBooking(bookingId, superAdminCtx);
+    const pt1ActionId = await actionIdFor(await taskInstanceId(journey!.id, "PT1"));
+    expect((await getAction(pt1ActionId, superAdminCtx)).task_instance_id).not.toBeNull();
+
+    await expect(closeAction(pt1ActionId, undefined, superAdminCtx)).rejects.toThrow(/journey task/);
+    await expect(cancelAction(pt1ActionId, "no longer needed", superAdminCtx)).rejects.toThrow(/journey/);
+  });
+
+  it("approveAction refuses a task-backed APPROVAL action outside completeTaskInstance", async () => {
+    const bookingId = await bookAndAccept();
+    const journey = await getJourneyForBooking(bookingId, superAdminCtx);
+    const journeyId = journey!.id;
+
+    await completeTaskInstance(await taskInstanceId(journeyId, "PT1"), superAdminCtx);
+    await completeTaskInstance(await taskInstanceId(journeyId, "T1"), superAdminCtx);
+    await completeTaskInstance(await taskInstanceId(journeyId, "T2"), crmA());
+    const t3Id = await taskInstanceId(journeyId, "T3");
+    const t3ActionId = await actionIdFor(t3Id);
+    const evidenceId = await addEvidence(t3ActionId, "project/test/action/t3/doc.pdf", "PAN", superAdminCtx);
+    await verifyEvidence(evidenceId, "VERIFIED", undefined, crmA());
+    await completeTaskInstance(t3Id, superAdminCtx);
+    await completeTaskInstance(await taskInstanceId(journeyId, "T5"), superAdminCtx);
+
+    const t6ActionId = await actionIdFor(await taskInstanceId(journeyId, "T6"));
+    await startAction(t6ActionId, legalA());
+    await submitForApproval(t6ActionId, legalA());
+
+    await expect(approveAction(t6ActionId, undefined, legalB())).rejects.toThrow(/journey task/);
+    // completeTaskInstance (the internal, tx-carrying caller) still works — proves the guard
+    // keys on "external caller", not on the action being task-backed at all.
+    await completeTaskInstance(await taskInstanceId(journeyId, "T6"), legalB());
   });
 });

@@ -57,7 +57,7 @@ export const ADMIN_NAV: { id: View; label: string }[] = [
 // own home view, not just the first visible tab — MANAGEMENT's home is the
 // control tower ("lands in Management"). Every seeded role has an explicit
 // entry; a role with none falls through to the first visible tab.
-const ROLE_HOME: Record<string, View> = {
+export const ROLE_HOME: Record<string, View> = {
   MANAGEMENT: "tower",
   SALES: "sales",
   CRM: "crm",

@@ -18,6 +18,7 @@ import {
   setChecklistItem,
   listActions,
   getQueue,
+  getAction,
 } from "./actions/core";
 import { db } from "./db";
 import { files } from "./ports/files";
@@ -51,6 +52,14 @@ export function registerActionRoutes(app: Express) {
   app.post("/api/actions", async (req: AuthedRequest, res) => {
     try {
       res.json({ data: { id: await createManualAction(req.body ?? {}, { actor: req.actor! }) } });
+    } catch (e) {
+      failHttp(res, e);
+    }
+  });
+
+  app.get("/api/actions/:id", async (req: AuthedRequest, res) => {
+    try {
+      res.json({ data: await getAction(req.params.id, { actor: req.actor! }) });
     } catch (e) {
       failHttp(res, e);
     }

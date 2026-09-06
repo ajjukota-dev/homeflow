@@ -3,14 +3,15 @@ import { PageHeader, Skeleton, EmptyState, Badge, Tabs, TabsList, TabsTrigger, T
 import { CalendarClock, AlertTriangle, Clock3, ClipboardCheck, HeartHandshake, Users } from "lucide-react";
 import { mydayApi, type MyDayAction, type MyDayView, type TeamDayView } from "./api";
 import { adminApi } from "../../auth/adminApi";
+import { ActionDrawer } from "../../components/ActionDrawer/ActionDrawer";
 
 // 11-my-day-ranking.md. Rule 1's five sections rendered as Tabs (satisfies "collapsible lists" on
 // desktop and "sections as tabs" at 375 with one layout, not two — a deliberate simplification,
-// noted in this spec's own Build note). Two real, honest scope cuts vs. the Screens section's
-// description, both flagged there too: no entity chip (Booking/Unit) or owner avatar per row —
-// `GET /me/day` returns action id/code/title/status/due_at/score/why_now only, no booking/unit/
-// owner join; and no primary action button (Start/Approve/Upload evidence) opening an Action
-// drawer — that drawer is spec 10's own still-deferred UI, so this view is read-only for now.
+// noted in this spec's own Build note). One real, honest scope cut remains vs. the Screens
+// section's description, flagged there too: no entity chip (Booking/Unit) or owner avatar per row
+// — `GET /me/day` returns action id/code/title/status/due_at/score/why_now only, no booking/unit/
+// owner join. The primary-action gap (Start/Approve/Upload evidence opening an Action drawer) is
+// now closed — clicking a row opens 10's ActionDrawer.
 
 const SECTIONS: { key: keyof Omit<MyDayView, "done_today">; label: string; icon: typeof CalendarClock; empty: string }[] = [
   { key: "due_today", label: "Due today", icon: CalendarClock, empty: "Nothing due today." },
@@ -25,37 +26,42 @@ function formatDue(dueAt: string | null): string | null {
   return new Date(dueAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
 }
 
-function ActionRow({ a }: { a: MyDayAction }) {
+function ActionRow({ a, onSelect }: { a: MyDayAction; onSelect: (id: string) => void }) {
   const due = formatDue(a.due_at);
   return (
-    <li className="flex flex-col gap-1.5 border-t border-line py-3 first:border-t-0">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="min-w-0">
-          <span className="text-caption text-fg-subtle">{a.code}</span>
-          <div className="truncate text-subhead font-semibold">{a.title}</div>
+    <li className="border-t border-line first:border-t-0">
+      <button
+        type="button"
+        onClick={() => onSelect(a.id)}
+        className="flex w-full flex-col gap-1.5 py-3 text-left transition-colors duration-micro hover:bg-surface-raised focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="min-w-0">
+            <span className="text-caption text-fg-subtle">{a.code}</span>
+            <div className="truncate text-subhead font-semibold">{a.title}</div>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            {due && <span className="text-footnote text-fg-subtle">{due}</span>}
+            <Badge>{a.status}</Badge>
+          </div>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          {due && <span className="text-footnote text-fg-subtle">{due}</span>}
-          <Badge>{a.status}</Badge>
-        </div>
-      </div>
-      <p className="text-footnote text-fg-muted">{a.why_now}</p>
+        <p className="text-footnote text-fg-muted">{a.why_now}</p>
+      </button>
     </li>
   );
 }
 
-function SectionList({ actions, emptyMessage, icon }: { actions: MyDayAction[]; emptyMessage: string; icon: typeof CalendarClock }) {
+function SectionList({ actions, emptyMessage, icon, onSelect }: { actions: MyDayAction[]; emptyMessage: string; icon: typeof CalendarClock; onSelect: (id: string) => void }) {
   if (actions.length === 0) return <EmptyState icon={icon} message={emptyMessage} />;
-  return <ul className="flex flex-col">{actions.map((a) => <ActionRow key={a.id} a={a} />)}</ul>;
+  return <ul className="flex flex-col">{actions.map((a) => <ActionRow key={a.id} a={a} onSelect={onSelect} />)}</ul>;
 }
 
-function TeamView({ projectId }: { projectId: string }) {
+function TeamView({ projectId, reloadTick, onSelect }: { projectId: string; reloadTick: number; onSelect: (id: string) => void }) {
   const [team, setTeam] = useState<TeamDayView | null>(null);
   const [names, setNames] = useState<Record<string, string>>({});
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    setTeam(null);
     setError(false);
     if (!projectId) return;
     mydayApi
@@ -69,7 +75,7 @@ function TeamView({ projectId }: { projectId: string }) {
       .listUsers()
       .then((users) => setNames(Object.fromEntries(users.map((u) => [u.id, u.display_name]))))
       .catch(() => {});
-  }, [projectId]);
+  }, [projectId, reloadTick]);
 
   if (error) return <EmptyState icon={Users} message="Couldn't load the team view for this project." />;
   if (team === null) return <Skeleton />;
@@ -94,7 +100,7 @@ function TeamView({ projectId }: { projectId: string }) {
                 ))}
               </div>
               {m.top3.length > 0 ? (
-                <ul className="flex flex-col">{m.top3.map((a) => <ActionRow key={a.id} a={a} />)}</ul>
+                <ul className="flex flex-col">{m.top3.map((a) => <ActionRow key={a.id} a={a} onSelect={onSelect} />)}</ul>
               ) : (
                 <p className="text-footnote text-fg-subtle">Nothing open.</p>
               )}
@@ -115,6 +121,8 @@ export function MyDay({ projectId, isTeamHead }: { projectId: string; isTeamHead
   const [day, setDay] = useState<MyDayView | null>(null);
   const [error, setError] = useState(false);
   const [teamView, setTeamView] = useState(false);
+  const [openActionId, setOpenActionId] = useState<string | null>(null);
+  const [teamReloadTick, setTeamReloadTick] = useState(0);
   const today = new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" });
 
   function load() {
@@ -129,6 +137,11 @@ export function MyDay({ projectId, isTeamHead }: { projectId: string; isTeamHead
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
+
+  function handleActionChanged() {
+    load();
+    setTeamReloadTick((t) => t + 1);
+  }
 
   const allEmpty = day && SECTIONS.every((s) => day[s.key].length === 0);
 
@@ -147,7 +160,7 @@ export function MyDay({ projectId, isTeamHead }: { projectId: string; isTeamHead
       />
 
       {teamView && isTeamHead ? (
-        <TeamView projectId={projectId} />
+        <TeamView projectId={projectId} reloadTick={teamReloadTick} onSelect={setOpenActionId} />
       ) : error ? (
         <EmptyState icon={CalendarClock} message="Couldn't load My Day." action={{ label: "Retry", onClick: load }} />
       ) : day === null ? (
@@ -169,7 +182,7 @@ export function MyDay({ projectId, isTeamHead }: { projectId: string; isTeamHead
           </TabsList>
           {SECTIONS.map((s) => (
             <TabsContent key={s.key} value={s.key}>
-              <SectionList actions={day[s.key]} emptyMessage={s.empty} icon={s.icon} />
+              <SectionList actions={day[s.key]} emptyMessage={s.empty} icon={s.icon} onSelect={setOpenActionId} />
             </TabsContent>
           ))}
         </Tabs>
@@ -178,6 +191,8 @@ export function MyDay({ projectId, isTeamHead }: { projectId: string; isTeamHead
       {day !== null && !teamView && (
         <p className="text-footnote text-fg-subtle">{day.done_today} done today.</p>
       )}
+
+      <ActionDrawer actionId={openActionId} onClose={() => setOpenActionId(null)} onChanged={handleActionChanged} />
     </div>
   );
 }
