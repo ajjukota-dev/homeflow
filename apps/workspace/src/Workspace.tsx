@@ -13,6 +13,7 @@ import { PostHandover } from "./pages/PostHandover";
 import { ControlTower } from "./pages/ControlTower";
 import { Roadmap } from "./pages/management/Roadmap";
 import { Studio } from "./pages/studio/Shell";
+import { Queues } from "./pages/Queues";
 import { AdminUsers } from "./pages/admin/Users";
 import { AdminTeams } from "./pages/admin/Teams";
 import { AdminPermissionMatrix } from "./pages/admin/PermissionMatrix";
@@ -103,6 +104,7 @@ export function Workspace({ me, onLogout }: { me: NonNullable<ReturnType<typeof 
     tower: <ControlTower projectId={projectId} />,
     roadmap: <Roadmap />,
     studio: <Studio />,
+    queues: <Queues projectId={projectId} roles={roles} />,
     "admin-users": <AdminUsers />,
     "admin-teams": <AdminTeams projectId={projectId} />,
     "admin-permissions": <AdminPermissionMatrix />,

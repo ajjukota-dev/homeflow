@@ -1,4 +1,4 @@
-import { Building2, Store, Users, Banknote, Scale, ClipboardCheck, HeartHandshake, Landmark, Map, Settings2, CalendarClock } from "lucide-react";
+import { Building2, Store, Users, Banknote, Scale, ClipboardCheck, HeartHandshake, Landmark, Map, Settings2, CalendarClock, Inbox } from "lucide-react";
 import { ROLE_CODES } from "./pages/admin/roles";
 
 export type View =
@@ -13,6 +13,7 @@ export type View =
   | "tower"
   | "roadmap"
   | "studio"
+  | "queues"
   | "admin-users"
   | "admin-teams"
   | "admin-permissions"
@@ -44,6 +45,10 @@ export const NAV: { id: View; label: string; role: string; short: string; Icon: 
   // list, removed once every spec is merged.
   { id: "roadmap", label: "Roadmap", role: "What's built, what's next", short: "Roadmap", Icon: Map, roles: ["MANAGEMENT", "SUPER_ADMIN"] },
   { id: "studio", label: "Policy Studio", role: "Every configurable thing, as data", short: "Studio", Icon: Settings2, roles: [...STAFF_ROLES_CLIENT] },
+  // 10-universal-action.md Screens: "Departmental queues" — same any-staff-can-browse footprint
+  // as getQueue/listActions server-side (STAFF_ROLES, no per-department restriction); bulk
+  // reassign is gated client-side to Management inside the page itself, not by nav visibility.
+  { id: "queues", label: "Queues", role: "Departmental actions, claim & reassign", short: "Queues", Icon: Inbox, roles: [...STAFF_ROLES_CLIENT] },
 ];
 
 export const ADMIN_NAV: { id: View; label: string }[] = [
