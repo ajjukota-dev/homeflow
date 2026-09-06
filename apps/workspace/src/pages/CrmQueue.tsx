@@ -53,7 +53,7 @@ export function CrmQueue({ roles }: { roles: string[] }) {
     setBusy(null);
   }
 
-  if (selected) return <Customer360 customerId={selected} onBack={() => setSelected(null)} />;
+  if (selected) return <Customer360 customerId={selected} onBack={() => setSelected(null)} roles={roles} />;
 
   return (
     <div>

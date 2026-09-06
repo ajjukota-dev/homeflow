@@ -1,4 +1,4 @@
-import { Building2, Store, Users, Banknote, Scale, ClipboardCheck, HeartHandshake, Landmark, Map, Settings2, CalendarClock, Inbox, Route } from "lucide-react";
+import { Building2, Store, Users, Banknote, Scale, ClipboardCheck, HeartHandshake, Landmark, Map, Settings2, CalendarClock, Inbox, Route, Handshake } from "lucide-react";
 import { ROLE_CODES } from "./pages/admin/roles";
 
 export type View =
@@ -18,7 +18,8 @@ export type View =
   | "admin-teams"
   | "admin-permissions"
   | "admin-data"
-  | "journey-control";
+  | "journey-control"
+  | "promise-ledger";
 
 // Rule 3: read access is any staff role; per-tab edit eligibility is enforced server-side
 // (studio/registry.ts's tabsForRoles/can_edit) — every seeded staff role except CUSTOMER sees
@@ -55,6 +56,12 @@ export const NAV: { id: View; label: string; role: string; short: string; Icon: 
   // server-side; scoped narrower here since this is a whole-project cross-customer view, not a
   // single-customer record any staff role would need).
   { id: "journey-control", label: "Journey Control", role: "Every journey's health & plan revisions", short: "Journeys", Icon: Route, roles: ["SITE", "QA", "CRM", "MANAGEMENT", "SUPER_ADMIN"] },
+  // 13-promise-ledger.md Screens: "Promise Ledger (CRM)" — matrix READ also reaches MANAGEMENT/
+  // SALES/ACCOUNTS/LEGAL/REGISTRATION (seed/permissions.ts's "commitments" row), but the spec's
+  // own Screens line names this a CRM screen; scoped to CRM (WRITE) + MANAGEMENT (rule 2's
+  // approver, rule 1's waiver) + SUPER_ADMIN, matching Journey Control's own narrower-than-matrix
+  // precedent, rather than adding four more nav entries for a READ-only view nothing asked for.
+  { id: "promise-ledger", label: "Promise Ledger", role: "Every commitment — status, owner, confidence", short: "Promises", Icon: Handshake, roles: ["CRM", "MANAGEMENT", "SUPER_ADMIN"] },
 ];
 
 export const ADMIN_NAV: { id: View; label: string }[] = [

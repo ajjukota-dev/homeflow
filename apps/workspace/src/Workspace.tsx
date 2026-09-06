@@ -19,6 +19,7 @@ import { AdminTeams } from "./pages/admin/Teams";
 import { AdminPermissionMatrix } from "./pages/admin/PermissionMatrix";
 import { Admin as AdminData } from "./pages/admin/Admin";
 import { ProjectJourneyControl } from "./pages/journey/ProjectJourneyControl";
+import { PromiseLedger } from "./pages/commitments/PromiseLedger";
 import type { useAuth } from "./auth/AuthContext";
 import { NAV, ADMIN_NAV, defaultViewFor, type View } from "./nav";
 import { api, type Project, type Unit } from "./api";
@@ -111,6 +112,7 @@ export function Workspace({ me, onLogout }: { me: NonNullable<ReturnType<typeof 
     "admin-permissions": <AdminPermissionMatrix />,
     "admin-data": <AdminData />,
     "journey-control": <ProjectJourneyControl projectId={projectId} />,
+    "promise-ledger": <PromiseLedger projectId={projectId} />,
   };
 
   const content = bookingUnit ? (

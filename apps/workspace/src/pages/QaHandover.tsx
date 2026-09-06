@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ClipboardCheck, CircleDashed } from "lucide-react";
+import { ClipboardCheck } from "lucide-react";
 import { api } from "../api";
 import type { HandoverRow, ReadinessRow } from "../api-lifecycle";
 import { Card, CardBody, Button } from "@homeflow/ui";
@@ -143,30 +143,18 @@ export function QaHandover({ projectId }: { projectId: string }) {
                   </p>
                   <ul className="mt-3 flex flex-wrap gap-1.5">
                     {h.gates
-                      .filter((g) => g.classification === "hard" || g.type === "commitments")
-                      .map((g) =>
-                        g.type === "commitments" ? (
-                          // No Promise Ledger yet (TODO.md workstream L) — always shown, never silently passed.
-                          <li
-                            key={g.type}
-                            className="inline-flex items-center gap-1.5 rounded-full bg-due/10 px-2.5 py-1 text-caption font-medium text-due"
-                          >
-                            <CircleDashed className="h-3 w-3" aria-hidden />
-                            Commitments · Not verified
-                            <span className="font-normal text-fg-subtle">· {g.blockers[0]}</span>
-                          </li>
-                        ) : (
-                          <li
-                            key={g.type}
-                            className={cn(
-                              "rounded-full px-2.5 py-1 text-caption font-medium",
-                              g.state === "passed" ? "bg-ontrack/10 text-ontrack" : "bg-surface-2 text-fg-muted"
-                            )}
-                          >
-                            {gateTypeLabel(g.type)} · {gateRunStateLabel(g.state)}
-                          </li>
-                        )
-                      )}
+                      .filter((g) => g.classification === "hard")
+                      .map((g) => (
+                        <li
+                          key={g.type}
+                          className={cn(
+                            "rounded-full px-2.5 py-1 text-caption font-medium",
+                            g.state === "passed" ? "bg-ontrack/10 text-ontrack" : "bg-surface-2 text-fg-muted"
+                          )}
+                        >
+                          {gateTypeLabel(g.type)} · {gateRunStateLabel(g.state)}
+                        </li>
+                      ))}
                   </ul>
                   {h.blockers.length > 0 && h.lifecycle !== "completed" && (
                     <ul className="mt-2 list-disc pl-5 text-footnote text-fg-muted">

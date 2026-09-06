@@ -95,6 +95,19 @@ export interface CommitmentView extends CommitmentRow {
   confidence_drivers: { label: string; delta: number }[];
 }
 
+export interface CommitmentTransitionRow {
+  id: string;
+  from_status: string;
+  to_status: string;
+  at: string;
+  actor_user_id: string | null;
+  reason: string | null;
+}
+
+export interface CommitmentDetail extends CommitmentView {
+  transitions: CommitmentTransitionRow[];
+}
+
 const SELECT = `
   SELECT id, code, project_id, booking_id, customer_id, unit_id, category, description,
          committed_by_user_id, committed_at::text AS committed_at, source, beneficiary, customer_facing,
@@ -418,11 +431,19 @@ export async function listCommitments(
   return attachConfidence(r.rows, db);
 }
 
-export async function getCommitment(id: string, ctx: Ctx): Promise<CommitmentView> {
+/** Widened over `CommitmentView` with `commitment_transition` history — a detail-only read (like
+ *  `actions/core.ts`'s `getAction`/`ActionDetail`), not folded into `attachConfidence` since
+ *  `listCommitments`/`commitmentsForBooking` would otherwise pay an extra query per row for
+ *  history no list view needs. */
+export async function getCommitment(id: string, ctx: Ctx): Promise<CommitmentDetail> {
   await authorize(ctx, "commitments", "READ");
   const row = await requireCommitment(db, id);
   const [view] = await attachConfidence([row], db);
-  return view!;
+  const t = await db.query<CommitmentTransitionRow>(
+    `SELECT id, from_status, to_status, at::text AS at, actor_user_id, reason FROM commitment_transition WHERE commitment_id = $1 ORDER BY at`,
+    [id]
+  );
+  return { ...view!, transitions: t.rows };
 }
 
 export async function commitmentsForBooking(bookingId: string, ctx: Ctx): Promise<CommitmentView[]> {

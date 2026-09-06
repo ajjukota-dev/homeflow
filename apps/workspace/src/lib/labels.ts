@@ -128,6 +128,45 @@ const INTERVENTION_CATEGORY: Record<InterventionCategory, string> = {
 };
 export const interventionCategoryLabel = (v: string) => lookup(INTERVENTION_CATEGORY, v);
 
+// Commitment.status (13-promise-ledger.md Appendix A)
+type CommitmentStatus = "DRAFT" | "APPROVED" | "ACTIVE" | "AT_RISK" | "FULFILLED" | "BREACHED" | "WAIVED_CANCELLED";
+const COMMITMENT_STATUS: Record<CommitmentStatus, string> = {
+  DRAFT: "Draft",
+  APPROVED: "Approved",
+  ACTIVE: "Active",
+  AT_RISK: "At risk",
+  FULFILLED: "Fulfilled",
+  BREACHED: "Breached",
+  WAIVED_CANCELLED: "Waived / Cancelled",
+};
+export const commitmentStatusLabel = (v: string) => lookup(COMMITMENT_STATUS, v);
+
+// Commitment.category
+type CommitmentCategory = "MODIFICATION" | "COMMERCIAL" | "TIMELINE" | "COMPLIMENTARY_ITEM" | "SPECIFICATION_UPGRADE" | "SERVICE" | "OTHER";
+const COMMITMENT_CATEGORY: Record<CommitmentCategory, string> = {
+  MODIFICATION: "Modification",
+  COMMERCIAL: "Commercial",
+  TIMELINE: "Timeline",
+  COMPLIMENTARY_ITEM: "Complimentary item",
+  SPECIFICATION_UPGRADE: "Specification upgrade",
+  SERVICE: "Service",
+  OTHER: "Other",
+};
+export const commitmentCategoryLabel = (v: string) => lookup(COMMITMENT_CATEGORY, v);
+
+// Commitment.breach_root_cause
+type BreachRootCause = "DEPENDENCY" | "RESOURCE" | "VENDOR" | "SCOPE_MISUNDERSTOOD" | "OVERPROMISED" | "CUSTOMER" | "FORCE_MAJEURE";
+const BREACH_ROOT_CAUSE: Record<BreachRootCause, string> = {
+  DEPENDENCY: "Dependency",
+  RESOURCE: "Resource",
+  VENDOR: "Vendor",
+  SCOPE_MISUNDERSTOOD: "Scope misunderstood",
+  OVERPROMISED: "Overpromised",
+  CUSTOMER: "Customer",
+  FORCE_MAJEURE: "Force majeure",
+};
+export const breachRootCauseLabel = (v: string) => lookup(BREACH_ROOT_CAUSE, v);
+
 // Event log plain-language rendering (spec 02 Screens: "Activity tab ... rendering events in
 // plain language via labels.ts"). Falls back to a readable version of the dotted type name
 // for any event not covered here yet.
@@ -164,6 +203,12 @@ const EVENT_DESCRIBERS: Record<string, (p: Record<string, unknown>) => string> =
   "unit.sale_status_changed": (p) => `Sale status changed from ${p.from ?? "—"} to ${p.to ?? "—"}`,
   "customer.created": (p) => `Customer ${p.display_name ?? ""} created`.trim(),
   "booking.status_changed": (p) => `Booking status changed from ${p.from ?? "—"} to ${p.to ?? "—"}`,
+  "commitment.created": (p) => `Commitment ${p.code ?? ""} created (${commitmentCategoryLabel(String(p.category ?? ""))})`.trim(),
+  "commitment.status_changed": (p) => `Commitment ${commitmentStatusLabel(String(p.from ?? ""))} → ${commitmentStatusLabel(String(p.to ?? ""))}`,
+  "commitment.at_risk": (p) => `Commitment flagged at risk${p.reason ? `: ${p.reason}` : ""}`,
+  "commitment.breached": () => "Commitment breached — due date passed unfulfilled",
+  "commitment.fulfilled": () => "Commitment fulfilled",
+  "commitment.waived": (p) => `Commitment waived${p.reason ? `: ${p.reason}` : ""}`,
 };
 
 export function eventDescription(event: ActivityEvent): string {

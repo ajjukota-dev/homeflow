@@ -7,6 +7,7 @@ import { cn } from "../lib/utils";
 import { bookingStatusLabel, kycStatusLabel } from "../lib/labels";
 import { ActivityFeed } from "../components/ActivityFeed";
 import { JourneyTimeline } from "./journey/JourneyTimeline";
+import { CommitmentsSection } from "./commitments/CommitmentsSection";
 
 function initials(name: string) {
   return name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
@@ -18,7 +19,11 @@ const statusTone: Record<string, string> = {
   returned: "text-overdue bg-overdue/10",
 };
 
-export function Customer360({ customerId, onBack }: { customerId: string; onBack: () => void }) {
+export function Customer360({ customerId, onBack, roles }: { customerId: string; onBack: () => void; roles: string[] }) {
+  // createCommitment (commitments/core.ts) gates on plain matrix WRITE with no MANAGEMENT
+  // override (unlike approve/waive) — matrix (seed/permissions.ts) grants WRITE to CRM only.
+  // MANAGEMENT would see this button, submit, and get a 403.
+  const canWriteCommitments = roles.includes("CRM") || roles.includes("SUPER_ADMIN");
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [loading, setLoading] = useState(true);
   const [viewingBookingId, setViewingBookingId] = useState<string | null>(null);
@@ -81,6 +86,12 @@ export function Customer360({ customerId, onBack }: { customerId: string; onBack
               </Card>
             ))}
           </div>
+
+          {customer.bookings.map((b) => (
+            <div key={`commitments-${b.booking_id}`} className="mt-8">
+              <CommitmentsSection bookingId={b.booking_id} canWrite={canWriteCommitments} />
+            </div>
+          ))}
 
           <h2 className="mb-3 mt-8 text-title3 font-semibold">Activity</h2>
           <ActivityFeed entityType="customer" entityId={customer.id} />
