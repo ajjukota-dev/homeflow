@@ -45,3 +45,6 @@ Depends on 07, 15, 16, 13, 19, 22 (inputs may be null until those land; the func
 
 ## Not in this feature
 Customer Health / Financial Health computation (19, 31) — they only reuse the contract. Gate definitions (16).
+
+## Build note (2026-09-06) — Policy Studio tab
+`14.score_weights_thresholds` registered against `score_weight` in the generic draft/publish/history envelope — its own `effective_from`/`effective_to`/`version` columns are edited as plain fields, the same fit `risk_rule`/`probability_rule` already prove safe. Zero new frontend code, same shape as `10.action_types`. Full detail (the cross-spec batch this shipped in, plus a real `GenericTableEditor` bug found and fixed while verifying it live) is in `TODO.md` §9 and `docs/demo/run-log.md`'s 2026-09-06 "Studio registry-only batch" entry.

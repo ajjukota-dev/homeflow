@@ -50,3 +50,6 @@ Depends on 10, 06, 01, 03 (mailer). Feeds 27 (Control Tower reads material escal
 
 ## Not in this feature
 Customer-facing messages (26, 29). Control Tower ranking (27).
+
+## Build note (2026-09-06) — Policy Studio tabs
+`12.escalation_rules`, `12.ladders`, `12.materiality_thresholds` registered against `escalation_rule`/`escalation_ladder`/`materiality_threshold` in the generic draft/publish/history envelope — zero new frontend code, same shape as `10.action_types`. `12.notification_defaults` stays `built: false`: `notification_preference` is keyed per-user, not a global-defaults table a Studio tab could meaningfully CRUD. Full detail (the cross-spec batch this shipped in, plus a real `GenericTableEditor` bug found and fixed while verifying it live) is in `TODO.md` §9 and `docs/demo/run-log.md`'s 2026-09-06 "Studio registry-only batch" entry.

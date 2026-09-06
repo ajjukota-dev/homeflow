@@ -58,3 +58,6 @@ Depends on 04, 07 (triggers), 10, 12, 21 (loan flag), 22 (statement), 25. Feeds 
 
 ## Not in this feature
 Forecast lines/snapshots/scenarios (20), loan case management (21), document rendering (22).
+
+## Build note (2026-09-06) — Policy Studio tab
+`19.overdue_reasons` registered against `overdue_reason` in the generic draft/publish/history envelope — zero new frontend code, same shape as `10.action_types`. `19.payment_plans` stays `built: false`: `payment_plan` (parent) + `payment_plan_milestone` (ordered child rows) is a relationship the generic envelope's flat-column form can't represent well — needs a bespoke screen (parent fields plus an editable milestone list), not a registry entry. `19.clearance_checklist_threshold` also stays `built: false`: `threshold_pct` lives as a per-row column on `financial_clearance` set at creation time, not a separate global policy table. Full detail (the cross-spec batch this shipped in, plus a real `GenericTableEditor` bug found and fixed while verifying it live) is in `TODO.md` §9 and `docs/demo/run-log.md`'s 2026-09-06 "Studio registry-only batch" entry.
