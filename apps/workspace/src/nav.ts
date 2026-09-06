@@ -1,4 +1,4 @@
-import { Building2, Store, Users, Banknote, Scale, ClipboardCheck, HeartHandshake, Landmark, Map, Settings2, CalendarClock, Inbox } from "lucide-react";
+import { Building2, Store, Users, Banknote, Scale, ClipboardCheck, HeartHandshake, Landmark, Map, Settings2, CalendarClock, Inbox, Route } from "lucide-react";
 import { ROLE_CODES } from "./pages/admin/roles";
 
 export type View =
@@ -17,7 +17,8 @@ export type View =
   | "admin-users"
   | "admin-teams"
   | "admin-permissions"
-  | "admin-data";
+  | "admin-data"
+  | "journey-control";
 
 // Rule 3: read access is any staff role; per-tab edit eligibility is enforced server-side
 // (studio/registry.ts's tabsForRoles/can_edit) — every seeded staff role except CUSTOMER sees
@@ -49,6 +50,11 @@ export const NAV: { id: View; label: string; role: string; short: string; Icon: 
   // as getQueue/listActions server-side (STAFF_ROLES, no per-department restriction); bulk
   // reassign is gated client-side to Management inside the page itself, not by nav visibility.
   { id: "queues", label: "Queues", role: "Departmental actions, claim & reassign", short: "Queues", Icon: Inbox, roles: [...STAFF_ROLES_CLIENT] },
+  // 06-timeline-sla-engine.md Screens: "Project Journey Control" — same project-delivery-oversight
+  // footprint as Site/QA/Tower (getProjectJourneyControl itself only requires STAFF_ROLES
+  // server-side; scoped narrower here since this is a whole-project cross-customer view, not a
+  // single-customer record any staff role would need).
+  { id: "journey-control", label: "Journey Control", role: "Every journey's health & plan revisions", short: "Journeys", Icon: Route, roles: ["SITE", "QA", "CRM", "MANAGEMENT", "SUPER_ADMIN"] },
 ];
 
 export const ADMIN_NAV: { id: View; label: string }[] = [

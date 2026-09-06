@@ -18,6 +18,7 @@ import { AdminUsers } from "./pages/admin/Users";
 import { AdminTeams } from "./pages/admin/Teams";
 import { AdminPermissionMatrix } from "./pages/admin/PermissionMatrix";
 import { Admin as AdminData } from "./pages/admin/Admin";
+import { ProjectJourneyControl } from "./pages/journey/ProjectJourneyControl";
 import type { useAuth } from "./auth/AuthContext";
 import { NAV, ADMIN_NAV, defaultViewFor, type View } from "./nav";
 import { api, type Project, type Unit } from "./api";
@@ -109,6 +110,7 @@ export function Workspace({ me, onLogout }: { me: NonNullable<ReturnType<typeof 
     "admin-teams": <AdminTeams projectId={projectId} />,
     "admin-permissions": <AdminPermissionMatrix />,
     "admin-data": <AdminData />,
+    "journey-control": <ProjectJourneyControl projectId={projectId} />,
   };
 
   const content = bookingUnit ? (
@@ -119,7 +121,10 @@ export function Workspace({ me, onLogout }: { me: NonNullable<ReturnType<typeof 
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
-      <aside className="sticky top-0 hidden h-screen w-64 flex-none flex-col gap-1 border-r border-line bg-surface px-3 py-5 md:flex">
+      {/* overflow-y-auto: the nav list now outgrows a 900px viewport (found live-verifying
+          06-timeline-sla-engine.md's new Journey Control entry — the last item was unreachable
+          with no scroll affordance at all). */}
+      <aside className="sticky top-0 hidden h-screen w-64 flex-none flex-col gap-1 overflow-y-auto border-r border-line bg-surface px-3 py-5 md:flex">
         <div className="px-2 pb-2 text-title3 font-bold tracking-tight">HomeFlow</div>
 
         {/* Rule 9: a project switcher only when the actor has >1 project or 'ALL'. */}

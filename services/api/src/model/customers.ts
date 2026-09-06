@@ -29,6 +29,7 @@ export async function getCustomer(id: string, ctx?: Ctx) {
   const c = await db.query<CustomerRow>(`SELECT * FROM customer WHERE id = $1`, [id]);
   if (c.rows.length === 0) return null;
   const bookings = await db.query<{
+    booking_id: string;
     booking_number: string;
     status: string;
     total_consideration: number;
@@ -36,7 +37,7 @@ export async function getCustomer(id: string, ctx?: Ctx) {
     unit_type: string;
     facing: string;
   }>(
-    `SELECT b.booking_number, b.status, b.total_consideration::float8 AS total_consideration,
+    `SELECT b.id AS booking_id, b.booking_number, b.status, b.total_consideration::float8 AS total_consideration,
             u.unit_number, u.unit_type, u.facing
        FROM booking b
        JOIN booking_applicant a ON a.booking_id = b.id
