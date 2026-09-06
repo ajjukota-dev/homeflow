@@ -386,7 +386,7 @@ async function safeCurrentItems(unitId: string): Promise<SpecItems> {
   }
 }
 
-// --- Home Passport (rule 9: reuses transparency.ts::t4Passport; service_history needs 30) ---
+// --- Home Passport (rule 9: reuses transparency.ts::t4Passport; service_history is 30's real one) ---
 
 export async function getPassport(ctx: Ctx) {
   const bookingId = await myBooking(ctx);
@@ -394,11 +394,15 @@ export async function getPassport(ctx: Ctx) {
   const b = await bookingHeader(bookingId);
   const equipment = await t4Passport(b.unit_id);
   const asBuilt = await safeCurrentItems(b.unit_id);
+  // 30 (post-handover) has since landed — `service_history` is real, append-only per unit.
+  const history = await db.query<{ event_type: string; description: string; occurred_at: string }>(
+    `SELECT event_type, description, occurred_at::text AS occurred_at FROM service_history WHERE unit_id = $1 ORDER BY occurred_at DESC`,
+    [b.unit_id]
+  );
   return {
     equipment,
     as_built_spec: Object.entries(asBuilt).map(([category, item]) => ({ category, spec: item.spec, brand_model: item.brand_model ?? null })),
-    // 30 (post-handover) isn't built — no `service_history` table exists yet. Flagged, not faked.
-    service_history: [],
+    service_history: history.rows,
   };
 }
 

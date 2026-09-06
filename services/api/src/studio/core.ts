@@ -54,6 +54,10 @@ export const TABLE_REGISTRY: Record<string, TableRegistryEntry> = {
   // customer_visibility_rule above. No product_types column: a frequency cap applies per
   // communication purpose, not per product type.
   frequency_guardrail: { primaryKey: "purpose", columns: ["max_per_customer_per_window", "window_days", "quiet_hours_start", "quiet_hours_end"], editRoles: POLICY_STUDIO_ROLES },
+  // 30-post-handover.md rule 2 — no versioning columns of its own, same generic-envelope fit as
+  // frequency_guardrail above. No product_types column: DLP windows are per-category, not
+  // per-product-type (a villa and an apartment share the same structural/electrical categories).
+  dlp_policy: { primaryKey: "id", columns: ["project_id", "product_type", "windows", "response_sla_by_severity", "unconfirmed"], jsonColumns: ["windows", "response_sla_by_severity"], editRoles: POLICY_STUDIO_ROLES },
 };
 
 function columnSql(entry: TableRegistryEntry, col: string, placeholder: string): string {
