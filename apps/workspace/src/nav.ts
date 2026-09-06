@@ -1,4 +1,5 @@
-import { Building2, Store, Users, Banknote, Scale, ClipboardCheck, HeartHandshake, Landmark, Map } from "lucide-react";
+import { Building2, Store, Users, Banknote, Scale, ClipboardCheck, HeartHandshake, Landmark, Map, Settings2 } from "lucide-react";
+import { ROLE_CODES } from "./pages/admin/roles";
 
 export type View =
   | "site"
@@ -10,10 +11,16 @@ export type View =
   | "after"
   | "tower"
   | "roadmap"
+  | "studio"
   | "admin-users"
   | "admin-teams"
   | "admin-permissions"
   | "admin-data";
+
+// Rule 3: read access is any staff role; per-tab edit eligibility is enforced server-side
+// (studio/registry.ts's tabsForRoles/can_edit) — every seeded staff role except CUSTOMER sees
+// the nav entry.
+const STAFF_ROLES_CLIENT = ROLE_CODES.filter((r) => r !== "CUSTOMER");
 
 // Rule 7 / p44 §33.6 t3: which roles see which workspace. Site's write controls
 // (unit_progress) never render for roles without WRITE there — hiding the nav
@@ -30,6 +37,7 @@ export const NAV: { id: View; label: string; role: string; short: string; Icon: 
   // Spec 27: "ships in R1, before anything else here" — the honest not-yet-merged-specs
   // list, removed once every spec is merged.
   { id: "roadmap", label: "Roadmap", role: "What's built, what's next", short: "Roadmap", Icon: Map, roles: ["MANAGEMENT", "SUPER_ADMIN"] },
+  { id: "studio", label: "Policy Studio", role: "Every configurable thing, as data", short: "Studio", Icon: Settings2, roles: [...STAFF_ROLES_CLIENT] },
 ];
 
 export const ADMIN_NAV: { id: View; label: string }[] = [
