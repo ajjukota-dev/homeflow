@@ -116,10 +116,11 @@ export const TAB_REGISTRY: TabDef[] = [
   { key: "18.customisation_policy", label: "Customisation policy", owner_spec: 18, built: true, edit_roles: MGMT },
 
   // 19 — collections & true risk (overdue_reason registered in the generic envelope)
-  // Stays built:false — payment_plan (parent) + payment_plan_milestone (ordered child rows) is a
-  // parent/child relationship the generic envelope's flat-column form can't represent well; needs
-  // a bespoke screen (parent fields + an editable milestone list), not a registry entry.
-  { key: "19.payment_plans", label: "Payment plans", owner_spec: 19, built: false, edit_roles: ["ACCOUNTS"] },
+  // payment_plan (parent) + payment_plan_milestone (ordered child rows) is a parent/child
+  // relationship the generic envelope's flat-column form can't represent — bespoke CRUD in
+  // payment-plans.ts + routes-collections.ts (plain, not draft/publish: neither table carries a
+  // version/effective_from column), bespoke screen PaymentPlanStudio.tsx.
+  { key: "19.payment_plans", label: "Payment plans", owner_spec: 19, built: true, edit_roles: ["ACCOUNTS"] },
   { key: "19.overdue_reasons", label: "Overdue reasons", owner_spec: 19, built: true, edit_roles: ["ACCOUNTS"] },
   // Stays built:false — threshold_pct lives as a per-row column on financial_clearance, set at
   // creation time; there's no separate global policy table for a Studio tab to CRUD.

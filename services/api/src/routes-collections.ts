@@ -3,15 +3,14 @@ import { disputeReceipt, verifyReceipt } from "./demands-receipts";
 import { suggestTdsApplicability, upsertTdsRecord, verifyTds, rejectTds } from "./tds";
 import { requestWaiver, approveWaiver, rejectWaiver, listWaivers, type WaiverKind } from "./waivers";
 import { getClearance, updateClearanceChecklist, approveClearance, rejectClearance, type ClearancePurpose } from "./financial-clearance";
+import { listPaymentPlans, getPaymentPlan, createPaymentPlan, updatePaymentPlan } from "./payment-plans";
 import type { AuthedRequest } from "./auth/middleware";
 import { failHttp } from "./authz/httpError";
 
 // Routes new to 19-collections-true-risk.md — the pre-existing H3-era demand/receipt/collections
 // routes stay inline in server.ts (untouched, except overdue-reason's new optional `note` param).
-// Not built here, per the spec's own "Not in this feature"/dependency list: GET /payment-plans
-// Studio CRUD (payment_plan isn't in 25's TABLE_REGISTRY — only one plan per project exists today,
-// nothing to select between yet), GET .../collections/ageing (banded rollup), GET .../statement
-// (needs 22, document rendering).
+// Not built here, per the spec's own "Not in this feature"/dependency list: GET .../collections/ageing
+// (banded rollup), GET .../statement (needs 22, document rendering).
 
 export function registerCollectionsRoutes(app: Express) {
   app.post("/api/receipts/:id/verify", async (req: AuthedRequest, res) => {
@@ -111,6 +110,35 @@ export function registerCollectionsRoutes(app: Express) {
     try {
       const purpose = (req.body?.purpose as ClearancePurpose | undefined) ?? "REGISTRATION";
       res.json({ data: await rejectClearance(req.params.id, purpose, req.body?.reason, { actor: req.actor! }) });
+    } catch (e) { failHttp(res, e); }
+  });
+
+  app.get("/api/payment-plans", async (req: AuthedRequest, res) => {
+    try { res.json({ data: await listPaymentPlans({ actor: req.actor! }) }); } catch (e) { failHttp(res, e); }
+  });
+
+  app.get("/api/payment-plans/:id", async (req: AuthedRequest, res) => {
+    try { res.json({ data: await getPaymentPlan(req.params.id, { actor: req.actor! }) }); } catch (e) { failHttp(res, e); }
+  });
+
+  app.post("/api/payment-plans", async (req: AuthedRequest, res) => {
+    try {
+      const data = await createPaymentPlan(
+        { project_id: req.body?.project_id ?? null, name: req.body?.name, basis: req.body?.basis, milestones: req.body?.milestones ?? [] },
+        { actor: req.actor! }
+      );
+      res.json({ data });
+    } catch (e) { failHttp(res, e); }
+  });
+
+  app.put("/api/payment-plans/:id", async (req: AuthedRequest, res) => {
+    try {
+      const data = await updatePaymentPlan(
+        req.params.id,
+        { project_id: req.body?.project_id ?? null, name: req.body?.name, basis: req.body?.basis, milestones: req.body?.milestones ?? [] },
+        { actor: req.actor! }
+      );
+      res.json({ data });
     } catch (e) { failHttp(res, e); }
   });
 }
