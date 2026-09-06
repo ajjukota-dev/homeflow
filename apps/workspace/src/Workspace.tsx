@@ -22,6 +22,9 @@ import { ProjectJourneyControl } from "./pages/journey/ProjectJourneyControl";
 import { PromiseLedger } from "./pages/commitments/PromiseLedger";
 import { HandoverPackets } from "./pages/sales-handover/HandoverPackets";
 import { CustomerUpdates } from "./pages/customer-updates/CustomerUpdates";
+import { CashFlowPlanner } from "./pages/finance/CashFlowPlanner";
+import { CollectionsForecast } from "./pages/finance/CollectionsForecast";
+import { PortfolioCompare } from "./pages/finance/PortfolioCompare";
 import type { useAuth } from "./auth/AuthContext";
 import { NAV, ADMIN_NAV, defaultViewFor, type View } from "./nav";
 import { api, type Project, type Unit } from "./api";
@@ -117,6 +120,16 @@ export function Workspace({ me, onLogout }: { me: NonNullable<ReturnType<typeof 
     "promise-ledger": <PromiseLedger projectId={projectId} />,
     "sales-handover": <HandoverPackets />,
     "customer-updates": <CustomerUpdates />,
+    "cash-planner": <CashFlowPlanner projectId={projectId} roles={roles} />,
+    "collections-forecast": <CollectionsForecast projectId={projectId} roles={roles} />,
+    "portfolio-compare": (
+      <PortfolioCompare
+        onOpenProject={(pid) => {
+          setProjectId(pid);
+          go("cash-planner");
+        }}
+      />
+    ),
   };
 
   const content = bookingUnit ? (

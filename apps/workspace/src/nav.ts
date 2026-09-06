@@ -1,4 +1,4 @@
-import { Building2, Store, Users, Banknote, Scale, ClipboardCheck, HeartHandshake, Landmark, Map, Settings2, CalendarClock, Inbox, Route, Handshake, FileText, Bell } from "lucide-react";
+import { Building2, Store, Users, Banknote, Scale, ClipboardCheck, HeartHandshake, Landmark, Map, Settings2, CalendarClock, Inbox, Route, Handshake, FileText, Bell, TrendingUp, Receipt, BarChart3 } from "lucide-react";
 import { ROLE_CODES } from "./pages/admin/roles";
 
 export type View =
@@ -21,7 +21,10 @@ export type View =
   | "journey-control"
   | "promise-ledger"
   | "sales-handover"
-  | "customer-updates";
+  | "customer-updates"
+  | "cash-planner"
+  | "collections-forecast"
+  | "portfolio-compare";
 
 // Rule 3: read access is any staff role; per-tab edit eligibility is enforced server-side
 // (studio/registry.ts's tabsForRoles/can_edit) — every seeded staff role except CUSTOMER sees
@@ -73,6 +76,13 @@ export const NAV: { id: View; label: string; role: string; short: string; Icon: 
   // publish)". Roles match portal/core.ts's own CRM_UPDATE_ROLES exactly (listDraftUpdates/
   // publishUpdate's server-side gate), not the broader "customer_*" READ modules.
   { id: "customer-updates", label: "Customer Updates", role: "Review & publish drafts to the portal", short: "Updates", Icon: Bell, roles: ["CRM", "MANAGEMENT", "SUPER_ADMIN"] },
+  // 20-cash-forecast.md Screens — three project-finance dashboards. Roles match
+  // authz/requireRole.ts's own FORECAST_READ_ROLES exactly (getForecast/compareForecast/
+  // portfolioCompare's server-side gate); write actions (override, snapshot, assumptions) are
+  // gated in-page to FORECAST_WRITE_ROLES, same pattern as Queues' bulk-reassign button.
+  { id: "cash-planner", label: "Cash Flow Planner", role: "Waterfall by month, scenarios vs committed baseline", short: "Planner", Icon: TrendingUp, roles: ["ACCOUNTS", "BANKING", "MANAGEMENT", "SUPER_ADMIN"] },
+  { id: "collections-forecast", label: "Collections Forecast", role: "Every forecast line, snapshots, forecast-to-actual", short: "Forecast", Icon: Receipt, roles: ["ACCOUNTS", "BANKING", "MANAGEMENT", "SUPER_ADMIN"] },
+  { id: "portfolio-compare", label: "Portfolio Comparison", role: "Actual vs forecast across every project", short: "Portfolio", Icon: BarChart3, roles: ["ACCOUNTS", "BANKING", "MANAGEMENT", "SUPER_ADMIN"] },
 ];
 
 export const ADMIN_NAV: { id: View; label: string }[] = [
