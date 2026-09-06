@@ -5,8 +5,15 @@ import { generateDocument, approveDocument, executeDocument, completeRegistratio
 import { unitReadiness, verifyComponent, completeHandover, handoverForBooking } from "./qa";
 import { serviceHistory, closeWarranty, projectWarranty, captureCheckin } from "./warranty";
 import { getCustomerHome } from "./customer";
-import { controlTower, actIntervention } from "./tower-view";
+import { controlTower, actIntervention } from "./management/interventions";
 import { superAdminCtx } from "./authz/test-helpers";
+import type { Ctx } from "./authz/types";
+
+// actIntervention's createAction now FKs `created_by` to a real "user" row (27's own regression
+// fix for PR #8's acted_by=null) — the shared superAdminCtx's synthetic id isn't one, same
+// convention commitments/core.test.ts already established. Scoped to just this describe block
+// so the rest of this file's many superAdminCtx call sites are untouched.
+const realSuperAdminCtx: Ctx = { actor: { ...superAdminCtx.actor, user_id: "user_superadmin" } };
 
 const completeInput = {
   applicant: { display_name: "Ravi Menon", phone: "9876500099", pan: "ABCDE1234F" },
@@ -178,7 +185,7 @@ describe("Control Tower", () => {
       expect(i.decision_pack.recommended_decision).toBeTruthy();
       expect(i.decision_pack.what_happened).toBeTruthy();
     }
-    const acted = await actIntervention(tower.interventions[0].id, superAdminCtx);
+    const acted = await actIntervention(tower.interventions[0].id, realSuperAdminCtx);
     expect(acted.status).toBe("acted");
   });
 });

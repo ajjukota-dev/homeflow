@@ -7,8 +7,13 @@ import { postReceipt } from "../demands-receipts";
 import { verifyComponent, closeSnag, completeHandover } from "../qa";
 import { generateDocument, approveDocument, executeDocument, completeRegistration } from "../legal-docs";
 import { closeWarranty, captureCheckin } from "../warranty";
-import { actIntervention, controlTower } from "../tower-view";
+import { actIntervention, controlTower } from "../management/interventions";
 import { superAdminCtx } from "../authz/test-helpers";
+import type { Ctx } from "../authz/types";
+
+// actIntervention's createAction now FKs `created_by` to a real "user" row — see
+// lifecycle.test.ts's identical note.
+const realSuperAdminCtx: Ctx = { actor: { ...superAdminCtx.actor, user_id: "user_superadmin" } };
 
 // 02 rule 2: "Every handler listed in a spec's Events section must emit; tests assert the
 // emitted type and payload keys." One assertion per built event type — this is also what
@@ -187,11 +192,11 @@ describe("event emission — money, progress, QA, legal, warranty, actions", () 
     expect(events[0].payload).toMatchObject({ satisfaction_score: 5 });
   });
 
-  it("actIntervention emits action.acted", async () => {
+  it("actIntervention emits intervention.acted", async () => {
     const view = await controlTower("p_eastcrest", superAdminCtx);
     const first = view.interventions[0];
-    await actIntervention(first.id, superAdminCtx);
+    await actIntervention(first.id, realSuperAdminCtx);
     const events = await eventsFor(first.id);
-    expect(events.map((e) => e.type)).toContain("action.acted");
+    expect(events.map((e) => e.type)).toContain("intervention.acted");
   });
 });

@@ -17,6 +17,7 @@ import { seedCrApprovalRules } from "../seed/change-requests";
 import { seedRegistrationConfig } from "../seed/registration";
 import { seedHandoverGateConfig } from "../seed/handover-gates";
 import { seedProbabilityRules } from "../seed/probability-rules";
+import { seedKpis } from "../seed/kpis";
 import { registerJourneySubscribers } from "../journey/subscribers";
 import { registerNotificationSubscribers } from "../notifications/subscribers";
 import { registerEscalationSubscribers } from "../escalations/subscribers";
@@ -113,6 +114,10 @@ export function initDb(): Promise<void> {
       // 20 config: the probability_rule seed (DEFAULT_UNCONFIRMED, spec's own Data row) — every
       // environment needs these before the forecast module has any probability to report.
       await seedProbabilityRules(db);
+      // 27 config: kpi_definition rows for every KPI p24-25 §19 names, + management_config
+      // (ranking weights/dismiss cooldown/delay cost) — every environment needs these before
+      // the Control Tower/KPIs views have anything to compute against.
+      await seedKpis();
       registerJourneySubscribers();
       registerNotificationSubscribers();
       registerEscalationSubscribers();

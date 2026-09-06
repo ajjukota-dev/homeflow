@@ -47,3 +47,68 @@ Depends on 06, 08, 12, 13, 15, 16, 18, 19, 20, 24, 26, 14. Feeds 31.
 
 ## Not in this feature
 Predictive risk models (31), report exports beyond CSV of any table (generic).
+
+## Build note (2026-09-06)
+
+**Scope: backend only** (routes + domain logic + tests), per this run's standing autonomous
+mandate. `apps/workspace`'s `ControlTower.tsx` extension, the Views tabs, and the Roadmap screen
+are not built — flagged, not faked.
+
+**Reuse map.** `intervention` table pre-existed (PR #8's Control Tower base) — ALTERed, not
+replaced (migration `0042_management.sql`; the spec's own `0025_management.sql` filename was
+already taken by an earlier-landed spec, sequential numbering kept instead). `tower.ts`/
+`tower-view.ts` replaced by `management/scoring.ts` (pure ranking) + `management/interventions.ts`
+(DB-backed Control Tower + Act/Dismiss) — small blast radius, confirmed via grep before deleting.
+`escalations/core.ts`'s `category` enum reused verbatim for `intervention.category` (exact 5-value
+match). `materiality_threshold.scope='CONTROL_TOWER'` had zero producers/consumers before this
+build — now rule 7's filter. `change_request.abortive_cost_inr` (set by `cancelChangeRequest`,
+previously unused) is a genuine ABORTIVE_COST economic_event source.
+
+**Two real bugs advisor caught pre-merge, fixed before landing:**
+1. **Dismiss cooldown didn't actually cool down anything.** `intervention` rows are keyed by
+   `(project, category)`, and the upsert carried the previous row's `status` forward unconditionally
+   while overwriting `source_refs` with the new winner's refs. Net effect: dismissing "cash" once
+   made that category slot permanently `dismissed` regardless of which underlying candidate later
+   won it, while the cooldown's own lookup key (`source_refs`) for the *actually dismissed* item
+   was destroyed on the very next recompute. Fixed: the upsert now only carries `status`/`acted_*`/
+   `dismiss_*` forward when the recomputed candidate's `source_refs` exactly match the stored row's
+   — otherwise it's a genuinely different issue occupying the same slot and starts `open`. Covered
+   by a new regression test (`interventions.test.ts`) that seeds a stale dismissed row with fake
+   source_refs and asserts a real recompute doesn't inherit it.
+2. **`intervention.computed`, `kpi.snapshot_taken`, `economic_event.recorded` all appended on every
+   GET, unconditionally**, into an append-only log — the same class advisor caught on spec 16's
+   `handover_gate_run` pre-merge. Fixed all three to diff before/after (headline/rank/status for
+   interventions; snapshot value for KPIs; an `IS DISTINCT FROM` guard on the economic_event upsert
+   itself) and only append when something actually moved. Each has a test proving the steady-state
+   case emits nothing and a forced change emits exactly one event.
+
+**Two KPI formula bugs found and fixed while writing the `it.each` coverage test (which only
+proves each of the ~29 formulas returns a well-formed `{value, numerator, denominator}` shape on
+seeded data — NOT that the number is correct; only `c_true_risk_inr` is value-checked against
+collections-view's own bucket total, so these two were caught by inspection, not by that test):**
+- `c_efficiency_pct` filtered demands by `status IN ('due','overdue','partial')` — the real status
+  string is `part_paid` (collections.ts's `DemandStatus`), not `partial`, so every partially-paid
+  demand's outstanding balance was silently excluded from "billed", while `SUM(receipt.amount)`
+  was added unconditionally regardless of status. Fixed to `collected ÷ SUM(demand.amount WHERE
+  status <> 'scheduled')` — `demand.amount` is the fixed original milestone amount (never adjusted
+  down as receipts land), so summing it once per raised demand is the correct "billed so far".
+- `h_on_time_pct` LEFT JOINed `handover_appointment`, so a completion with no appointment row (the
+  legacy `qa.ts::completeHandover`/seed-lifecycle path, which never creates one) counted in `total`
+  but could never count in `on_time` — every legacy-path completion read as late. Fixed to INNER
+  JOIN: legacy completions with nothing to compare against are excluded from both, not miscounted.
+
+**`ph_warranty_tat_days` remains `NULL_RESULT`** (flagged, not faked) — no "raised-at" signal
+exists anywhere for a warranty case to measure TAT from.
+
+**Flagged gaps, not built:** `management_config` (ranking weights, dismiss cooldown, delay ₹/day)
+has no edit path — no route, no Studio tab (25-policy-studio.md's own `## Tabs` line jumps 26→29,
+explicitly skipping this spec) — rows are seeded UNCONFIRMED and can only be changed by direct
+SQL today. `getPortfolio` runs `computeBookingReadiness` per active booking per project on every
+call — same N×-per-page-load shape advisor already accepted at seed scale on spec 20; noted here,
+not optimised.
+
+**Verification.** `npx tsc --noEmit` clean. Full suite: 95/96 files, 694/698 tests green — the 4
+failures are `registration/registration.test.ts`'s pre-existing worker-pool timeout flake under
+full parallel `vitest run` (confirmed unrelated to this spec across two prior segments: excluding
+this file's own neighbours and `git stash`-ing unrelated edits didn't change the outcome;
+`registration/core.ts` was not touched by this build at all).
