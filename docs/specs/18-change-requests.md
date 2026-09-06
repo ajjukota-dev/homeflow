@@ -123,3 +123,81 @@ rule 5 explicitly allows CRM to record a signed-copy acceptance on the customer'
 14 days) and the FREEZE second-approver role (SUPER_ADMIN) — p12 names the mechanism, not real
 numbers; `customisation_policy.payment_gate_pct` default (100%) is the spec's own TODO §8 client
 question, unresolved here as elsewhere.
+
+## Build note (2026-09-07, UI)
+
+Built: **Customisation desk** (`apps/workspace/src/pages/customisation/CustomisationDesk.tsx`) —
+kanban by all 17 statuses (not collapsed), "+ Raise request" dialog gated to
+`CUSTOMISATION_DESK_ROLES` (mirrors `change-requests/capture.ts` exactly). **CR detail drawer**
+(`CrDrawer.tsx`, `ItemsEditor.tsx`) covering gate summary at request, feasibility form, line-item
+editor, impact form, approvals panel (list + decide), quotation issue/accept, payment gate status
++ confirm/waive, release button, execution-action list + close, QA-inspection link, as-built form,
+and the economics card — one screen for the full 17-status lifecycle rather than splitting it
+across sub-routes, since every panel's visibility is already status-gated. **Studio**: Variation
+approval matrix (`CustomisationApprovalMatrixStudio.tsx`, edits `cr_approval_rule`) and
+Customisation policy (`CustomisationPolicyStudio.tsx`, edits `customisation_policy`) — both tabs
+already had `built: true` in `studio/registry.ts` from the backend build; only `Shell.tsx`'s
+`BESPOKE_TABS` wiring was missing.
+
+**Read-side gap closed** (same "write with no matching read" shape flagged elsewhere this run):
+`putCrItems`/`issueQuotation`/`submitCrForApproval`'s approval rows/execution actions all had
+writers but no route a UI could read them back through. Added 4 GET routes
+(`/change-requests/:id/items`, `/api/quotations/:id`, `/change-requests/:id/approvals`,
+`/change-requests/:id/execution-actions`), each gated via `getChangeRequest`'s own
+`assertCrActor` rather than a new authz path. `withLabels()` at the route boundary
+(`routes-change-requests.ts`) attaches `unit_number`/`booking_number` for display without
+touching `store.ts`'s shared, already-tested `CR_SELECT` — the desk card and drawer never render
+a raw `unit_id`/`booking_id` (verified live in the browser, not just by code review).
+
+**Real bug found and fixed**: the new `execution-actions` route's SQL ordered by
+`a.created_at`, a column that doesn't exist on the `action` table (`migrations/0009_actions.sql`
+has only `due_at`/`closed_at`) — a live `[400] column a.created_at does not exist` on first drawer
+open. Fixed to `ORDER BY x.action_id` (deterministic; `due_at` isn't reliably populated for
+execution actions, so it isn't a usable sort key here the way `actions/core.ts`'s own listing
+uses it).
+
+**Real gap found and confirmed, not worked around**: `releaseChangeRequest`'s `unitSpec()`
+(`specification/revisions.ts:71-73`) throws `"unit has no specification baseline attached"`
+unless a `unit_specification` row already exists for the unit. That row is only ever created by
+`ensureUnitSpecification` (`specification/revisions.ts:53-59`), which is itself a **silent no-op**
+whenever the unit's project has no APPROVED `specification_baseline` for its product/unit type —
+by the function's own docstring, not a bug. `specification/subscribers.ts` fires that function on
+`booking.created`/`booking.status_changed→CONFIRMED`. Confirmed empirically against a fresh
+`db:reset` seed: East Crest has 6 active (confirmed) bookings and **zero** `specification_baseline`
+rows and **zero** `unit_specification` rows for the whole project — so `resolveBaseline` always
+returns null, the subscriber always no-ops, and `releaseChangeRequest` cannot succeed for **any**
+CR raised against seeded East Crest data today, regardless of this spec's own code. This is a
+seed-data completeness gap in spec 09 (specification baselines never seeded a real APPROVED row
+for East Crest's product/unit types), not a spec 18 defect. Consequence for this build: the
+lifecycle was live-verified end to end through DRAFT → REQUESTED → FEASIBILITY_REVIEW → COSTING →
+AWAITING_APPROVAL/AWAITING_CUSTOMER → AWAITING_PAYMENT → APPROVED (including both the rule 1
+gate-exception grant+link path and rule 6's payment waiver path), but RELEASED and everything
+after it (execution, QA, as-built) was exercised only by the pre-existing backend integration
+test, not driven live through the UI — the panels are built and render correctly on a CR that
+already carries the post-release fields, but no seeded fixture can reach that state to prove it
+end-to-end live. Fixing this belongs to spec 09's seed data, not this slice.
+
+**Scope cuts, flagged not faked**:
+- **Unit 360 → Customisations tab / Booking 360 → Requests tab**: neither 360 page exists yet —
+  only `Customer360.tsx` is built (spec 28's own UI is otherwise unbuilt); the Screens line names
+  tabs on pages that don't exist. Cut entirely; revisit once 28's Unit/Booking 360 ship.
+- **Portal raise-request UI** (`apps/my-pranava-home`): not built this pass. The desk + drawer +
+  2 Studio tabs + full e2e coverage + regression already represent the full slice's real weight;
+  the portal's own "raise request, view quotation, accept/decline, track status" surface is a
+  second, separately-sized UI on a different app with its own visibility rules (customer-facing
+  category filtering) — sized as follow-up work, not squeezed in to close out this session.
+
+**Tests**: `apps/workspace/e2e/customisation.spec.ts` (5 tests) — 3-breakpoint desk render +
+no-horizontal-overflow, the full raise → feasibility → costing → (conditional gate-exception) →
+approval → quotation → payment-waiver → APPROVED lifecycle against a real booking created through
+the UI itself (not a hardcoded fixture id), and both new Studio tabs against real seeded data.
+The lifecycle test branches live on whichever of rule 1 (EXCEPTION_ONLY gate) and rule 4 (approval
+matrix) actually apply to the fixture's real state, rather than asserting a fixed seed assumption.
+
+**Regression, run from a fresh `db:reset`**: backend `npm test` — 789 tests across 104 files;
+6 `registration.test.ts` timeouts under full-suite parallel load, confirmed a pre-existing
+resource-contention flake unrelated to this slice (that file passes 6/6 cleanly run in isolation,
+twice). Full Playwright e2e — 135 tests: 133 passed, 1 skipped
+(`commitments.spec.ts:50`, a pre-existing conditional skip unrelated to this slice), 1 failed
+under load (`management-views.spec.ts`'s KPIs-tab test — confirmed a flake, passes 10/10 cleanly
+in isolation). All 5 of this slice's own tests passed cleanly in both the full run and isolation.
