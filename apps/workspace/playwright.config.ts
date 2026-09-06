@@ -12,6 +12,13 @@ import { defineConfig } from "@playwright/test";
 export default defineConfig({
   testDir: "./e2e",
   timeout: 30_000,
+  // CLAUDE.md's own documented interim: every spec file drives the SAME :5173 dev server against
+  // one shared on-disk PGlite DB (no per-test DB exists yet — real fix logged in TODO.md §9).
+  // Running spec FILES in parallel workers made two files race on that one DB and mutate each
+  // other's rows mid-run (measured: 3 identical full-suite runs, 2-5 different failures each
+  // time, including once on a clean main baseline). `workers: 1` serializes files so each one
+  // sees the DB state the previous file left it in, deterministically, not randomly.
+  workers: 1,
   globalSetup: "./e2e/global-setup.ts",
   use: {
     baseURL: "http://localhost:5173",
