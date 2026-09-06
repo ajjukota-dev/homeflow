@@ -104,7 +104,6 @@ export const EVENT_TYPES: EventTypeDef[] = [
   { name: "customer_contact.response_received", family: "customer_contact", customer_visible: false, built: false },
 
   // --- Sanctioned extensions (02 §Appendix B "Extend with ...") ---
-  { name: "action.acted", family: "action", customer_visible: false, built: true },
   { name: "document.approved", family: "document", customer_visible: false, built: true },
   { name: "checkin.captured", family: "checkin", customer_visible: false, built: true },
   // 12-escalations-notifications.md names escalation.raised/resolved but not the tier-progression
@@ -206,6 +205,14 @@ export const EVENT_TYPES: EventTypeDef[] = [
   { name: "check_in.sent", family: "check_in", customer_visible: true, built: true },
   { name: "check_in.responded", family: "check_in", customer_visible: true, built: true },
   { name: "customer.action_completed", family: "customer", customer_visible: true, built: true },
+
+  // 27 management control tower — replaces the PR #8-era ad hoc `action.acted` extension (no
+  // longer emitted by anything) with the spec's own named events.
+  { name: "intervention.computed", family: "intervention", customer_visible: false, built: true },
+  { name: "intervention.acted", family: "intervention", customer_visible: false, built: true },
+  { name: "intervention.dismissed", family: "intervention", customer_visible: false, built: true },
+  { name: "kpi.snapshot_taken", family: "kpi", customer_visible: false, built: true },
+  { name: "economic_event.recorded", family: "economic_event", customer_visible: false, built: true },
 ];
 
 /** Appendix B (p42) names verbatim — the coverage test's universe. Extensions are exempt by design. */

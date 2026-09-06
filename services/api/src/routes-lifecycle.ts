@@ -15,7 +15,7 @@ import {
 } from "./qa";
 import { closeSnagLifecycle } from "./qa/snags";
 import { projectWarranty, serviceHistory, closeWarranty, captureCheckin } from "./warranty";
-import { controlTower, actIntervention } from "./tower-view";
+import { controlTower, actIntervention } from "./management/interventions";
 import type { AuthedRequest } from "./auth/middleware";
 import { failHttp } from "./authz/httpError";
 import { AppError } from "./authz/types";
