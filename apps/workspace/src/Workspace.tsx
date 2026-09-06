@@ -20,6 +20,7 @@ import { AdminPermissionMatrix } from "./pages/admin/PermissionMatrix";
 import { Admin as AdminData } from "./pages/admin/Admin";
 import { ProjectJourneyControl } from "./pages/journey/ProjectJourneyControl";
 import { PromiseLedger } from "./pages/commitments/PromiseLedger";
+import { HandoverPackets } from "./pages/sales-handover/HandoverPackets";
 import type { useAuth } from "./auth/AuthContext";
 import { NAV, ADMIN_NAV, defaultViewFor, type View } from "./nav";
 import { api, type Project, type Unit } from "./api";
@@ -98,7 +99,7 @@ export function Workspace({ me, onLogout }: { me: NonNullable<ReturnType<typeof 
     myday: <MyDay projectId={projectId} isTeamHead={isAdmin} />,
     site: <SiteProgress projectId={projectId} />,
     sales: <SalesInventory projectId={projectId} onBook={setBookingUnit} />,
-    crm: <CrmQueue roles={roles} />,
+    crm: <CrmQueue roles={roles} projectId={projectId} />,
     accounts: <Collections projectId={projectId} />,
     legal: <LegalFactory projectId={projectId} />,
     qa: <QaHandover projectId={projectId} />,
@@ -113,6 +114,7 @@ export function Workspace({ me, onLogout }: { me: NonNullable<ReturnType<typeof 
     "admin-data": <AdminData />,
     "journey-control": <ProjectJourneyControl projectId={projectId} />,
     "promise-ledger": <PromiseLedger projectId={projectId} />,
+    "sales-handover": <HandoverPackets />,
   };
 
   const content = bookingUnit ? (

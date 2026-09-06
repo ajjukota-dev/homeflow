@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import { Inbox, ChevronRight } from "lucide-react";
+import { Inbox, ChevronRight, FileClock } from "lucide-react";
 import { api, type Booking, type CustomerRow } from "../api";
-import { Card, CardBody, Button } from "@homeflow/ui";
+import { Card, CardBody, Button, EmptyState, Skeleton } from "@homeflow/ui";
 import { MoneyFigure } from "../ui/MoneyFigure";
 import { Customer360 } from "./Customer360";
+import { salesHandoverApi, type HandoverQueueRow } from "./sales-handover/api";
+import { HandoverPacketDrawer } from "./sales-handover/HandoverPacketDrawer";
 
 // Rule 7: the acceptance queue is sales_handover (NONE for CUSTOMISATION,
 // which only has this page for its customer_overview/customer_journey READ —
@@ -12,7 +14,7 @@ import { Customer360 } from "./Customer360";
 const CAN_ACCEPT_BOOKINGS = new Set(["MANAGEMENT", "SALES", "CRM", "SUPER_ADMIN"]);
 
 /** CRM / RM — booking acceptance gate (H2) + the Customer Twins it births. */
-export function CrmQueue({ roles }: { roles: string[] }) {
+export function CrmQueue({ roles, projectId }: { roles: string[]; projectId: string }) {
   const canAccept = roles.some((r) => CAN_ACCEPT_BOOKINGS.has(r));
   const [queue, setQueue] = useState<Booking[]>([]);
   const [customers, setCustomers] = useState<CustomerRow[]>([]);
@@ -22,6 +24,22 @@ export function CrmQueue({ roles }: { roles: string[] }) {
   const [returningId, setReturningId] = useState<string | null>(null);
   const [reason, setReason] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
+
+  // 17-sales-crm-handover.md Screens: additive to the "Acceptance queue" above (which still
+  // drives the old bookings-crm.ts accept/return flow untouched) — a separate list sourced from
+  // the new getHandoverQueue endpoint, opening the new HandoverPacketDrawer instead.
+  const [handoverQueue, setHandoverQueue] = useState<HandoverQueueRow[] | null>(null);
+  const [handoverError, setHandoverError] = useState(false);
+  const [openHandoverBookingId, setOpenHandoverBookingId] = useState<string | null>(null);
+
+  const loadHandoverQueue = useCallback(() => {
+    if (!projectId || !canAccept) return;
+    setHandoverError(false);
+    salesHandoverApi.queue(projectId).then(setHandoverQueue).catch(() => setHandoverError(true));
+  }, [projectId, canAccept]);
+  useEffect(() => {
+    loadHandoverQueue();
+  }, [loadHandoverQueue]);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -135,6 +153,47 @@ export function CrmQueue({ roles }: { roles: string[] }) {
         )}
       </section>
       )}
+
+      {canAccept && (
+      <section className="mb-8">
+        <h2 className="mb-3 text-title3 font-semibold">Handover packets awaiting review</h2>
+        {handoverError && (
+          <EmptyState icon={FileClock} message="Couldn't load the handover queue." action={{ label: "Retry", onClick: loadHandoverQueue }} />
+        )}
+        {!handoverError && handoverQueue === null && (
+          <div className="flex flex-col gap-2">
+            <Skeleton />
+            <Skeleton />
+          </div>
+        )}
+        {!handoverError && handoverQueue && handoverQueue.length === 0 && (
+          <EmptyState icon={FileClock} message="Nothing submitted yet — packets appear here once Sales submits them for review." />
+        )}
+        {!handoverError && handoverQueue && handoverQueue.length > 0 && (
+          <div className="flex flex-col gap-3">
+            {handoverQueue.map((h) => (
+              <button key={h.booking_id} onClick={() => setOpenHandoverBookingId(h.booking_id)} className="w-full text-left">
+                <Card>
+                  <CardBody className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-headline font-semibold">{h.booking_number}</div>
+                      <div className="text-footnote text-fg-muted">
+                        {h.age_days} day{h.age_days === 1 ? "" : "s"} waiting{h.sales_owner ? ` · Sales: ${h.sales_owner}` : ""}
+                      </div>
+                    </div>
+                    <span className="rounded-full bg-ontrack/10 px-2.5 py-1 text-footnote font-medium text-ontrack">
+                      {h.completeness_score ?? 0}% complete
+                    </span>
+                  </CardBody>
+                </Card>
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+      )}
+
+      <HandoverPacketDrawer bookingId={openHandoverBookingId} onClose={() => setOpenHandoverBookingId(null)} onChanged={loadHandoverQueue} />
 
       <section>
         <h2 className="mb-3 text-title3 font-semibold">Active customers</h2>
