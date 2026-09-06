@@ -6,10 +6,19 @@ import { computeReadiness, allHardOk } from "./readiness";
 import { loadOrCreateCase, loadCaseByBooking, loadTemplate, toDbRegStatus, type RegCaseRow, type Readiness } from "./store";
 
 // 23-registration.md. Writers: Registration, Legal, Management (rule 7); CRM may confirm
-// availability on the customer's behalf (rule 2) — the portal (26) half of that rule isn't
-// built, same fallback-flagging pattern as 18's signed-copy quotation acceptance.
+// availability on the customer's behalf (rule 2) — the portal (26) half of that rule was
+// deliberately deferred here and is unblocked now that 26 exists (see `confirmAvailability`
+// below), same fallback-flagging pattern as 18's signed-copy quotation acceptance.
 export const REGISTRATION_ROLES = ["REGISTRATION", "LEGAL", "MANAGEMENT", "SUPER_ADMIN"];
 export const AVAILABILITY_ROLES = [...REGISTRATION_ROLES, "CRM"];
+
+/** 26's own rule 1: a customer may only act on their own booking (same `customer_login` lookup
+ *  as `change-requests/store.ts::assertCrActor` and `qa/snags.ts::reopenSnag`'s ctx.actor.kind
+ *  split — inlined here rather than shared, since each caller checks a different condition). */
+async function assertOwnBooking(ctx: Ctx, bookingId: string): Promise<void> {
+  const r = await db.query<{ booking_id: string }>(`SELECT booking_id FROM customer_login WHERE user_id = $1`, [ctx.actor.user_id]);
+  if (r.rows[0]?.booking_id !== bookingId) throw new AppError("forbidden", "customers may act only on their own booking");
+}
 
 function addDays(d: Date, n: number): Date {
   const r = new Date(d);
@@ -92,7 +101,8 @@ export async function listRegistrationPipeline(projectId: string, ctx: Ctx): Pro
 
 /** Rule 2: "via customer action (portal or CRM on behalf) proposing dates." */
 export async function confirmAvailability(bookingId: string, dates: string[], ctx: Ctx): Promise<RegCaseRow> {
-  requireRole(ctx, AVAILABILITY_ROLES);
+  if (ctx.actor.kind === "CUSTOMER") await assertOwnBooking(ctx, bookingId);
+  else requireRole(ctx, AVAILABILITY_ROLES);
   if (!dates?.length) throw new AppError("validation", "at least one proposed date is required", "dates");
   let row = await loadOrCreateCase(bookingId);
   row = await refresh(row, ctx);
@@ -112,7 +122,9 @@ export async function confirmAvailability(bookingId: string, dates: string[], ct
       ...actorFields(ctx),
     });
   });
-  return getRegistrationCase(bookingId, ctx);
+  // Not `getRegistrationCase` — that requires STAFF_ROLES, which a CUSTOMER ctx (already
+  // authorized above via `assertOwnBooking`) can never satisfy.
+  return refresh(await loadOrCreateCase(bookingId), ctx);
 }
 
 /** Rule 2: "SLOT_BOOKED requires READY + confirmed availability... every slot change appends to

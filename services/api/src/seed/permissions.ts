@@ -61,7 +61,12 @@ const CUSTOMISATION_MODULES: Record<string, Level> = {
 };
 
 // Emergent disables the customer role entirely; the portal needs it, so this
-// grants read access to the modules a customer's own booking exposes (26-customer-portal owns the UI).
+// grants read access to the modules a customer's own booking exposes (26-customer-portal owns
+// the UI). Every customer-initiated write in 26 (upload a document, raise a request, confirm
+// registration availability/a handover appointment, respond to a check-in) is gated by an
+// own-booking row check in its owning module instead of this matrix, so none of these need a
+// WRITE row here — including customer_documents, whose upload path (portal/core.ts::
+// uploadCustomerDocument) checks ownership itself before delegating to 22's uploadDocument.
 const CUSTOMER_MODULES: Record<string, Level> = {
   customer_journey: "READ",
   customer_documents: "READ",

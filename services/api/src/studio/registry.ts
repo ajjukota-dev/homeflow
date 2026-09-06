@@ -129,7 +129,7 @@ export const TAB_REGISTRY: TabDef[] = [
   { key: "25.config_export_import", label: "Config export/import", owner_spec: 25, built: true, edit_roles: MGMT }, // export only — see routes-studio.ts
 
   // 26 — customer portal (not built)
-  { key: "26.customer_visibility_wording", label: "Customer visibility & wording", owner_spec: 26, built: false, edit_roles: MGMT },
+  { key: "26.customer_visibility_wording", label: "Customer visibility & wording", owner_spec: 26, built: true, edit_roles: MGMT },
 
   // 29 — communications (not built)
   { key: "29.communication_templates", label: "Communication templates", owner_spec: 29, built: false, edit_roles: MGMT },

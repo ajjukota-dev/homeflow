@@ -45,6 +45,11 @@ export const TABLE_REGISTRY: Record<string, TableRegistryEntry> = {
   probability_rule: { primaryKey: "id", columns: ["source_type", "condition", "probability", "effective_from", "effective_to", "version", PRODUCT_TYPES_COL], jsonColumns: ["condition"], arrayColumns: [PRODUCT_TYPES_COL], editRoles: POLICY_STUDIO_ROLES },
   cash_target: { primaryKey: "id", columns: ["project_id", "period", "target_inr", "set_by", PRODUCT_TYPES_COL], arrayColumns: [PRODUCT_TYPES_COL], editRoles: POLICY_STUDIO_ROLES },
   period_calendar: { primaryKey: "project_id", columns: ["fiscal_year_start_month", "week_start_day", PRODUCT_TYPES_COL], arrayColumns: [PRODUCT_TYPES_COL], editRoles: POLICY_STUDIO_ROLES },
+  // 26-customer-portal.md — no versioning columns of its own, same generic-envelope fit as
+  // above. No product_types column: the spec's own Data row lists only entity/field/visible/
+  // customer_wording (per-project via project_id already) — visibility doesn't vary by product
+  // type, so PRODUCT_TYPES_COL isn't force-fit onto a row shape that doesn't ask for it.
+  customer_visibility_rule: { primaryKey: "id", columns: ["entity", "field", "project_id", "visible", "customer_wording"], editRoles: POLICY_STUDIO_ROLES },
 };
 
 function columnSql(entry: TableRegistryEntry, col: string, placeholder: string): string {

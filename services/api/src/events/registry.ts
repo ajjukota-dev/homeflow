@@ -199,6 +199,13 @@ export const EVENT_TYPES: EventTypeDef[] = [
   { name: "forecast.override_recorded", family: "forecast", customer_visible: false, built: true },
   { name: "scenario.created", family: "scenario", customer_visible: false, built: true },
   { name: "scenario.updated", family: "scenario", customer_visible: false, built: true },
+
+  // 26 customer portal — not in Appendix B (which predates the portal's own event names).
+  { name: "customer_update.drafted", family: "customer_update", customer_visible: false, built: true },
+  { name: "customer_update.published", family: "customer_update", customer_visible: true, built: true },
+  { name: "check_in.sent", family: "check_in", customer_visible: true, built: true },
+  { name: "check_in.responded", family: "check_in", customer_visible: true, built: true },
+  { name: "customer.action_completed", family: "customer", customer_visible: true, built: true },
 ];
 
 /** Appendix B (p42) names verbatim — the coverage test's universe. Extensions are exempt by design. */
