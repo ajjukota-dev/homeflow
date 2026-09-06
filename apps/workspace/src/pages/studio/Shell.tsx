@@ -97,7 +97,8 @@ export function Studio() {
         {activeTab && BESPOKE_TABS[activeTab.key] ? (
           BESPOKE_TABS[activeTab.key](activeTab.can_edit)
         ) : activeTab && tableDef ? (
-          <GenericTableEditor table={tableName!} label={activeTab.label} def={tableDef} canEdit={activeTab.can_edit} />
+          // key={tableName} forces a full remount so old rows never render against the new table's def.
+          <GenericTableEditor key={tableName} table={tableName!} label={activeTab.label} def={tableDef} canEdit={activeTab.can_edit} />
         ) : activeTab ? (
           <EmptyState
             icon={Settings2}

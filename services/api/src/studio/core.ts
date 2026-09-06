@@ -79,6 +79,37 @@ export const TABLE_REGISTRY: Record<string, TableRegistryEntry> = {
   // schema gap. `escalation_ladder_id` stays a plain text field: 12 (escalation ladders) has no
   // table yet, so there's nothing to validate it against or populate a picker from.
   sla_policy: { primaryKey: "id", columns: ["code", "applies_to", "target_ref", "duration_value", "duration_unit", "due_soon_lead_days", "at_risk_rule", "pause_reasons", "escalation_ladder_id", "effective_from", "effective_to", "version"], jsonColumns: ["pause_reasons"], editRoles: POLICY_STUDIO_ROLES },
+  // 2026-09-06 batch — plain flat config tables with no versioning quirk of their own, same
+  // generic-envelope fit as everything above. Registered here + studio/registry.ts's built:true
+  // flip + workspace registry.ts's GENERIC_TABLES mirror is the entire slice, same as
+  // 10.action_types's zero-bespoke-code precedent — no dedicated screen needed.
+  //
+  // 07-unit-progress-control.md — one table (component_definition) backs two Studio tabs
+  // (07.progress_components, 07.freshness_thresholds); both map to it via TAB_TO_TABLE.
+  component_definition: { primaryKey: "code", columns: ["label", "sort_order", "parent_code", PRODUCT_TYPES_COL, "readiness_weight", "evidence_required", "stale_after_days", "effective_from", "effective_to"], arrayColumns: [PRODUCT_TYPES_COL], editRoles: ["SITE", "SUPER_ADMIN"] },
+  // 08-changeability-engine.md. Not to be confused with 08.change_gate_rule_studio, which keeps
+  // its own bespoke DRAFT/PUBLISHED/RETIRED versioning in changeability/core.ts — this is the
+  // separate, simpler change_category lookup table (customer-facing filter categories).
+  change_category: { primaryKey: "code", columns: ["customer_label", "customer_visible", "sort_order", PRODUCT_TYPES_COL, "trade", "default_lead_days", "weight"], arrayColumns: [PRODUCT_TYPES_COL], editRoles: ["SITE", "SUPER_ADMIN"] },
+  // 12-escalations-notifications.md.
+  escalation_rule: { primaryKey: "rule_key", columns: ["severity", "department", "category", "source_module", "threshold_value", "threshold_unit", "decision_options", "wired", "effective_from", "effective_to"], jsonColumns: ["decision_options"], editRoles: POLICY_STUDIO_ROLES },
+  escalation_ladder: { primaryKey: "id", columns: ["code", "steps", "effective_from", "effective_to"], jsonColumns: ["steps"], editRoles: POLICY_STUDIO_ROLES },
+  materiality_threshold: { primaryKey: "id", columns: ["scope", "metric", "value"], editRoles: POLICY_STUDIO_ROLES },
+  // 14-readiness-scores.md.
+  score_weight: { primaryKey: "id", columns: ["score_type", "component", "weight", "effective_from", "effective_to", "version"], editRoles: POLICY_STUDIO_ROLES },
+  // 15-qa-evidence-snags.md.
+  qa_checklist_template: { primaryKey: "id", columns: ["component_code", PRODUCT_TYPES_COL, "items", "min_photos", "version", "effective_from", "effective_to"], jsonColumns: ["items"], arrayColumns: [PRODUCT_TYPES_COL], editRoles: ["QA", "SUPER_ADMIN"] },
+  snag_sla_policy: { primaryKey: "severity", columns: ["sla_policy_id", "unconfirmed"], editRoles: ["QA", "SUPER_ADMIN"] },
+  contractor: { primaryKey: "id", columns: ["name", "trade", "contact", "active"], editRoles: ["QA", "SUPER_ADMIN"] },
+  // 17-sales-to-crm-handover.md.
+  handover_checklist_rule: { primaryKey: "id", columns: ["project_id", "product_type", "residency", "item_code", "kind", "required", "weight", "effective_from", "effective_to"], editRoles: ["CRM", "SUPER_ADMIN"] },
+  return_reason: { primaryKey: "code", columns: ["label", "category"], editRoles: ["CRM", "SUPER_ADMIN"] },
+  // 19-collections-true-risk.md. payment_plan (parent) + payment_plan_milestone (ordered child
+  // rows) isn't registered here — a flat-column form can't represent the milestone list well;
+  // that tab needs a bespoke screen, not a registry entry (logged in TODO.md §9).
+  overdue_reason: { primaryKey: "code", columns: ["label", "next_action", "category", "default_action_type"], editRoles: ["ACCOUNTS", "SUPER_ADMIN"] },
+  // 24-holds.md — one row per project (or a NULL-project default); no versioning columns.
+  sales_policy: { primaryKey: "id", columns: ["project_id", "highly_customisable_min", "closing_soon_days", "match_stale_hours", "match_weights", "state_values", "must_have_hard_closed_cap", "filter_categories"], jsonColumns: ["match_weights", "state_values", "filter_categories"], editRoles: POLICY_STUDIO_ROLES },
 };
 
 function columnSql(entry: TableRegistryEntry, col: string, placeholder: string): string {

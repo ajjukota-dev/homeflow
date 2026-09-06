@@ -133,3 +133,64 @@ describe("studio/core: sla_policy (06-timeline-sla-engine.md's Studio tab, this 
     await expect(previewStudioChange("sla_policy")).rejects.toThrow(/row_id is required/);
   });
 });
+
+describe("studio/core: 2026-09-06 batch (07/08/12/14/15/17/19/24 registry-only additions)", () => {
+  const NEW_TABLES = [
+    "component_definition", "change_category", "escalation_rule", "escalation_ladder",
+    "materiality_threshold", "score_weight", "qa_checklist_template", "snag_sla_policy",
+    "contractor", "handover_checklist_rule", "return_reason", "overdue_reason", "sales_policy",
+  ];
+
+  it("every newly-registered table's declared columns are real (listStudioTable doesn't 500 on any of them)", async () => {
+    for (const t of NEW_TABLES) await expect(listStudioTable(t, mgmtCtx)).resolves.toBeInstanceOf(Array);
+  });
+
+  it("change_category (08, SITE-owned): SITE can draft/publish; MANAGEMENT (not SUPER_ADMIN) is refused, department-scoping actually holds", async () => {
+    const draftId = await draftStudioRow("change_category", null, { code: "STUDIO_TEST_CATEGORY", customer_label: "Studio test category", sort_order: 99 }, undefined, siteCtx);
+    await publishStudioRow("change_category", draftId, "2026-01-01", undefined, siteCtx);
+    const rows = await db.query<{ customer_label: string }>(`SELECT customer_label FROM change_category WHERE code = 'STUDIO_TEST_CATEGORY'`);
+    expect(rows.rows[0]).toMatchObject({ customer_label: "Studio test category" });
+
+    await expect(
+      draftStudioRow("change_category", null, { code: "STUDIO_TEST_CATEGORY_2", customer_label: "x", sort_order: 1 }, undefined, mgmtCtx)
+    ).rejects.toThrow(/requires one of/);
+  });
+
+  it("score_weight (14): its own effective_from/effective_to/version columns behave like risk_rule/probability_rule — in-place UPDATE, version bumps", async () => {
+    const draft1 = await draftStudioRow("score_weight", null, { id: "sw_studio_test", score_type: "READINESS", component: "structural", weight: 0.3, effective_from: "2026-01-01" }, undefined, mgmtCtx);
+    await publishStudioRow("score_weight", draft1, "2026-01-01", undefined, mgmtCtx);
+    const draft2 = await draftStudioRow("score_weight", "sw_studio_test", { weight: 0.5 }, undefined, mgmtCtx);
+    await publishStudioRow("score_weight", draft2, "2026-02-01", undefined, mgmtCtx);
+
+    const rows = await db.query<{ weight: string }>(`SELECT weight FROM score_weight WHERE id = 'sw_studio_test'`);
+    expect(rows.rows).toHaveLength(1);
+    expect(Number(rows.rows[0].weight)).toBe(0.5);
+    const history = await studioRowHistory("score_weight", "sw_studio_test", mgmtCtx);
+    expect(history.map((h) => h.version)).toEqual([1, 2]);
+  });
+
+  it("sales_policy (24): multiple jsonb columns on one row round-trip independently through draft -> publish", async () => {
+    const draftId = await draftStudioRow(
+      "sales_policy",
+      null,
+      {
+        id: "sp_studio_test",
+        highly_customisable_min: 60,
+        closing_soon_days: 10,
+        match_stale_hours: 12,
+        match_weights: { MUST_HAVE: 5, PREFERRED: 2, NOT_IMPORTANT: 0 },
+        state_values: { OPEN: 1, CLOSING: 0.5 },
+        must_have_hard_closed_cap: 30,
+        filter_categories: { layout_flexible: "structural" },
+      },
+      undefined,
+      mgmtCtx
+    );
+    await publishStudioRow("sales_policy", draftId, "2026-01-01", undefined, mgmtCtx);
+    const rows = await db.query<{ match_weights: Record<string, number>; state_values: Record<string, number> }>(
+      `SELECT match_weights, state_values FROM sales_policy WHERE id = 'sp_studio_test'`
+    );
+    expect(rows.rows[0].match_weights).toEqual({ MUST_HAVE: 5, PREFERRED: 2, NOT_IMPORTANT: 0 });
+    expect(rows.rows[0].state_values).toEqual({ OPEN: 1, CLOSING: 0.5 });
+  });
+});

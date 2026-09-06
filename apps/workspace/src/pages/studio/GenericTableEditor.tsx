@@ -8,7 +8,7 @@ import { HistoryDrawer } from "./HistoryDrawer";
 
 /** One generic-envelope Studio table (25-policy-studio.md rules 1/3): current effective rows,
  *  add/edit via draft+publish, per-row history. Column shape comes from `registry.ts`'s mirror
- *  of the backend's own TABLE_REGISTRY — the same 10 tables `/api/studio/:table` will accept. */
+ *  of the backend's own TABLE_REGISTRY — the same tables `/api/studio/:table` will accept. */
 export function GenericTableEditor({ table, label, def, canEdit }: { table: string; label: string; def: GenericTableDef; canEdit: boolean }) {
   const [rows, setRows] = useState<StudioRow[] | null>(null);
   const [error, setError] = useState(false);

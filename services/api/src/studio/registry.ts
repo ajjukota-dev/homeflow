@@ -26,13 +26,20 @@ const MGMT = POLICY_STUDIO_ROLES; // ["MANAGEMENT", "SUPER_ADMIN"]
 export const TAB_REGISTRY: TabDef[] = [
   // 01 — identity & access (merged)
   { key: "01.permission_matrix", label: "Permission matrix", owner_spec: 1, built: true, edit_roles: MGMT },
+  // Stays built:false — field_sensitivity's PRIMARY KEY is the composite (module, field), and
+  // the generic envelope's TABLE_REGISTRY (studio/core.ts) is single-primaryKey-column only
+  // (every WHERE clause is `${primaryKey} = $1`). Needs either a synthetic single-column key
+  // (a migration — ask first) or a composite-key extension to the envelope itself; not done here.
   { key: "01.field_sensitivity", label: "Field sensitivity", owner_spec: 1, built: false, edit_roles: MGMT },
   { key: "01.teams_assignments", label: "Teams & assignments", owner_spec: 1, built: true, edit_roles: MGMT },
 
   // 04 — canonical model (merged)
   { key: "04.project_master", label: "Project master", owner_spec: 4, built: true, edit_roles: ["SITE"] },
   { key: "04.hierarchy", label: "Hierarchy", owner_spec: 4, built: true, edit_roles: ["SITE"] },
+  // Stays built:false — `unit.unit_type` is free text, no lookup/config table backs it.
   { key: "04.unit_types", label: "Unit types", owner_spec: 4, built: false, edit_roles: ["SITE"] },
+  // Stays built:false — "max 4 applicants" has no config table or named code constant anywhere;
+  // wherever it's enforced, it's a bare literal, not something a Studio tab could edit today.
   { key: "04.applicant_limits", label: "Applicant limits", owner_spec: 4, built: false, edit_roles: MGMT },
 
   // 05 — journey templates (merged; own bespoke draft/publish, not the generic envelope)
@@ -43,12 +50,14 @@ export const TAB_REGISTRY: TabDef[] = [
   { key: "06.calendars", label: "Calendars", owner_spec: 6, built: true, edit_roles: MGMT },
   { key: "06.delay_reasons", label: "Delay reasons", owner_spec: 6, built: true, edit_roles: MGMT },
 
-  // 07 — unit progress control (backend built; Studio CRUD UI deferred like every other spec's)
-  { key: "07.progress_components", label: "Progress components", owner_spec: 7, built: false, edit_roles: ["SITE"] },
-  { key: "07.freshness_thresholds", label: "Freshness thresholds", owner_spec: 7, built: false, edit_roles: ["SITE"] },
+  // 07 — unit progress control (component_definition registered in the generic envelope — both
+  // tabs below map to the same table, studio/core.ts's TABLE_REGISTRY + workspace TAB_TO_TABLE)
+  { key: "07.progress_components", label: "Progress components", owner_spec: 7, built: true, edit_roles: ["SITE"] },
+  { key: "07.freshness_thresholds", label: "Freshness thresholds", owner_spec: 7, built: true, edit_roles: ["SITE"] },
 
-  // 08 — changeability engine (backend built; rule studio has its own draft/publish routes in routes-changeability.ts, UI deferred)
-  { key: "08.change_categories", label: "Change categories", owner_spec: 8, built: false, edit_roles: ["SITE"] },
+  // 08 — changeability engine (change_category registered in the generic envelope; the rule
+  // studio itself keeps its own bespoke draft/publish routes in routes-changeability.ts)
+  { key: "08.change_categories", label: "Change categories", owner_spec: 8, built: true, edit_roles: ["SITE"] },
   { key: "08.change_gate_rule_studio", label: "Change Gate Rule Studio", owner_spec: 8, built: true, edit_roles: ["SITE"] },
   { key: "08.gate_expiry_sources", label: "Gate-expiry sources", owner_spec: 8, built: false, edit_roles: ["SITE"] },
 
@@ -59,25 +68,30 @@ export const TAB_REGISTRY: TabDef[] = [
   // 10 — universal action (merged)
   { key: "10.action_types", label: "Action types", owner_spec: 10, built: true, edit_roles: MGMT },
 
-  // 11 — my day / ranking (not built)
+  // 11 — my day / ranking (DEFAULT_WEIGHTS is an in-code constant, no config table — not built)
   { key: "11.ranking_weights", label: "Ranking weights", owner_spec: 11, built: false, edit_roles: MGMT },
 
-  // 12 — escalations & notifications (not built)
-  { key: "12.escalation_rules", label: "Escalation rules", owner_spec: 12, built: false, edit_roles: MGMT },
-  { key: "12.ladders", label: "Ladders", owner_spec: 12, built: false, edit_roles: MGMT },
-  { key: "12.materiality_thresholds", label: "Materiality thresholds", owner_spec: 12, built: false, edit_roles: MGMT },
+  // 12 — escalations & notifications (escalation_rule/escalation_ladder/materiality_threshold
+  // registered in the generic envelope)
+  { key: "12.escalation_rules", label: "Escalation rules", owner_spec: 12, built: true, edit_roles: MGMT },
+  { key: "12.ladders", label: "Ladders", owner_spec: 12, built: true, edit_roles: MGMT },
+  { key: "12.materiality_thresholds", label: "Materiality thresholds", owner_spec: 12, built: true, edit_roles: MGMT },
+  // Stays built:false — notification_preference is keyed per-user (user_id PK), not a global
+  // defaults table a Studio tab could meaningfully CRUD; no /studio-shaped route exists for it.
   { key: "12.notification_defaults", label: "Notification defaults", owner_spec: 12, built: false, edit_roles: MGMT },
 
-  // 13 — promise ledger (not built)
+  // 13 — promise ledger (approver resolution + pre-breach lead days are in-code defaults per
+  // commitments/core.ts's own Build note; no config table until a real approval band exists)
   { key: "13.commitment_approvers_leads", label: "Commitment approvers/leads", owner_spec: 13, built: false, edit_roles: MGMT },
 
-  // 14 — readiness scores (not built)
-  { key: "14.score_weights_thresholds", label: "Score weights & thresholds", owner_spec: 14, built: false, edit_roles: MGMT },
+  // 14 — readiness scores (score_weight registered in the generic envelope)
+  { key: "14.score_weights_thresholds", label: "Score weights & thresholds", owner_spec: 14, built: true, edit_roles: MGMT },
 
-  // 15 — QA evidence & snags (backend built; templates have PUT /qa/checklist-templates, Studio UI deferred like every other spec's)
-  { key: "15.qa_checklist_templates", label: "QA checklist templates", owner_spec: 15, built: false, edit_roles: ["QA"] },
-  { key: "15.snag_sla", label: "Snag SLA", owner_spec: 15, built: false, edit_roles: ["QA"] },
-  { key: "15.contractors", label: "Contractors", owner_spec: 15, built: false, edit_roles: ["QA"] },
+  // 15 — QA evidence & snags (qa_checklist_template/snag_sla_policy/contractor registered in the
+  // generic envelope; PUT /qa/checklist-templates remains a separate, non-Studio route)
+  { key: "15.qa_checklist_templates", label: "QA checklist templates", owner_spec: 15, built: true, edit_roles: ["QA"] },
+  { key: "15.snag_sla", label: "Snag SLA", owner_spec: 15, built: true, edit_roles: ["QA"] },
+  { key: "15.contractors", label: "Contractors", owner_spec: 15, built: true, edit_roles: ["QA"] },
 
   // 16 — handover gates (backend built; PUT route is the real edit path, Studio UI deferred like every other spec's)
   { key: "16.handover_gate_configuration", label: "Handover gate configuration", owner_spec: 16, built: true, edit_roles: [...MGMT, "QA"] },
@@ -86,17 +100,22 @@ export const TAB_REGISTRY: TabDef[] = [
   // checklist template. Left built:false; revisit if a template layer is added later.
   { key: "16.handover_checklist", label: "Handover checklist", owner_spec: 16, built: false, edit_roles: MGMT },
 
-  // 17 — sales -> CRM handover (backend built; Studio CRUD UI deferred like every other spec's)
-  { key: "17.sales_handover_checklist_rules", label: "Sales handover checklist rules", owner_spec: 17, built: false, edit_roles: ["CRM"] },
-  { key: "17.return_reasons", label: "Return reasons", owner_spec: 17, built: false, edit_roles: ["CRM"] },
+  // 17 — sales -> CRM handover (handover_checklist_rule/return_reason registered in the generic envelope)
+  { key: "17.sales_handover_checklist_rules", label: "Sales handover checklist rules", owner_spec: 17, built: true, edit_roles: ["CRM"] },
+  { key: "17.return_reasons", label: "Return reasons", owner_spec: 17, built: true, edit_roles: ["CRM"] },
 
   // 18 — change requests (backend built; Studio CRUD UI deferred like every other spec's)
   { key: "18.cr_approval_rule", label: "Variation approval matrix", owner_spec: 18, built: true, edit_roles: MGMT },
   { key: "18.customisation_policy", label: "Customisation policy", owner_spec: 18, built: true, edit_roles: MGMT },
 
-  // 19 — collections & true risk (not built)
+  // 19 — collections & true risk (overdue_reason registered in the generic envelope)
+  // Stays built:false — payment_plan (parent) + payment_plan_milestone (ordered child rows) is a
+  // parent/child relationship the generic envelope's flat-column form can't represent well; needs
+  // a bespoke screen (parent fields + an editable milestone list), not a registry entry.
   { key: "19.payment_plans", label: "Payment plans", owner_spec: 19, built: false, edit_roles: ["ACCOUNTS"] },
-  { key: "19.overdue_reasons", label: "Overdue reasons", owner_spec: 19, built: false, edit_roles: ["ACCOUNTS"] },
+  { key: "19.overdue_reasons", label: "Overdue reasons", owner_spec: 19, built: true, edit_roles: ["ACCOUNTS"] },
+  // Stays built:false — threshold_pct lives as a per-row column on financial_clearance, set at
+  // creation time; there's no separate global policy table for a Studio tab to CRUD.
   { key: "19.clearance_checklist_threshold", label: "Clearance checklist/threshold", owner_spec: 19, built: false, edit_roles: ["ACCOUNTS"] },
 
   // 20 — cash forecast (not built)
@@ -120,9 +139,9 @@ export const TAB_REGISTRY: TabDef[] = [
   { key: "23.registration_checklists", label: "Registration checklists", owner_spec: 23, built: true, edit_roles: ["REGISTRATION"] },
   { key: "23.sro_offices", label: "SRO offices", owner_spec: 23, built: true, edit_roles: ["REGISTRATION"] },
 
-  // 24 — holds (not built)
+  // 24 — holds
   { key: "24.hold_policy", label: "Hold policy", owner_spec: 24, built: true, edit_roles: MGMT }, // GET/PUT /api/hold-policy (routes-sales.ts); UI deferred
-  { key: "24.filter_thresholds", label: "Filter thresholds", owner_spec: 24, built: false, edit_roles: MGMT },
+  { key: "24.filter_thresholds", label: "Filter thresholds", owner_spec: 24, built: true, edit_roles: MGMT }, // sales_policy registered in the generic envelope
 
   // 25 — policy studio itself
   { key: "25.approval_authority_matrix", label: "Approval authority matrix", owner_spec: 25, built: true, edit_roles: MGMT },
