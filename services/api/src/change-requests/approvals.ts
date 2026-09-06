@@ -147,6 +147,12 @@ export async function submitCrForApproval(crId: string, ctx: Ctx): Promise<CrRow
 
 interface CraRow { id: string; cr_id: string; action_id: string; approver_role: string; decision: "PENDING" | "APPROVED" | "REJECTED"; decided_by: string | null }
 
+/** Read side for the approvals panel — nothing exposed `change_request_approval` rows to a UI
+ *  before now (same "write with no matching read" gap as the items/quotation GET routes). */
+export async function listCrApprovals(crId: string): Promise<CraRow[]> {
+  return (await db.query<CraRow>(`SELECT id, cr_id, action_id, approver_role, decision, decided_by FROM change_request_approval WHERE cr_id = $1 ORDER BY approver_role`, [crId])).rows;
+}
+
 /** Rule 4's "approver ≠ requester ≠ coster": the action-level self-approve guard already blocks
  *  the submitter; this additionally blocks the SAME person deciding two approvals on one CR
  *  (covers "second approver" genuinely being a different person). */

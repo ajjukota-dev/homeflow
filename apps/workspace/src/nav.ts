@@ -1,4 +1,4 @@
-import { Building2, Store, Users, Banknote, Scale, ClipboardCheck, HeartHandshake, Landmark, Map, Settings2, CalendarClock, Inbox, Route, Handshake, FileText, Bell, TrendingUp, Receipt, BarChart3 } from "lucide-react";
+import { Building2, Store, Users, Banknote, Scale, ClipboardCheck, HeartHandshake, Landmark, Map, Settings2, CalendarClock, Inbox, Route, Handshake, FileText, Bell, TrendingUp, Receipt, BarChart3, Hammer } from "lucide-react";
 import { ROLE_CODES } from "./pages/admin/roles";
 
 export type View =
@@ -24,7 +24,8 @@ export type View =
   | "customer-updates"
   | "cash-planner"
   | "collections-forecast"
-  | "portfolio-compare";
+  | "portfolio-compare"
+  | "customisation";
 
 // Rule 3: read access is any staff role; per-tab edit eligibility is enforced server-side
 // (studio/registry.ts's tabsForRoles/can_edit) — every seeded staff role except CUSTOMER sees
@@ -83,6 +84,11 @@ export const NAV: { id: View; label: string; role: string; short: string; Icon: 
   { id: "cash-planner", label: "Cash Flow Planner", role: "Waterfall by month, scenarios vs committed baseline", short: "Planner", Icon: TrendingUp, roles: ["ACCOUNTS", "BANKING", "MANAGEMENT", "SUPER_ADMIN"] },
   { id: "collections-forecast", label: "Collections Forecast", role: "Every forecast line, snapshots, forecast-to-actual", short: "Forecast", Icon: Receipt, roles: ["ACCOUNTS", "BANKING", "MANAGEMENT", "SUPER_ADMIN"] },
   { id: "portfolio-compare", label: "Portfolio Comparison", role: "Actual vs forecast across every project", short: "Portfolio", Icon: BarChart3, roles: ["ACCOUNTS", "BANKING", "MANAGEMENT", "SUPER_ADMIN"] },
+  // 18-change-requests.md Screens: "Customisation desk (Customisation role)" — scoped to the
+  // screen's own stated owner, same narrower-than-matrix precedent as Journey Control/Promise
+  // Ledger (the write role set, capture.ts's own CUSTOMISATION_DESK_ROLES, not the wider set of
+  // roles that can act on one CR mid-flow from elsewhere, e.g. SITE's feasibility review).
+  { id: "customisation", label: "Customisation Desk", role: "Change requests — capture to as-built", short: "Custom.", Icon: Hammer, roles: ["CUSTOMISATION", "MANAGEMENT", "SUPER_ADMIN"] },
 ];
 
 export const ADMIN_NAV: { id: View; label: string }[] = [

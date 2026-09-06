@@ -8,6 +8,8 @@ import { GenericTableEditor } from "./GenericTableEditor";
 import { JourneyTemplateStudio } from "./JourneyTemplateStudio";
 import { SlaPolicyStudio } from "./SlaPolicyStudio";
 import { PaymentPlanStudio } from "./PaymentPlanStudio";
+import { CustomisationApprovalMatrixStudio } from "./CustomisationApprovalMatrixStudio";
+import { CustomisationPolicyStudio } from "./CustomisationPolicyStudio";
 
 // Tabs with their own bespoke screen (not the generic /studio/:table envelope) — same "flag,
 // don't fake" spirit as GENERIC_TABLES, but for tabs whose edit surface isn't a plain table.
@@ -15,6 +17,10 @@ const BESPOKE_TABS: Record<string, (canEdit: boolean) => ReactNode> = {
   "05.journey_template_studio": (canEdit) => <JourneyTemplateStudio canEdit={canEdit} />,
   "06.sla_policies": (canEdit) => <SlaPolicyStudio canEdit={canEdit} />,
   "19.payment_plans": (canEdit) => <PaymentPlanStudio canEdit={canEdit} />,
+  // 18-change-requests.md's own registry.ts rows were already built:true (real routes exist) —
+  // only this frontend editor was missing, same "not built" EmptyState gap as before this fix.
+  "18.cr_approval_rule": (canEdit) => <CustomisationApprovalMatrixStudio canEdit={canEdit} />,
+  "18.customisation_policy": (canEdit) => <CustomisationPolicyStudio canEdit={canEdit} />,
 };
 
 /** Policy Studio shell (25-policy-studio.md Screens): left nav grouped by owning spec, one
