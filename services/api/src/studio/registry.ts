@@ -39,7 +39,7 @@ export const TAB_REGISTRY: TabDef[] = [
   { key: "05.journey_template_studio", label: "Journey Template Studio", owner_spec: 5, built: true, edit_roles: MGMT },
 
   // 06 — timeline & SLA engine (merged)
-  { key: "06.sla_policies", label: "SLA policies", owner_spec: 6, built: false, edit_roles: MGMT }, // deferred: sla_policy has its own effective_from/version columns, needs bespoke draft/publish like 05's, not this segment's generic envelope — see studio/core.ts header
+  { key: "06.sla_policies", label: "SLA policies", owner_spec: 6, built: true, edit_roles: MGMT }, // bespoke screen (SlaPolicyStudio.tsx): reuses the generic draft/publish/history envelope's data layer (studio/core.ts's sla_policy entry) plus a real open-sla_clock impact preview before publish — see studio/core.ts header
   { key: "06.calendars", label: "Calendars", owner_spec: 6, built: true, edit_roles: MGMT },
   { key: "06.delay_reasons", label: "Delay reasons", owner_spec: 6, built: true, edit_roles: MGMT },
 

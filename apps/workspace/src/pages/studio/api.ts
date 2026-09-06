@@ -52,4 +52,5 @@ export const studioApi = {
   publishRow: (table: string, draftId: string, effectiveFrom: string, note?: string) =>
     req<{ ok: boolean }>("POST", `/api/studio/${table}/${draftId}/publish`, { effective_from: effectiveFrom, note }),
   getHistory: (table: string, rowId: string) => req<HistoryRow[]>("GET", `/api/studio/${table}/${rowId}/history`),
+  previewChange: (table: string, rowId: string) => req<{ open_sla_clocks: number }>("POST", `/api/studio/${table}/preview`, { row_id: rowId }),
 };

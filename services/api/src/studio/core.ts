@@ -7,11 +7,19 @@ import { AppError, type Ctx } from "../authz/types";
 // Generic Studio draft/publish/history envelope (25-policy-studio.md rules 1 + Data's
 // `policy_version`). Only for flat config tables that carry NO versioning columns of their
 // own — delay_reason and action_type (10) have none, so policy_version is their only source of
-// history. project_calendar has none either, so it opts in too. sla_policy (06) already has its
-// own effective_from/effective_to/version columns and needs bespoke draft/publish logic mirroring
-// 05's journey_template_version, not this generic envelope — deferred, logged in TODO.md, tab
-// stays built:false in studio/registry.ts until that's built. 05's Journey Template Studio and
-// 25's own approval_authority_rule likewise keep their own dedicated modules (templates.ts,
+// history. project_calendar has none either, so it opts in too. risk_rule/probability_rule DO
+// carry their own effective_from/effective_to/version, and already prove this envelope handles
+// that fine: publishStudioRow UPDATEs the existing row in place (by primaryKey) rather than
+// inserting a new one, so a business-key uniqueness constraint elsewhere is never at risk.
+// sla_policy (06) is the same shape — added below — but `code` is UNIQUE, so (unlike
+// risk_rule/probability_rule, whose `id` is the only key) a change here can't ever become a
+// second concurrent row the way 05's journey_template_version supports; it's always an in-place
+// edit of the one current row. The genuinely bespoke part isn't storage, it's the publish
+// ceremony: `previewStudioChange` below computes real open-sla_clock impact for sla_policy
+// specifically (the one registered table where "N things affected" is honestly computable) —
+// 06-timeline-sla-engine.md's Studio tab is a dedicated screen (SlaPolicyStudio.tsx) that calls
+// it before publish, not the plain GenericTableEditor. 05's Journey Template Studio and 25's own
+// approval_authority_rule likewise keep their own dedicated modules (templates.ts,
 // approvals/matrix.ts) — the matrix's overlap/gap validation doesn't fit generic column CRUD.
 //
 // Security: `tableName` and every column name that reaches SQL comes ONLY from this hard-coded
@@ -63,6 +71,14 @@ export const TABLE_REGISTRY: Record<string, TableRegistryEntry> = {
   // draft/publish envelope; those columns are edited directly, not derived from diff history). No
   // product_types column: risk signals aren't product-type-scoped in the spec's own Data row.
   risk_rule: { primaryKey: "id", columns: ["service", "signal", "condition", "weight", "driver_text", "effective_from", "effective_to", "version"], jsonColumns: ["condition"], editRoles: POLICY_STUDIO_ROLES },
+  // 06-timeline-sla-engine.md — same generic-envelope fit as risk_rule/probability_rule above
+  // (own effective_from/effective_to/version, edited as plain fields). No product_types column:
+  // an SLA policy already scopes itself via applies_to/target_ref, not a product type. `code` is
+  // UNIQUE (0005_journey_instances.sql), so a change here is always an in-place UPDATE of the one
+  // current row for that code — see this file's header for why that's the right call, not a
+  // schema gap. `escalation_ladder_id` stays a plain text field: 12 (escalation ladders) has no
+  // table yet, so there's nothing to validate it against or populate a picker from.
+  sla_policy: { primaryKey: "id", columns: ["code", "applies_to", "target_ref", "duration_value", "duration_unit", "due_soon_lead_days", "at_risk_rule", "pause_reasons", "escalation_ladder_id", "effective_from", "effective_to", "version"], jsonColumns: ["pause_reasons"], editRoles: POLICY_STUDIO_ROLES },
 };
 
 function columnSql(entry: TableRegistryEntry, col: string, placeholder: string): string {
@@ -166,11 +182,20 @@ export async function studioRowHistory(tableName: string, rowId: string, ctx: Ct
 }
 
 /** POST /studio/:table/preview — rule 4's "dry-run how many units/actions change." Genuinely
- *  computable for none of this segment's three registered tables (project_calendar/delay_reason/
- *  action_type edits don't have an obvious "N rows affected" count the way an sla_policy duration
- *  change would against open sla_clock rows) — refusing explicitly rather than shipping a stub
- *  that always says "0 affected", which would be indistinguishable from a real zero-impact result. */
-export async function previewStudioChange(tableName: string): Promise<never> {
+ *  computable today only for sla_policy, against currently open sla_clock rows (duration_value/
+ *  duration_unit are baked into an already-running clock's due_at at start and are unaffected by
+ *  this; due_soon_lead_days/at_risk_rule/pause_reasons/escalation_ladder_id are read live via the
+ *  sla_clock→sla_policy join, so those DO change for open clocks the moment this publishes — the
+ *  count told to the human is real, not a guess). No other registered table has an obvious "N
+ *  rows affected" count (project_calendar/delay_reason/action_type edits don't reference a
+ *  countable dependent table this cleanly) — refusing explicitly for those rather than shipping a
+ *  stub that always says "0 affected", indistinguishable from a real zero-impact result. */
+export async function previewStudioChange(tableName: string, rowId?: string): Promise<{ open_sla_clocks: number }> {
   requireTable(tableName);
+  if (tableName === "sla_policy") {
+    if (!rowId) throw new AppError("validation", "row_id is required to preview an sla_policy change", "row_id");
+    const r = await db.query<{ count: string }>(`SELECT COUNT(*)::int AS count FROM sla_clock WHERE policy_id = $1 AND stopped_at IS NULL`, [rowId]);
+    return { open_sla_clocks: Number(r.rows[0].count) };
+  }
   throw new AppError("validation", `preview-impact is not implemented for ${tableName} yet — see TODO.md`);
 }

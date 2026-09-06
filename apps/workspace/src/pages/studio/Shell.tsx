@@ -6,11 +6,13 @@ import { studioApi, type TabDef } from "./api";
 import { GENERIC_TABLES, TAB_TO_TABLE } from "./registry";
 import { GenericTableEditor } from "./GenericTableEditor";
 import { JourneyTemplateStudio } from "./JourneyTemplateStudio";
+import { SlaPolicyStudio } from "./SlaPolicyStudio";
 
 // Tabs with their own bespoke screen (not the generic /studio/:table envelope) — same "flag,
 // don't fake" spirit as GENERIC_TABLES, but for tabs whose edit surface isn't a plain table.
 const BESPOKE_TABS: Record<string, (canEdit: boolean) => ReactNode> = {
   "05.journey_template_studio": (canEdit) => <JourneyTemplateStudio canEdit={canEdit} />,
+  "06.sla_policies": (canEdit) => <SlaPolicyStudio canEdit={canEdit} />,
 };
 
 /** Policy Studio shell (25-policy-studio.md Screens): left nav grouped by owning spec, one
