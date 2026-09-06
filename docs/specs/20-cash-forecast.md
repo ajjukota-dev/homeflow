@@ -51,3 +51,81 @@ Depends on 19, 21, 23, 06, 04. Feeds 27, 28, 31 (collection risk).
 
 ## Not in this feature
 Receipts/demands (19), loans (21), KPI framework (27).
+
+## Build note (2026-09-06, backend)
+Advisor-scoped before any code was written (not just before merge): the initial plan for
+REGISTRATION_FINAL_DEMAND ("last unpaid demand by sequence") was wrong — it would mislabel a
+POSSESSION-triggered demand as registration money, and the Σ-lines-≤-remaining test wouldn't catch
+a wrong *label*, only a wrong amount. Fixed by grepping `registration/core.ts`: `stamp_duty_inr`/
+`registration_fee_inr` are only populated by the same call that sets `executed_on` — so by the time
+either value exists, registration has already happened. Modeled as an immediately-`REALISED`
+historical fact-line (probability 1), not a forward forecast.
+
+APPROVED_RESCHEDULE is deliberately NOT implemented, flagged not faked: `timeline_plan_revision.
+changes` (06) is stage-level `{stage_code, old/new_planned_start}` with no amount and no demand_id
+link — there is no schema path from a plan revision to a specific rupee, and 06 never writes that
+table today anyway. `probability.ts` still carries its probability (0.8) for when this becomes
+buildable.
+
+No `permission_matrix` module exists for this domain (same gap class as R0.6's pre-matrix routes)
+— `FORECAST_READ_ROLES`/`FORECAST_WRITE_ROLES` added directly to `authz/requireRole.ts`; "Accounts
+lead" (rule 1) modeled as the plain `ACCOUNTS` role, same simplification used elsewhere for named
+seniority with no dedicated role value.
+
+One winning source type per demand, computed pure (`resolveDemandLine`) by explicit precedence
+(loan-dependent > active PTP > overdue > plain contractual > nothing until a due date exists), then
+diffed in `deriveProjectLines` against whatever's currently ACTIVE for that demand: no-op if
+unchanged, REALISED if `remaining` has reached 0, LAPSED if the old line's own `expected_date` had
+already passed, else SUPERSEDED. A demand with an ACTIVE `MANUAL_FINANCE_OVERRIDE` line is excluded
+from re-derivation entirely — the override IS the active line until it's itself superseded.
+
+Scenario lane is computed at read time, never persisted (rule 5) — `applyScenarioAssumptions`
+transforms a copy of COMMITTED lines, `futureSalesLines` generates SCENARIO_FUTURE_SALES lines;
+BASE is proven byte-identical before/after a CONSERVATIVE scenario is created and given
+assumptions. `forecast_line.scenario_id`'s CHECK constraint permits SCENARIO-lane rows, but nothing
+ever inserts one — scenario lines are synthetic (`id: scenario_${i}`), never written to the table.
+The column and constraint describe a capability that isn't used; left as-is (it's genuinely how
+rule 5 wants BASE protected — SCENARIO rows never touching the real table at all — not a mistake to
+fix), documented here so a reader doesn't go looking for the missing INSERT.
+
+Waterfall's `target_inr`/`shortfall` are `null`, not `0`, when no `cash_target` row covers a period
+(advisor-mandated) — the one place in this codebase where "fail closed" does NOT apply, since
+blocking the whole forecast would be worse than an honest "no target set." `takeSnapshot`'s `totals`
+carries `expected` (raw, unweighted sum raised) and `weighted` (probability-weighted, what the
+waterfall actually carries forward) as two genuinely distinct numbers, matching the Data row's own
+two-name list — `compareForecast` reads `.weighted` against `latest` (also weighted), not the
+now-distinct `.expected`.
+
+**Advisor-caught performance issue, fixed pre-merge:** `deriveProjectLines` scans every open demand
+in a project; it was being called inside `buildForecastView`, which `compareForecast` also calls,
+which `portfolioCompare` calls once per project — an N-project portfolio compare would have re-run
+a full per-demand derive pass N times for no reason. Fixed by hoisting the derive call up into the
+two real entrypoints that need it (`getForecast`, and `takeSnapshot` since it's cron-driven and not
+always preceded by a `getForecast` call) — `buildForecastView`/`compareForecast`/`portfolioCompare`
+now only read whatever forecast_line rows currently exist.
+
+`forecast_line`/`forecast_scenario`/`forecast_snapshot`/`cash_target`/`period_calendar` all carry a
+direct `project_id` (or, for `period_calendar`, project_id itself as PK) and land after
+`0025_rls.sql` — same flagged-not-fixed RLS gap as `loan_case` (21)/`commitment` (13)/`escalation`
+(12); sweep all of these in together whenever P1b resumes. `probability_rule` is global config (no
+project_id), same bucket as `action_type`/`delay_reason`.
+
+Registered `probability_rule`/`cash_target`/`period_calendar` in Studio's generic table envelope
+(none carry their own versioning columns). The Studio tab registry adds exactly 3 rows for spec 20
+— `25-policy-studio.md`'s own `## Tabs` line (the actual source `studio/registry.test.ts` checks) —
+not the 4th ("Forecast policy — snapshot cadence") spec 20's own Screens section separately names;
+no config table backs a cadence policy anyway (`takeSnapshot`'s `kind` is caller-supplied, no
+scheduler exists). Caught before writing any test, by reading the test's parsing logic first.
+
+Full-suite flakiness check (advisor-required before this note could claim anything about it):
+`registration.test.ts` times out 4-5 tests intermittently under a full `vitest run` — confirmed via
+`git stash -u` that this reproduces identically on pure pre-spec-20 `main` with zero forecast files
+present, so it is genuinely pre-existing worker-pool contention, not something this spec's test file
+exacerbated. Not fixed (out of this spec's scope); logged in TODO.md.
+
+`forecast/forecast.test.ts`: 32 tests (pure probability/derive/waterfall/scenario-transform units,
+a 200-generated-facts double-counting property test at the pure-function boundary, and a real-DB
+integration block covering the full derive→supersede→realise/lapse lifecycle, manual override,
+scenario isolation, snapshot immutability, and event coverage). tsc clean, 92/93 API test files,
+617/622 tests (the 5 failures are the pre-existing registration.test.ts flake above, reproduced
+without this spec's code).

@@ -40,6 +40,11 @@ export const TABLE_REGISTRY: Record<string, TableRegistryEntry> = {
   project_calendar: { primaryKey: "id", columns: ["name", "working_days", "holidays", "timezone", PRODUCT_TYPES_COL], jsonColumns: ["working_days", "holidays"], arrayColumns: [PRODUCT_TYPES_COL], editRoles: POLICY_STUDIO_ROLES },
   delay_reason: { primaryKey: "code", columns: ["label", "category", "counts_against_sla", PRODUCT_TYPES_COL], arrayColumns: [PRODUCT_TYPES_COL], editRoles: POLICY_STUDIO_ROLES },
   action_type: { primaryKey: "code", columns: ["family", "label", "default_owner_role", "default_priority", "default_evidence_requirement", "customer_visible_default", PRODUCT_TYPES_COL], arrayColumns: [PRODUCT_TYPES_COL], editRoles: POLICY_STUDIO_ROLES },
+  // 20-cash-forecast.md — none of these three carry their own versioning columns, same
+  // "generic envelope" fit as project_calendar/delay_reason/action_type above.
+  probability_rule: { primaryKey: "id", columns: ["source_type", "condition", "probability", "effective_from", "effective_to", "version", PRODUCT_TYPES_COL], jsonColumns: ["condition"], arrayColumns: [PRODUCT_TYPES_COL], editRoles: POLICY_STUDIO_ROLES },
+  cash_target: { primaryKey: "id", columns: ["project_id", "period", "target_inr", "set_by", PRODUCT_TYPES_COL], arrayColumns: [PRODUCT_TYPES_COL], editRoles: POLICY_STUDIO_ROLES },
+  period_calendar: { primaryKey: "project_id", columns: ["fiscal_year_start_month", "week_start_day", PRODUCT_TYPES_COL], arrayColumns: [PRODUCT_TYPES_COL], editRoles: POLICY_STUDIO_ROLES },
 };
 
 function columnSql(entry: TableRegistryEntry, col: string, placeholder: string): string {

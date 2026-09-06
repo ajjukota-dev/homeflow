@@ -100,9 +100,14 @@ export const TAB_REGISTRY: TabDef[] = [
   { key: "19.clearance_checklist_threshold", label: "Clearance checklist/threshold", owner_spec: 19, built: false, edit_roles: ["ACCOUNTS"] },
 
   // 20 — cash forecast (not built)
-  { key: "20.probability_rules", label: "Probability rules", owner_spec: 20, built: false, edit_roles: MGMT },
-  { key: "20.cash_targets", label: "Cash targets", owner_spec: 20, built: false, edit_roles: MGMT },
-  { key: "20.period_calendar", label: "Period calendar", owner_spec: 20, built: false, edit_roles: MGMT },
+  { key: "20.probability_rules", label: "Probability rules", owner_spec: 20, built: true, edit_roles: MGMT },
+  { key: "20.cash_targets", label: "Cash targets", owner_spec: 20, built: true, edit_roles: MGMT },
+  { key: "20.period_calendar", label: "Period calendar", owner_spec: 20, built: true, edit_roles: MGMT },
+  // 20's own Screens section additionally names "Forecast policy (snapshot cadence)", but
+  // 25-policy-studio.md's own ## Tabs line (the registry.test.ts's actual source of truth) lists
+  // only these 3 for spec 20 — no fourth bullet to register, and no config table backs a cadence
+  // policy anyway (takeSnapshot's `kind` is caller-supplied; no scheduler exists to apply one
+  // automatically). Not added here; 25's Tabs line is authoritative over 20's own prose.
 
   // 22 — document factory (backend built; PUT routes are the real edit path, Studio UI deferred like every other spec's)
   { key: "22.templates", label: "Templates", owner_spec: 22, built: true, edit_roles: ["LEGAL"] },

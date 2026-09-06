@@ -188,6 +188,17 @@ export const EVENT_TYPES: EventTypeDef[] = [
   { name: "progress.reopened", family: "progress", customer_visible: false, built: true },
   { name: "progress.bulk_applied", family: "progress", customer_visible: false, built: true },
   { name: "progress.stale", family: "progress", customer_visible: false, built: true },
+
+  // 20 cash forecast — not in Appendix B at all (no forecast.*/scenario.* name appears there);
+  // all internal finance/planning events, none customer-visible.
+  { name: "forecast.line_derived", family: "forecast", customer_visible: false, built: true },
+  { name: "forecast.line_superseded", family: "forecast", customer_visible: false, built: true },
+  { name: "forecast.line_realised", family: "forecast", customer_visible: false, built: true },
+  { name: "forecast.line_lapsed", family: "forecast", customer_visible: false, built: true },
+  { name: "forecast.snapshot_taken", family: "forecast", customer_visible: false, built: true },
+  { name: "forecast.override_recorded", family: "forecast", customer_visible: false, built: true },
+  { name: "scenario.created", family: "scenario", customer_visible: false, built: true },
+  { name: "scenario.updated", family: "scenario", customer_visible: false, built: true },
 ];
 
 /** Appendix B (p42) names verbatim — the coverage test's universe. Extensions are exempt by design. */

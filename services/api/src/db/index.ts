@@ -16,6 +16,7 @@ import { seedDocumentChecklistRules } from "../seed/documents";
 import { seedCrApprovalRules } from "../seed/change-requests";
 import { seedRegistrationConfig } from "../seed/registration";
 import { seedHandoverGateConfig } from "../seed/handover-gates";
+import { seedProbabilityRules } from "../seed/probability-rules";
 import { registerJourneySubscribers } from "../journey/subscribers";
 import { registerNotificationSubscribers } from "../notifications/subscribers";
 import { registerEscalationSubscribers } from "../escalations/subscribers";
@@ -108,6 +109,9 @@ export function initDb(): Promise<void> {
       // 16 config: the 8 standard handover_gate_config rows (classification/override authority
       // per p17 §9) + the reschedule-appointment action_type.
       await seedHandoverGateConfig(db);
+      // 20 config: the probability_rule seed (DEFAULT_UNCONFIRMED, spec's own Data row) — every
+      // environment needs these before the forecast module has any probability to report.
+      await seedProbabilityRules(db);
       registerJourneySubscribers();
       registerNotificationSubscribers();
       registerEscalationSubscribers();
