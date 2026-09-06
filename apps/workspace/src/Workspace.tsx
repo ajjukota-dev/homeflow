@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { Plus, Moon, Sun, ShieldCheck, LogOut } from "lucide-react";
+import { MyDay } from "./pages/myday/MyDay";
 import { SiteProgress } from "./pages/SiteProgress";
 import { SalesInventory } from "./pages/SalesInventory";
 import { CrmQueue } from "./pages/CrmQueue";
@@ -91,6 +92,7 @@ export function Workspace({ me, onLogout }: { me: NonNullable<ReturnType<typeof 
   );
 
   const pages: Partial<Record<View, ReactNode>> = {
+    myday: <MyDay projectId={projectId} isTeamHead={isAdmin} />,
     site: <SiteProgress projectId={projectId} />,
     sales: <SalesInventory projectId={projectId} onBook={setBookingUnit} />,
     crm: <CrmQueue roles={roles} />,

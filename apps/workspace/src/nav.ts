@@ -1,7 +1,8 @@
-import { Building2, Store, Users, Banknote, Scale, ClipboardCheck, HeartHandshake, Landmark, Map, Settings2 } from "lucide-react";
+import { Building2, Store, Users, Banknote, Scale, ClipboardCheck, HeartHandshake, Landmark, Map, Settings2, CalendarClock } from "lucide-react";
 import { ROLE_CODES } from "./pages/admin/roles";
 
 export type View =
+  | "myday"
   | "site"
   | "sales"
   | "crm"
@@ -26,6 +27,11 @@ const STAFF_ROLES_CLIENT = ROLE_CODES.filter((r) => r !== "CUSTOMER");
 // (unit_progress) never render for roles without WRITE there — hiding the nav
 // entry is the simplest correct gate until per-control checks land with 07/08.
 export const NAV: { id: View; label: string; role: string; short: string; Icon: typeof Building2; roles: string[] }[] = [
+  // 11-my-day-ranking.md: "workspace home after login" — kept additive rather than replacing
+  // ROLE_HOME below (every role already has an established department landing page); every
+  // staff role gets My Day as its own nav entry instead, a judgment call flagged in the spec's
+  // own Build note.
+  { id: "myday", label: "My Day", role: "What's due, at risk, waiting on you", short: "My Day", Icon: CalendarClock, roles: [...STAFF_ROLES_CLIENT] },
   { id: "site", label: "Project / Site", role: "Owns unit progress", short: "Site", Icon: Building2, roles: ["SITE", "QA", "MANAGEMENT", "SUPER_ADMIN"] },
   { id: "sales", label: "Sales", role: "Books, reads gates", short: "Sales", Icon: Store, roles: ["SALES", "MANAGEMENT", "SUPER_ADMIN"] },
   { id: "crm", label: "CRM / RM", role: "Accepts, owns customers", short: "CRM", Icon: Users, roles: ["CRM", "CUSTOMISATION", "MANAGEMENT", "SUPER_ADMIN"] },
@@ -49,8 +55,8 @@ export const ADMIN_NAV: { id: View; label: string }[] = [
 
 // Rule 9: "workspace opens in the user's default Project" implies the role's
 // own home view, not just the first visible tab — MANAGEMENT's home is the
-// control tower ("lands in Management"). SUPER_ADMIN has no single home (it
-// administers everything) so it falls through to the first visible tab.
+// control tower ("lands in Management"). Every seeded role has an explicit
+// entry; a role with none falls through to the first visible tab.
 const ROLE_HOME: Record<string, View> = {
   MANAGEMENT: "tower",
   SALES: "sales",
@@ -67,6 +73,11 @@ const ROLE_HOME: Record<string, View> = {
   // role has no grant for.
   CUSTOMISATION: "crm",
   FM: "after",
+  // Was an accident of array order (SUPER_ADMIN previously fell through to `visible[0]`, which
+  // happened to be "site") until My Day was added as the new first NAV entry — made explicit here
+  // so a future nav reorder can't silently change SUPER_ADMIN's landing page again (caught by the
+  // pre-existing "lands on Unit Progress Control" e2e test failing when My Day landed first).
+  SUPER_ADMIN: "site",
 };
 
 export function defaultViewFor(roles: string[], visible: View[]): View {
