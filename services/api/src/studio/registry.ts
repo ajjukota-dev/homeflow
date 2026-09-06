@@ -131,9 +131,10 @@ export const TAB_REGISTRY: TabDef[] = [
   // 26 — customer portal (not built)
   { key: "26.customer_visibility_wording", label: "Customer visibility & wording", owner_spec: 26, built: true, edit_roles: MGMT },
 
-  // 29 — communications (not built)
-  { key: "29.communication_templates", label: "Communication templates", owner_spec: 29, built: false, edit_roles: MGMT },
-  { key: "29.frequency_guardrails", label: "Frequency guardrails", owner_spec: 29, built: false, edit_roles: MGMT },
+  // 29 — communications (merged; templates keep their own bespoke DRAFT/LEGAL_REVIEW/APPROVED
+  // workflow, not the generic envelope — same class as 05's Journey Template Studio)
+  { key: "29.communication_templates", label: "Communication templates", owner_spec: 29, built: true, edit_roles: MGMT },
+  { key: "29.frequency_guardrails", label: "Frequency guardrails", owner_spec: 29, built: true, edit_roles: MGMT },
 
   // 30 — post-handover (not built)
   { key: "30.dlp_warranty_policy", label: "DLP/warranty policy", owner_spec: 30, built: false, edit_roles: ["FM"] },

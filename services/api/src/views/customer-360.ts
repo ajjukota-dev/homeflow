@@ -9,7 +9,7 @@ import { AppError, type Ctx } from "../authz/types";
 import { commitmentsForBooking, type CommitmentView } from "../commitments/core";
 import { listChangeRequests } from "../change-requests/capture";
 import type { CrRow } from "../change-requests/store";
-import { tab, notYetAvailable, type TabManifestEntry } from "./tabs";
+import { tab, type TabManifestEntry } from "./tabs";
 
 export interface CustomerHealth { score: number; drivers: { label: string; delta: number }[] }
 
@@ -125,7 +125,7 @@ export async function getCustomer360(customerId: string, ctx: Ctx): Promise<Cust
     change_requests: change_requests.map((cr) => ({ id: cr.id, booking_id: cr.booking_id, status: cr.status, title: cr.title })),
     health,
     tabs: [
-      notYetAvailable("communications", "Communications", "29 (not built)"),
+      tab("communications", "Communications", `/api/customers/${customerId}/communications`),
       tab("requests", "Requests", `/api/customers/${customerId}/360`), // returned inline above — 18 has no multi-booking listing endpoint; 30's post-handover requests not built
       tab("documents", "Documents (KYC)", `/api/customers/${customerId}/documents`),
       tab("activity", "Activity", `/api/customers/${customerId}/activity`),

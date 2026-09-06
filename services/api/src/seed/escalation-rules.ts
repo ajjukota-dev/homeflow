@@ -52,7 +52,11 @@ const RULES: {
   { rule_key: "critical_snag_2d", severity: "HIGH", department: "SITE", category: "HANDOVER", source_module: "snagging", threshold_value: 2, threshold_unit: "DAYS", wired: false, decision_options: [] },
   { rule_key: "handover_15d", severity: "MEDIUM", department: "FM", category: "HANDOVER", source_module: "handovers", threshold_value: 15, threshold_unit: "DAYS", wired: false, decision_options: [] },
   { rule_key: "handover_7d", severity: "HIGH", department: "FM", category: "HANDOVER", source_module: "handovers", threshold_value: 7, threshold_unit: "DAYS", wired: false, decision_options: [] },
-  { rule_key: "customer_query_48h", severity: "LOW", department: "CRM", category: "REPUTATION", source_module: "customer_query", threshold_value: 48, threshold_unit: "HOURS", wired: false, decision_options: [] },
+  // wired = true (2026-09-06, 29-communications.md): rule 6's follow-up action on an inbound
+  // communication now carries a real sla_clock (see seed/communications.ts's `customer_query_response`
+  // sla_policy + communications/core.ts's `createFollowUpAction`) with `source_module = "customer_query"`
+  // — the first of these 13 rules to have a real producer.
+  { rule_key: "customer_query_48h", severity: "LOW", department: "CRM", category: "REPUTATION", source_module: "customer_query", threshold_value: 48, threshold_unit: "HOURS", wired: true, decision_options: [] },
 ];
 
 // PDF materiality (₹ exposure, customer count) — spec's own Data table marks these placeholders

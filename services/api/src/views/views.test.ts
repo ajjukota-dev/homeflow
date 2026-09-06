@@ -49,8 +49,9 @@ describe("28 rule 2 — Customer 360", () => {
     expect(Array.isArray(view.change_requests)).toBe(true);
     expect(view.health.score).toBeGreaterThanOrEqual(0);
     expect(view.health.score).toBeLessThanOrEqual(100);
-    expect(view.tabs.find((t) => t.key === "communications")?.available).toBe(false);
-    expect(view.tabs.find((t) => t.key === "communications")?.unavailable_reason).toMatch(/29/);
+    // 29 (communications) has since landed — the tab is real now, not a placeholder.
+    expect(view.tabs.find((t) => t.key === "communications")?.available).toBe(true);
+    expect(view.tabs.find((t) => t.key === "communications")?.api).toBe("/api/customers/c_karthik/communications");
   });
 
   it("a customer with an overdue demand scores lower than one without", async () => {
@@ -84,7 +85,8 @@ describe("28 rule 3 — Booking 360", () => {
     expect(view.booking_readiness).toHaveProperty("value");
     expect(view.handover_readiness).toHaveProperty("value");
     expect(Array.isArray(view.next_actions)).toBe(true);
-    expect(view.tabs.find((t) => t.key === "communications")?.available).toBe(false);
+    // 29 (communications) has since landed — the tab is real now, not a placeholder.
+    expect(view.tabs.find((t) => t.key === "communications")?.available).toBe(true);
     expect(view.tabs.find((t) => t.key === "handover")?.api).toBe("/api/bookings/b_v110/handover");
   });
 

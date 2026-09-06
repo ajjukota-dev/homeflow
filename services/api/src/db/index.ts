@@ -18,6 +18,7 @@ import { seedRegistrationConfig } from "../seed/registration";
 import { seedHandoverGateConfig } from "../seed/handover-gates";
 import { seedProbabilityRules } from "../seed/probability-rules";
 import { seedKpis } from "../seed/kpis";
+import { seedCommunicationsConfig } from "../seed/communications";
 import { registerJourneySubscribers } from "../journey/subscribers";
 import { registerNotificationSubscribers } from "../notifications/subscribers";
 import { registerEscalationSubscribers } from "../escalations/subscribers";
@@ -94,6 +95,9 @@ export function initDb(): Promise<void> {
       // 12 config: standard escalation ladder (attached to every per-task sla_policy row above)
       // + the 13-rule catalogue + materiality thresholds — real production wiring, not demo data.
       await seedEscalationConfig(db);
+      // 29 config: the `customer_query_response` sla_policy (rule 6's 48h escalation clock, after
+      // the escalation seed so it can attach 12's standard ladder) + frequency_guardrail defaults.
+      await seedCommunicationsConfig(db);
       // 17 config: handover checklist rules (by product/residency) + return-reason taxonomy —
       // config, not demo data, same as the SLA/escalation seeds above.
       await seedHandoverChecklist(db);

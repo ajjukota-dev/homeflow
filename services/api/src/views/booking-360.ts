@@ -70,7 +70,9 @@ export async function getBooking360(bookingId: string, ctx: Ctx): Promise<Bookin
       tab("legal_registration", "Legal & Registration", `/api/bookings/${bookingId}/registration`),
       tab("customisations", "Customisations", `/api/change-requests?booking_id=${bookingId}`),
       tab("commitments", "Commitments", `/api/bookings/${bookingId}/commitments`),
-      notYetAvailable("communications", "Communications", "29 (not built)"),
+      customer.rows[0]
+        ? tab("communications", "Communications", `/api/customers/${customer.rows[0].id}/communications`)
+        : notYetAvailable("communications", "Communications", "no primary applicant on this booking yet — nothing to show"),
       tab("handover", "Handover", `/api/bookings/${bookingId}/handover`),
       tab("documents", "Documents", `/api/bookings/${bookingId}/customer-documents`),
       tab("activity", "Activity", `/api/bookings/${bookingId}/activity`),
