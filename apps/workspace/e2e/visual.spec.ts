@@ -195,7 +195,17 @@ test("Act on an intervention stamps Acted and persists across reload (H11)", asy
   await page.goto("/");
   await page.getByRole("button", { name: /Management|Tower/ }).first().click();
   await expect(page.getByRole("heading", { name: "Control tower" })).toBeVisible();
-  const actButton = page.getByRole("button", { name: "Act" }).first();
+  // Root cause of this test's long-documented "pre-existing flake": getByRole with a plain string
+  // does substring matching, and the sidebar nav's own accessible names contain "act" as a
+  // substring ("Queues... actions", and — since specs 20/27 added their own nav entries —
+  // "...forecast-to-actual", "Actual vs forecast..."). `.first()` picked whichever of those sorted
+  // first in the DOM (the sidebar renders before `main`), which has no ancestor `.rounded-card`
+  // card at all, so the very next line's xpath lookup waited forever for something that could
+  // never appear — a wrong-element bug that looked exactly like a slow-render timeout. Scoping to
+  // `main` with `exact: true` was never the actual issue's real fix target (the intervention flow
+  // itself works — see this session's own live Playwright MCP verification against forecast 27's
+  // real backend); this just fixes the test to click the right button.
+  const actButton = page.locator("main").getByRole("button", { name: "Act", exact: true }).first();
   await expect(actButton).toBeVisible();
   const headline = await actButton
     .locator("xpath=ancestor::div[contains(@class,'rounded-card')][1]")
@@ -204,14 +214,14 @@ test("Act on an intervention stamps Acted and persists across reload (H11)", asy
   const cardByHeadline = () => page.locator("h2", { hasText: headline! }).locator("xpath=ancestor::div[contains(@class,'rounded-card')][1]");
   await actButton.click();
   await expect(cardByHeadline().getByText(/Acted ·/)).toBeVisible();
-  await expect(cardByHeadline().getByRole("button", { name: "Act" })).toHaveCount(0);
+  await expect(cardByHeadline().getByRole("button", { name: "Act", exact: true })).toHaveCount(0);
   await page.screenshot({ path: shot("control-tower-acted"), fullPage: true });
 
   await page.reload();
   await page.getByRole("button", { name: /Management|Tower/ }).first().click();
   await expect(page.getByRole("heading", { name: "Control tower" })).toBeVisible();
   await expect(cardByHeadline().getByText(/Acted ·/)).toBeVisible();
-  await expect(cardByHeadline().getByRole("button", { name: "Act" })).toHaveCount(0);
+  await expect(cardByHeadline().getByRole("button", { name: "Act", exact: true })).toHaveCount(0);
 
   for (const s of sizes.filter((x) => x.name !== "desktop")) {
     await page.setViewportSize({ width: s.width, height: s.height });

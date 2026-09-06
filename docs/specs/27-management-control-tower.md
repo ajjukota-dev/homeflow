@@ -112,3 +112,103 @@ failures are `registration/registration.test.ts`'s pre-existing worker-pool time
 full parallel `vitest run` (confirmed unrelated to this spec across two prior segments: excluding
 this file's own neighbours and `git stash`-ing unrelated edits didn't change the outcome;
 `registration/core.ts` was not touched by this build at all).
+
+## Build note (2026-09-07, UI)
+
+**Scope: the UI this spec's own Build note (above) flagged as not built.** `ControlTower.tsx`
+extended with 7 Views tabs (Portfolio, Cash, Project Cash Flow, Profitability, Exceptions, KPIs,
+Teams) plus a Dismiss dialog; `apps/workspace/src/pages/management/**` (NEW) holds the 5 new view
+components + a typed `api.ts` client mirroring `finance/api.ts`'s pattern.
+
+**Deliberate scope cut, corrected framing.** Project Performance / Experience / Execution tabs are
+not built as dedicated views — but unlike this spec's backend note implied, the underlying numbers
+already exist and are reachable: Experience domain KPIs (`ex_checkin_score`,
+`ex_escalations_per_100`, `ex_commitment_fulfilment_pct`) surface in the KPIs tab; `STALE_GATE`/
+`GATE_EXCEPTION` surface in Exceptions; `j_stage_slippage_days`/`h_on_time_pct` surface in KPIs.
+What's actually missing is a dedicated per-view *composition* of that data, not the data itself.
+The Control Tower's own top-level "portfolio strip below the five cards" (this file's own Screens
+line) was also not built as a strip under Interventions — the Portfolio tab covers the same data
+as its own tab instead; noted as a literal spec-text deviation, not hidden.
+
+**Regression bug found and fixed: `decision_pack.impact` field-name drift.** The pre-27 frontend
+`Intervention` type still declared `impact: { customer: string, rupee: number }`; this spec's real
+backend (`management/scoring.ts`) returns `{ inr, customers, days }`. Every card with real ₹ risk
+silently rendered "No rupee at risk" since this spec's backend merged — `item.decision_pack.impact
+.rupee` was always reading `undefined`. Found by reading the backend source of truth against the
+frontend type before writing any new code that would have inherited the bug, not by a failing test.
+Fixed the type and both read sites; pinned with a new e2e assertion
+(`management-views.spec.ts`'s first test) that a real `₹` figure renders, not the empty-state text.
+
+**Two smaller real bugs, advisor-caught pre-merge (both same family as spec 20's `BK-` fix):**
+1. `ProfitabilityView`'s per-unit table rendered the raw `unit_id` (`u_v110`) instead of a
+   `unit_number` — `management/profitability.ts`'s `per_unit` query never joined `unit`. Fixed with
+   a join; the e2e Profitability test now asserts the real unit_number renders and the raw id does
+   not (previously the test only checked two `<h2>`s existed, which passed even fully broken — see
+   below).
+2. `management/exceptions.ts` showed a raw user id as "Owner" for `GATE_EXCEPTION` and
+   `ACTIVE_HOLD` rows (`granted_by`/`requested_by` are real `"user".id` values, not role strings —
+   the other 5 exception kinds hardcode a role name, which is why this was easy to miss live).
+   Fixed with a `LEFT JOIN "user"` for `display_name`, matching `sales-handover/core.ts`'s
+   established pattern for the same problem.
+
+**A test that couldn't have caught anything: the original Profitability e2e test only asserted two
+`<h2>` headings existed — both of which render in the empty-data branch too, so the test passed
+against a completely broken populated table.** No seed data anywhere produces an `economic_event`
+row (no waiver/CR-acceptance UI exists yet, and QaHandover.tsx's raise-snag form has no cost
+field), so the populated code path had never been exercised. Fixed by having the test create its
+own fixture via a direct API call (`POST /api/snags` with a real `estimated_cost_inr`, same
+API-fixture pattern `commitments.spec.ts` already established) and asserting the real row + the
+`unit_number` fix render, not just that two headings exist.
+
+**`management/exceptions.ts` rupee formatting**: two headline strings (`CR_NEGATIVE_CONTRIBUTION`,
+`FORECAST_MANUAL_OVERRIDE`) used bare `.toFixed(0)` with no thousands grouping, inconsistent with
+this codebase's established `.toLocaleString("en-IN")` convention (verified via grep across
+`intelligence/*.ts`, `management/interventions.ts`, `portal/subscribers.ts`, `sales/booking.ts`,
+`forecast/derive.ts`). Fixed; pinned by an e2e regex assertion for Indian-style grouping.
+
+**Responsive bug, found live via the mandatory 3-breakpoint screenshot review:** at 768px, the top-
+level tabs and the KPIs domain tabs wrapped their own text instead of the row scrolling
+horizontally ("Project Cash Flow" broke onto 3 lines; later tabs were pushed off-screen). Root
+cause: `overflow-x-auto` was only on the wrapper div — the `TabsTrigger` flex children had no
+`shrink-0`, so they shrank instead of the row overflowing. Fixed with `shrink-0 whitespace-nowrap`
+on every trigger in both `ControlTower.tsx` and `KpisView.tsx`, plus `flex-nowrap` on `TabsList`.
+Verified via DOM `scrollWidth`/`clientWidth` measurement and re-screenshotted clean at 768/375.
+
+**Significant, cross-spec finding: the session-long "pre-existing H11 flake" in `visual.spec.ts`
+was never app flakiness — it was a wrong-element click, and the mischaracterisation is recorded in
+at least three other specs' own build notes (17, 20, 26) plus this file's own earlier working
+notes.** `page.getByRole("button", { name: "Act" })` does *substring* matching by default (not
+`exact`), and this app's sidebar nav buttons render `<button>` elements whose accessible name
+concatenates label + description text — several of which contain "act"/"Act" as a substring
+("Queues — Departmental **act**ions, claim & reassign", "Collections Forecast — ...forecast-to-
+**act**ual", "Portfolio Comparison — **Act**ual vs forecast..."). Since the sidebar renders before
+`<main>` in DOM order, `page.getByRole("button", { name: "Act" }).first()` picked a sidebar nav
+button, not a real Act button, on every run — no ancestor `.rounded-card` exists on a nav button,
+so the test's very next line (an xpath ancestor lookup) waited the full timeout for something that
+could never appear. This looked exactly like a slow-render timeout and was recorded as one.
+Discovered while debugging this build's own Teams-tab test (a screenshot showed navigation had
+silently landed on "Departmental Queues" instead of clicking a real Act button); confirmed
+independently against `visual.spec.ts`'s H11 test by running it in isolation and observing the
+identical hang location. Fixed both files by scoping to `page.locator("main")` and adding
+`exact: true`. Re-ran H11 standalone before and after: 30.1s timeout → 2.2s pass. **Correction to
+the record:** specs 17/20/26's own build notes call this flake "pre-existing" and "unrelated" —
+that characterisation was wrong; the Act flow itself had not actually been exercised by that test
+for as long as the affected sidebar nav entries have existed. Full suite re-run from a fresh
+`db:reset` (130 e2e tests, 129 passed/1 pre-existing skip; 789 backend tests, 786 passed/3 failed
+only under full-parallel `vitest run` — confirmed a pre-existing worker-pool timeout artifact,
+unrelated to this build, by re-running `registration.test.ts` alone: 6/6 green) confirms no
+regression and that H11 now passes reliably alongside the rest of the tower suite.
+
+**One transient flake observed once, not reproduced:** the KPIs-tab e2e test timed out waiting for
+"Collection efficiency %" in one of several full-file runs, then passed cleanly on immediate re-run
+and on two subsequent full-file runs plus the final fresh-DB full-suite run. `getKpis` computes
+live (compute-on-read, no fixture dependency), so this reads as ordinary CI-style timing noise
+under load rather than a selector or logic bug — noted rather than chased further, unlike H11 which
+reproduced deterministically every time.
+
+**Verification.** `npx tsc --noEmit` clean. Full backend suite (fresh `db:reset`, isolated re-run
+of the only 3 files that failed under full-parallel load): 789/789 green. Full Playwright suite
+(fresh `db:reset`, all 12 spec files, 3 breakpoints where applicable): 129 passed, 1 pre-existing
+conditional skip, 0 failures — including both `visual.spec.ts` tower tests running back-to-back
+with `management-views.spec.ts`'s own Act/Dismiss mutations ahead of them in file order, which is
+exactly the state-interaction advisor asked to be checked explicitly.

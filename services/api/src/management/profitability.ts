@@ -118,12 +118,13 @@ export async function getProfitability(projectId: string, ctx: Ctx) {
   );
   const byKind: Record<string, number> = {};
   for (const r of rows.rows) byKind[r.kind] = (byKind[r.kind] ?? 0) + r.amount_inr;
-  const byUnit = await db.query<{ unit_id: string; contribution: number; leakage: number; quality_cost: number }>(
-    `SELECT unit_id,
+  const byUnit = await db.query<{ unit_id: string; unit_number: string; contribution: number; leakage: number; quality_cost: number }>(
+    `SELECT e.unit_id, u.unit_number,
             COALESCE(SUM(amount_inr) FILTER (WHERE kind = 'VARIATION_CONTRIBUTION'), 0)::float8 AS contribution,
             COALESCE(SUM(amount_inr) FILTER (WHERE kind IN ('COMMERCIAL_LEAKAGE', 'SERVICE_LEAKAGE')), 0)::float8 AS leakage,
             COALESCE(SUM(amount_inr) FILTER (WHERE kind = 'QUALITY_COST'), 0)::float8 AS quality_cost
-       FROM economic_event WHERE project_id = $1 AND unit_id IS NOT NULL GROUP BY unit_id`,
+       FROM economic_event e JOIN unit u ON u.id = e.unit_id
+      WHERE e.project_id = $1 AND e.unit_id IS NOT NULL GROUP BY e.unit_id, u.unit_number`,
     [projectId]
   );
   return { totals_by_kind: byKind, rows: rows.rows, per_unit: byUnit.rows };

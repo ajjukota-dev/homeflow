@@ -108,7 +108,7 @@ export function Workspace({ me, onLogout }: { me: NonNullable<ReturnType<typeof 
     legal: <LegalFactory projectId={projectId} />,
     qa: <QaHandover projectId={projectId} />,
     after: <PostHandover projectId={projectId} />,
-    tower: <ControlTower projectId={projectId} />,
+    tower: <ControlTower projectId={projectId} roles={roles} onOpenProject={setProjectId} />,
     roadmap: <Roadmap />,
     studio: <Studio />,
     queues: <Queues projectId={projectId} roles={roles} />,

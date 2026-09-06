@@ -121,7 +121,12 @@ export interface Intervention {
   unit_id?: string;
   decision_pack: {
     what_happened: string;
-    impact: { customer: string; rupee: number };
+    // { inr, customers, days } — management/scoring.ts's real `Impact` shape (rule 1's composite
+    // ranking). The pre-spec-27 { customer, rupee } shape this interface used to declare no longer
+    // matches anything the backend returns; found while extending this screen for spec 27's UI —
+    // `item.decision_pack.impact.rupee > 0` was always `undefined > 0` (false), so every card with
+    // real ₹ impact silently rendered "No rupee at risk" since spec 27's backend replaced tower-view.ts.
+    impact: { inr: number; customers: number; days: number };
     dependencies: string[];
     recommended_decision: string;
     evidence_links: string[];
@@ -166,4 +171,5 @@ export const lifecycleApi = {
   controlTower: (projectId: string) =>
     fetch(`/api/projects/${projectId}/control-tower`).then((r) => json<{ interventions: Intervention[] }>(r)),
   actIntervention: (id: string) => mutate(`/api/interventions/${id}/act`),
+  dismissIntervention: (id: string, reason: string) => mutate<Intervention>(`/api/interventions/${id}/dismiss`, { reason }),
 };
