@@ -143,11 +143,10 @@ test("QA handover completes keys for an eligible villa", async ({ page }) => {
   await expect(page.getByText(/critical/i).first()).toBeVisible();
   await page.screenshot({ path: shot("qa-handover"), fullPage: true });
 
-  // Commitments gate is honest (not verified), never silently "passed" — TODO.md task 6.
+  // Commitments gate is real (13-promise-ledger.md rule 8, handover.ts/qa.ts) — every villa gets
+  // a chip reflecting its actual open-commitment state, Open or Passed, never a fixed placeholder.
   // 5 seeded villas (V101, V110, V111, V112, V113) — every one gets the chip.
-  await expect(page.getByText("Commitments · Not verified")).toHaveCount(5);
-  await expect(page.getByText(/Promise Ledger not yet built/).first()).toBeVisible();
-  await expect(page.getByText(/commitments\s*·\s*passed/i)).toHaveCount(0);
+  await expect(page.getByText(/^Commitments · (Open|Passed)$/)).toHaveCount(5);
   await expect(page.getByText("Eligible for keys").first()).toBeVisible();
 
   const complete = page.locator("button:enabled", { hasText: "Complete handover" });
@@ -161,8 +160,7 @@ for (const s of sizes) {
     await page.goto("/");
     await page.getByRole("button", { name: /^QA/ }).first().click();
     await expect(page.getByRole("heading", { name: "QA & handover" })).toBeVisible();
-    await expect(page.getByText("Commitments · Not verified")).toHaveCount(5);
-    await expect(page.getByText(/commitments\s*·\s*passed/i)).toHaveCount(0);
+    await expect(page.getByText(/^Commitments · (Open|Passed)$/)).toHaveCount(5);
     await page.screenshot({ path: shot(`qa-handover-commitments-${s.name}`), fullPage: true });
   });
 }

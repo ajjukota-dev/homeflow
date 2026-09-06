@@ -251,6 +251,27 @@ describe("listCommitments / commitmentsForBooking / getCommitment expose a compu
   });
 });
 
+describe("getCommitment's transitions history (13-promise-ledger.md Screens: detail drawer timeline)", () => {
+  it("returns the real commitment_transition rows in order, not just the current row", async () => {
+    const bookingId = await freshBooking();
+    const c = await createCommitment(
+      { booking_id: bookingId, category: "OTHER", description: "Timeline check", source: "CRM", beneficiary: "INTERNAL", customer_facing: false, owner_user_id: "user_crm", due_date: "2099-01-01", approval_required: false },
+      crm()
+    );
+    await activateCommitment(c.id, crm());
+    await setAtRisk(c.id, "vendor delay", crm());
+    await fulfilCommitment(c.id, { evidence_file_ids: ["file_1"] }, crm());
+
+    const detail = await getCommitment(c.id, crm());
+    expect(detail.transitions.map((t) => `${t.from_status}->${t.to_status}`)).toEqual([
+      "APPROVED->ACTIVE",
+      "ACTIVE->AT_RISK",
+      "AT_RISK->FULFILLED",
+    ]);
+    expect(detail.transitions[1].reason).toBe("vendor delay");
+  });
+});
+
 describe("rule 8 — handover gate integration (replaces PR #7's 'Not verified')", () => {
   it("an ACTIVE commitment opens the commitments gate with its own code+description as the blocker; fulfilling it passes the gate", async () => {
     const bookingId = await freshBooking();
