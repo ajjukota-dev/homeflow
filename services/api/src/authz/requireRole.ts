@@ -30,3 +30,13 @@ export const BOOKING_ADMIN_ROLES = ["SALES", "CRM", "MANAGEMENT", "SUPER_ADMIN"]
 // rule 3): "SUPER_ADMIN edits everything; MANAGEMENT edits business policy" — no dedicated
 // permission_matrix module exists for this (it predates 05, same gap class as above).
 export const POLICY_STUDIO_ROLES = ["MANAGEMENT", "SUPER_ADMIN"];
+
+// Cash-flow forecast (20-cash-forecast.md) — no "forecast"/"cash_flow" permission_matrix module
+// exists in the seeded 32-module list (§1.3 verbatim); same gap class as the rows above. Read
+// access follows p31 §26 ("Management can view...") plus the finance roles that already read
+// collections/loans (ACCOUNTS, BANKING); write (scenarios, cash targets, probability rules,
+// manual overrides) follows rule 1's own literal "requires role Accounts lead" — modeled as the
+// ACCOUNTS role directly, same simplification this codebase already applies elsewhere for named
+// seniority ("Accounts lead", "Dept head") that has no dedicated role value anywhere in the schema.
+export const FORECAST_READ_ROLES = ["ACCOUNTS", "BANKING", "MANAGEMENT", "SUPER_ADMIN"];
+export const FORECAST_WRITE_ROLES = ["ACCOUNTS", "MANAGEMENT", "SUPER_ADMIN"];
