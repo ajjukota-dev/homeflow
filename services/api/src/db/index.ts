@@ -19,6 +19,9 @@ import { seedHandoverGateConfig } from "../seed/handover-gates";
 import { seedProbabilityRules } from "../seed/probability-rules";
 import { seedKpis } from "../seed/kpis";
 import { seedCommunicationsConfig } from "../seed/communications";
+import { seedPostHandoverConfig } from "../seed/post-handover";
+import { registerPostHandoverSubscribers } from "../post-handover/core";
+import { registerAdvocacySubscribers } from "../post-handover/advocacy";
 import { registerJourneySubscribers } from "../journey/subscribers";
 import { registerNotificationSubscribers } from "../notifications/subscribers";
 import { registerEscalationSubscribers } from "../escalations/subscribers";
@@ -122,6 +125,10 @@ export function initDb(): Promise<void> {
       // (ranking weights/dismiss cooldown/delay cost) — every environment needs these before
       // the Control Tower/KPIs views have anything to compute against.
       await seedKpis();
+      // 30 config: the global-default `dlp_policy` (category windows, UNCONFIRMED) + 3
+      // warranty-severity sla_policy rows for the response clock — same "config, every
+      // environment" treatment as the seeds above.
+      await seedPostHandoverConfig(db);
       registerJourneySubscribers();
       registerNotificationSubscribers();
       registerEscalationSubscribers();
@@ -130,6 +137,8 @@ export function initDb(): Promise<void> {
       registerSpecificationSubscribers();
       registerDocumentSubscribers();
       registerPortalSubscribers();
+      registerPostHandoverSubscribers();
+      registerAdvocacySubscribers();
       const seedAllowed = process.env.NODE_ENV !== "production" || process.env.SEED_DEMO === "1";
       if (!seedAllowed) return;
       const { rows } = await db.query<{ count: number }>(`SELECT count(*)::int AS count FROM project`);

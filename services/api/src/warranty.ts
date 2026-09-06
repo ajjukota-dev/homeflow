@@ -3,6 +3,7 @@ import { db } from "./db";
 import { appendEvent, withTx, actorFields } from "./events";
 import { authorize } from "./authz/authorize";
 import type { Ctx } from "./authz/types";
+import { openPostHandoverCase } from "./post-handover/core";
 
 // H12 consumer — DLP, passport, check-ins, service history (post-handover/spec.md).
 // Durations come from handover_policy, never a hard-coded East Crest month count.
@@ -69,6 +70,13 @@ export async function onHandoverCompleted(bookingId: string) {
   );
   if (b.rows.length === 0) throw new Error("booking_not_found");
   const { unit_id, project_id } = b.rows[0];
+
+  // 30-post-handover.md rule 1 — real case, move-in-task actions, passport pre-fill, and
+  // 26-backed check-in scheduling. `openPostHandoverCase` is itself idempotent (checked by
+  // booking_id), so it's safe to call unconditionally here, ahead of this function's own
+  // dlp_window-based early-return below (which exists purely for the pre-existing legacy block).
+  await openPostHandoverCase(bookingId, unit_id, project_id);
+
   const existing = await db.query(`SELECT id FROM dlp_window WHERE booking_id = $1`, [bookingId]);
   if (existing.rows.length > 0) return projectWarranty(project_id);
 

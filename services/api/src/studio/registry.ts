@@ -137,7 +137,10 @@ export const TAB_REGISTRY: TabDef[] = [
   { key: "29.frequency_guardrails", label: "Frequency guardrails", owner_spec: 29, built: true, edit_roles: MGMT },
 
   // 30 — post-handover (not built)
-  { key: "30.dlp_warranty_policy", label: "DLP/warranty policy", owner_spec: 30, built: false, edit_roles: ["FM"] },
+  { key: "30.dlp_warranty_policy", label: "DLP/warranty policy", owner_spec: 30, built: true, edit_roles: ["FM"] },
+  // Check-in schedule stays built:false — the day markers (DAY_7/30/90/DLP_CLOSE) are a fixed
+  // enum on 26's own `customer_check_in.kind` CHECK, not configurable data; making them
+  // configurable would mean widening 26's schema, out of scope here.
   { key: "30.checkin_schedule", label: "Check-in schedule", owner_spec: 30, built: false, edit_roles: ["FM"] },
 ];
 

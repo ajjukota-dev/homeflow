@@ -48,3 +48,97 @@ Depends on 16, 15, 09, 10, 06, 12, 26, 24. Feeds 26, 27, 31.
 
 ## Not in this feature
 FM billing/maintenance fees; association management.
+
+## Build note (2026-09-06)
+
+**Scope.** Backend only — `services/api/src/post-handover/**` (`dlp.ts`, `core.ts`, `warranty.ts`,
+`advocacy.ts`, `post-handover.test.ts`), `routes-post-handover.ts`, migration
+`0045_post_handover.sql` (not `0027` — 27–44 were already taken by the time this spec's turn came
+up), seed `seed/post-handover.ts`. `apps/workspace/src/pages/post-handover/**` and the portal
+Requests/Passport pages/Studio tabs are deferred, matching the standing UI-backlog pattern for this
+session (TODO.md).
+
+**Table reuse, not new tables.** `warranty.ts` (pre-existing) already had the case shell and a
+separate `checkin_record` scheduling mechanism from before spec 26 existed; ALTERed it in place
+(13 new columns: `raised_by_kind`, `category`, `severity`, `in_coverage`, `coverage_basis`,
+`contractor_id`, `quote_inr`, `quote_accepted_at`, `waived_reason`, `assigned_at`, `sla_clock_id`,
+`customer_verified_at`, `rejected_reason`) rather than standing up a parallel table. Same for
+`home_passport_item` (+7 columns incl. `spec_revision_id` linking 09's as-built) and
+`service_history` (+`kind`, `cost_inr`). `post_handover_case`, `dlp_policy`, `advocacy` are
+genuinely new tables — no pre-existing equivalent.
+
+**Check-in reuse decision.** Rule 1 (DAY_7/30/90) and rule 7 (DLP_CLOSE) both route through 26's
+`customer_check_in` / `sendCheckIn` / `submitCheckIn` — the spec's own Data row cites
+"`customer_check_in` (26)" as the mechanism. The older, pre-26 `checkin_record` table that
+`warranty.ts`'s legacy scheduling already populated is left completely untouched; both coexist,
+same "different producer, keep both" precedent spec 26's own migration already established for
+these two tables.
+
+**`sla_policy.applies_to` extended a third time.** `'TASK_CODE'|'ACTION_TYPE'|'STAGE_CODE'` (0005)
+→ `+'SNAG_SEVERITY'` (0032) → `+'CUSTOMER_QUERY'` (0044) → `+'WARRANTY_SEVERITY'` (0045, this
+spec) — extend the existing CHECK constraint each time rather than inventing a parallel mechanism.
+Seeded 3 rows (`warranty_critical`/2d, `warranty_major`/5d, `warranty_minor`/10d, all
+**UNCONFIRMED**, no `escalation_ladder_id` wired — same class of gap as 15's `critical_snag_2d`).
+DLP window months (structural 60 / waterproofing 24 / electrical+plumbing 12 / fittings 6) are
+likewise **UNCONFIRMED** placeholders pending real East Crest warranty terms.
+
+**Rule 3's snag-evidence linkage deliberately not wired.** The spec's Data row names `snag_id?`
+on `warranty_case` for "execution/evidence via a linked snag (15)". Checked 15's `insertSnag`
+concretely before deciding: `snag` has no `room` field and a fixed `category` enum incompatible
+with warranty's own category vocabulary. Wiring it would mean inventing an unsanctioned crosswalk
+between two vocabularies the spec never reconciles — flagged as a real gap needing client input,
+not faked with a silent enum remap.
+
+**Two bugs an advisor review caught before landing, both fixed:**
+- `sweepDlpClosure` originally only considered `post_handover_case.status = 'IN_DLP'`. The two
+  lifecycles (onboarding-checklist progress, DLP-window expiry) are independent per the spec's own
+  wording — a case where FM never ticks one move-in task (e.g. `association_membership` on a
+  project with no association) stayed `ONBOARDING` forever, so a fully-expired DLP window on it
+  would never be swept. Fixed to consider `status IN ('ONBOARDING', 'IN_DLP')`. Same pass also
+  replaced an inline `UNION ALL ... LIMIT 1` policy lookup inside the sweep (non-deterministic
+  branch selection, same class of issue `dlp.ts`'s `resolveDlpPolicy` was built to avoid) with a
+  call to `resolveDlpPolicy` itself, so there's one policy-resolution code path, not two.
+- `acceptQuote`'s docstring claimed "customer, or CRM/FM records acceptance on their behalf" but
+  the staff branch gates on `authorize(ctx, "handovers", "WRITE")`, and the seeded matrix
+  (`"R N R N N N N W W"`) gives CRM only READ on `handovers` — CRM cannot actually call this
+  despite being the quote conversation's usual owner elsewhere in the flow. Code was already
+  correct (matches the matrix); fixed the comment to state the real restriction rather than a
+  claim the code refutes, and flagged it as the matrix's call to widen, not this file's.
+
+**Other decisions, documented not silently made:**
+- `handover_completed_at` on `post_handover_case` is `now()` at case-open time, not
+  `handover_record.completed_at`. Correct for the live path (`openPostHandoverCase` is called
+  synchronously right after handover completion), would drift on any future backfill job. DLP
+  windows run 6–60 months, so the drift (seconds, at most) doesn't change any outcome.
+- `triageWarrantyCase`'s coverage computation falls back to `new Date(0)` (i.e. "coverage never
+  started") when no `post_handover_case` row exists for the unit yet. This makes any warranty case
+  raised against a unit that hasn't been through handover read as permanently out-of-coverage,
+  which fails closed (forces a quote or an explicit FM waiver before work) — the safe direction,
+  not an accident.
+- `openPostHandoverCase` now runs before `warranty.ts::onHandoverCompleted`'s pre-existing legacy
+  `dlp_window` block. When 09 as-built data exists, this spec's own passport pre-fill populates
+  `home_passport_item` first, so the legacy hardcoded AC/water-heater insert (guarded on
+  `items.length === 0`) is skipped. Treated as an improvement (real as-built data beats two
+  hardcoded rows) rather than reverted.
+- `respondAdvocacy` inserts directly into `prospect` via raw SQL instead of calling
+  `sales/prospects.ts::createProspect`, because that function's own role gate (`SALES_WRITE_ROLES`)
+  excludes CRM (the actual caller here) and it opens its own `withTx`, which would deadlock nested
+  inside advocacy's already-open transaction. Same insert shape/columns/event-type as
+  `createProspect`, just inlined.
+- `service_history.event_type` now carries two vocabularies going forward: dotted event names from
+  the pre-existing legacy path, and `kind` values (`WARRANTY_FIX`/`MAINTENANCE`/etc.) from this
+  spec's `addServiceRecord`. Not reconciled — flagged for whoever next reads this column.
+- `post_handover_case` and `dlp_policy` carry `project_id` with no RLS policy yet — same
+  outstanding P1b list as `loan_case`/`commitment`/`escalation`/`forecast_*`/`doc_factory_*`.
+
+**Test coverage.** `post-handover.test.ts`: 16 tests (13 own + 3 covering event-registry-required
+assertions) across move-in tasks, warranty lifecycle (triage/quote/accept/waive/assign/start/
+resolve/verify/close/reject), passport CRUD, service history, advocacy invite/respond, and
+`sweepDlpClosure`'s corrected predicate. `freshHandoverBooking()` fixture mirrors `portal.test.ts`'s
+own `freshCustomerBooking()` — this spec's tests start at `handover.completed`, not before it.
+
+**Verification.** `tsc --noEmit` clean. `post-handover.test.ts` + `events/registry.test.ts`: 16/16
+passing. Full suite: 723 passed / 5 failed (isolated re-run of all 4 affected files together —
+`collections-sweep`, `authz/mask`, `documents`, `registration` — passed 26/26 with zero failures,
+confirming the pre-existing Windows vitest worker-pool contention flake, not a spec 30 regression)
+/ 10 skipped, out of 738 total.
