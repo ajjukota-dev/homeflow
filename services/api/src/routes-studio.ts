@@ -37,12 +37,8 @@ export function registerStudioRoutes(app: Express) {
     try { res.json({ data: await studioRowHistory(req.params.table, req.params.id, { actor: req.actor! }) }); } catch (e) { failHttp(res, e); }
   });
 
-  // previewStudioChange's return type is `never` — it always throws (not implemented for any
-  // registered table yet, see studio/core.ts), so failHttp always sends the response. No res.json
-  // on a success path is intentional today; the day preview is implemented for a table, this
-  // route needs a `res.json({ data: ... })` added alongside the throw, or requests will hang.
   app.post("/api/studio/:table/preview", async (req: AuthedRequest, res) => {
-    try { await previewStudioChange(req.params.table); } catch (e) { failHttp(res, e); }
+    try { res.json({ data: await previewStudioChange(req.params.table, req.body?.row_id) }); } catch (e) { failHttp(res, e); }
   });
 
   app.get("/api/approval-authority-rules", async (req: AuthedRequest, res) => {

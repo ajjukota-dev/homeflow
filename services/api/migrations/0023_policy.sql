@@ -1,9 +1,12 @@
 -- 0023 — Policy Studio (docs/specs/25-policy-studio.md). Two things: a generic draft/publish/
 -- history envelope for flat config tables that carry no versioning of their own (studio/
--- registry.ts's TABLE_REGISTRY says which tables opt in — 05's journey_template_version and
--- sla_policy's own effective_from/version columns are NOT read through this, they keep their
--- own bespoke versioning), and the approval authority matrix (rule 2) every future spec needing
--- "who approves this exception" will call through approvals/matrix.ts.
+-- registry.ts's TABLE_REGISTRY says which tables opt in — 05's journey_template_version is a
+-- true multi-row model this envelope does NOT touch; sla_policy DOES go through this envelope
+-- as a same-row in-place UPDATE, since sla_policy.code is UNIQUE and can never hold two
+-- concurrent version rows — see studio/core.ts's header for the full reasoning and the bespoke
+-- open-sla_clock impact preview built on top of this storage, 2026-09-06), and the approval
+-- authority matrix (rule 2) every future spec needing "who approves this exception" will call
+-- through approvals/matrix.ts.
 
 CREATE TABLE policy_version (
   id text PRIMARY KEY,

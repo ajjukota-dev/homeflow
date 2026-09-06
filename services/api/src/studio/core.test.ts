@@ -83,3 +83,53 @@ describe("studio/core: draft -> publish -> history (rule 1)", () => {
     expect(evt.rows).toHaveLength(1);
   });
 });
+
+describe("studio/core: sla_policy (06-timeline-sla-engine.md's Studio tab, this file's header)", () => {
+  it("drafts and publishes like any other registered table: in-place UPDATE, version bumps, `code`'s UNIQUE index is never at risk", async () => {
+    const draft1 = await draftStudioRow(
+      "sla_policy",
+      null,
+      { id: "sla_studio_test", code: "STUDIO_TEST_SLA", applies_to: "TASK_CODE", target_ref: "T_STUDIO_TEST", duration_value: 5, duration_unit: "WORKING_DAYS", effective_from: "2026-01-01" },
+      undefined,
+      mgmtCtx
+    );
+    await publishStudioRow("sla_policy", draft1, "2026-01-01", undefined, mgmtCtx);
+
+    const draft2 = await draftStudioRow("sla_policy", "sla_studio_test", { duration_value: 7 }, "extended by 2 days", mgmtCtx);
+    await publishStudioRow("sla_policy", draft2, "2026-03-01", "extended by 2 days", mgmtCtx);
+
+    const rows = await db.query<{ code: string; duration_value: number }>(`SELECT code, duration_value FROM sla_policy WHERE id = 'sla_studio_test'`);
+    expect(rows.rows).toHaveLength(1); // still one row for this code — no duplicate-key violation
+    expect(rows.rows[0]).toMatchObject({ code: "STUDIO_TEST_SLA", duration_value: 7 });
+
+    const history = await studioRowHistory("sla_policy", "sla_studio_test", mgmtCtx);
+    expect(history.map((h) => h.version)).toEqual([1, 2]);
+  });
+
+  it("preview-impact is real for sla_policy: counts currently open sla_clock rows against this policy", async () => {
+    const draftId = await draftStudioRow(
+      "sla_policy",
+      null,
+      { id: "sla_preview_test", code: "STUDIO_TEST_PREVIEW", applies_to: "TASK_CODE", target_ref: "T_PREVIEW_TEST", duration_value: 3, duration_unit: "WORKING_DAYS", effective_from: "2026-01-01" },
+      undefined,
+      mgmtCtx
+    );
+    await publishStudioRow("sla_policy", draftId, "2026-01-01", undefined, mgmtCtx);
+
+    // No clocks yet — a brand-new, never-instantiated policy affects nothing live.
+    await expect(previewStudioChange("sla_policy", "sla_preview_test")).resolves.toEqual({ open_sla_clocks: 0 });
+
+    await db.query(
+      `INSERT INTO sla_clock (id, subject_type, subject_id, policy_id, due_at) VALUES ('clock_studio_test', 'task_instance', 'ti_studio_test', 'sla_preview_test', now() + interval '3 days')`
+    );
+    await expect(previewStudioChange("sla_policy", "sla_preview_test")).resolves.toEqual({ open_sla_clocks: 1 });
+
+    // A stopped clock (already completed) is no longer "open" — must not count.
+    await db.query(`UPDATE sla_clock SET stopped_at = now(), outcome = 'ON_TIME' WHERE id = 'clock_studio_test'`);
+    await expect(previewStudioChange("sla_policy", "sla_preview_test")).resolves.toEqual({ open_sla_clocks: 0 });
+  });
+
+  it("preview-impact for sla_policy requires a row_id (nothing to count against otherwise)", async () => {
+    await expect(previewStudioChange("sla_policy")).rejects.toThrow(/row_id is required/);
+  });
+});
