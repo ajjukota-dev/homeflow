@@ -8,7 +8,7 @@ import type { Ctx } from "../authz/types";
 import { computeProbability, overdueRecoveryProbability, ptpHonourRate, loanDisbursementProbability } from "./probability";
 import { resolveDemandLine, deriveProjectLines, applyScenarioAssumptions, futureSalesLines, type DemandFacts } from "./derive";
 import { computeWaterfall, bandConfidence } from "./waterfall";
-import { getForecast, overrideForecastLine, createScenario, putScenarioAssumptions, takeSnapshot, listSnapshots, compareForecast } from "./core";
+import { getForecast, overrideForecastLine, createScenario, listScenarios, putScenarioAssumptions, takeSnapshot, listSnapshots, compareForecast } from "./core";
 
 // 20-cash-forecast.md — rule tests 1-8 + the double-counting property test (Acceptance).
 
@@ -354,6 +354,15 @@ describe("integration — derive/core against real demand rows", () => {
     await putScenarioAssumptions(scenario.id, [{ key: "COLLECTION_EFFICIENCY_PCT", value: 40 }], management);
     const after = await getForecast("p_eastcrest", { scenario: "BASE", from: "2026-09", to: "2026-12", lane: "COMMITTED" }, accounts);
     expect(after.lines).toEqual(before.lines);
+  });
+
+  it("listScenarios reads back saved assumptions (planner reload prefill — advisor review, spec 20)", async () => {
+    const scenario = await createScenario("p_eastcrest", { code: `PREFILL_${Date.now()}` }, management);
+    const listed = (await listScenarios("p_eastcrest", accounts)) as { id: string; assumptions: Record<string, number> }[];
+    expect(listed.find((s) => s.id === scenario.id)?.assumptions).toEqual({});
+    await putScenarioAssumptions(scenario.id, [{ key: "COLLECTION_EFFICIENCY_PCT", value: 55 }], management);
+    const after = (await listScenarios("p_eastcrest", accounts)) as { id: string; assumptions: Record<string, number> }[];
+    expect(after.find((s) => s.id === scenario.id)?.assumptions).toEqual({ COLLECTION_EFFICIENCY_PCT: 55 });
   });
 
   it("cannot request the SCENARIO lane against the BASE scenario (lanes are never mixed)", async () => {

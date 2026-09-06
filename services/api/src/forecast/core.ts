@@ -24,6 +24,8 @@ export interface ForecastLineRow {
   id: string;
   project_id: string;
   booking_id: string;
+  booking_number: string | null;
+  unit_number: string | null;
   demand_id: string | null;
   loan_case_id: string | null;
   source_type: string;
@@ -37,11 +39,15 @@ export interface ForecastLineRow {
   status: string;
 }
 
+// booking_number/unit_number are display-only joins for the Collections Forecast lines table
+// (20's own Screens line names "booking" as a column) — forecast_line itself carries only ids.
 const LINE_SELECT = `
-  SELECT id, project_id, booking_id, demand_id, loan_case_id, source_type, lane, scenario_id,
-         expected_date::text AS expected_date, amount_inr::float8 AS amount_inr, probability::float8 AS probability,
-         probability_drivers, period, status
-    FROM forecast_line
+  SELECT fl.id, fl.project_id, fl.booking_id, b.booking_number, u.unit_number, fl.demand_id, fl.loan_case_id, fl.source_type, fl.lane, fl.scenario_id,
+         fl.expected_date::text AS expected_date, fl.amount_inr::float8 AS amount_inr, fl.probability::float8 AS probability,
+         fl.probability_drivers, fl.period, fl.status
+    FROM forecast_line fl
+    LEFT JOIN booking b ON b.id = fl.booking_id
+    LEFT JOIN unit u ON u.id = b.unit_id
 `;
 
 async function mapLines(sql: string, params: unknown[], handle: DbLike = db): Promise<ForecastLineRow[]> {
@@ -121,7 +127,9 @@ async function buildForecastView(projectId: string, query: ForecastQuery, ctx?: 
   );
   const scenario = scenarioRow.rows[0] ?? { id: await ensureBaselineScenario(projectId), code: "BASE", is_baseline: true };
 
-  const committed = await mapLines(`${LINE_SELECT} WHERE project_id = $1 AND lane = 'COMMITTED' AND status IN ('ACTIVE','REALISED') AND period BETWEEN $2 AND $3 ORDER BY expected_date`, [projectId, from, to]);
+  // fl./b. qualifiers required now that LINE_SELECT joins booking/unit — both booking and
+  // forecast_line have their own project_id/status columns, which would otherwise be ambiguous.
+  const committed = await mapLines(`${LINE_SELECT} WHERE fl.project_id = $1 AND fl.lane = 'COMMITTED' AND fl.status IN ('ACTIVE','REALISED') AND fl.period BETWEEN $2 AND $3 ORDER BY fl.expected_date`, [projectId, from, to]);
 
   let lines: ForecastLineRow[] = committed;
   if (lane === "SCENARIO") {
@@ -137,6 +145,8 @@ async function buildForecastView(projectId: string, query: ForecastQuery, ctx?: 
       id: `scenario_${i}`,
       project_id: projectId,
       booking_id: committed[i]?.booking_id ?? "",
+      booking_number: committed[i]?.booking_number ?? null,
+      unit_number: committed[i]?.unit_number ?? null,
       demand_id: l.demand_id,
       loan_case_id: l.loan_case_id,
       source_type: l.source_type,
@@ -201,7 +211,7 @@ export async function overrideForecastLine(
   if (!input.reason?.trim()) throw new AppError("validation", "reason is required", "reason");
   if (input.probability < 0 || input.probability > 1) throw new AppError("validation", "probability must be between 0 and 1", "probability");
 
-  const existing = await mapLines(`${LINE_SELECT} WHERE id = $1`, [lineId]);
+  const existing = await mapLines(`${LINE_SELECT} WHERE fl.id = $1`, [lineId]);
   if (!existing[0]) throw new AppError("not_found", "forecast line not found");
   const line = existing[0];
   if (line.lane !== "COMMITTED") throw new AppError("validation", "only committed-lane lines can be overridden", "lane");
@@ -225,7 +235,7 @@ export async function overrideForecastLine(
       ...actorFields(ctx),
     });
   });
-  return (await mapLines(`${LINE_SELECT} WHERE id = $1`, [newId]))[0];
+  return (await mapLines(`${LINE_SELECT} WHERE fl.id = $1`, [newId]))[0];
 }
 
 // --- Scenarios (rule 5) ---
@@ -237,7 +247,18 @@ export async function listScenarios(projectId: string, ctx: Ctx) {
     `SELECT id, code, is_baseline, created_at::text AS created_at FROM forecast_scenario WHERE project_id = $1 ORDER BY is_baseline DESC, created_at`,
     [projectId]
   );
-  return r.rows;
+  // Assumptions are read back here (not a separate endpoint) so a Cash Flow Planner reload can
+  // prefill its panel — advisor review found the write-only round trip was otherwise invisible.
+  const assumptionRows = await db.query<{ scenario_id: string; key: string; value: number }>(
+    `SELECT scenario_id, key, value::float8 AS value FROM forecast_assumption WHERE scenario_id = ANY($1::text[])`,
+    [r.rows.map((s) => s.id)]
+  );
+  const byScenario = new Map<string, Record<string, number>>();
+  for (const a of assumptionRows.rows) {
+    if (!byScenario.has(a.scenario_id)) byScenario.set(a.scenario_id, {});
+    byScenario.get(a.scenario_id)![a.key] = a.value;
+  }
+  return r.rows.map((s) => ({ ...s, assumptions: byScenario.get(s.id) ?? {} }));
 }
 
 export async function createScenario(projectId: string, input: { code: string }, ctx: Ctx) {

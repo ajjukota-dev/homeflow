@@ -129,3 +129,60 @@ integration block covering the full derive→supersede→realise/lapse lifecycle
 scenario isolation, snapshot immutability, and event coverage). tsc clean, 92/93 API test files,
 617/622 tests (the 5 failures are the pre-existing registration.test.ts flake above, reproduced
 without this spec's code).
+
+## Build note (2026-09-07, UI)
+Built the three Screens-named dashboards: `apps/workspace/src/pages/finance/CashFlowPlanner.tsx`,
+`CollectionsForecast.tsx`, `PortfolioCompare.tsx`, plus a per-page `api.ts` client (established
+pattern from 17's `sales-handover/api.ts`). Wired into `nav.ts` (3 entries, roles matching
+`FORECAST_READ_ROLES` exactly) and `Workspace.tsx`. `LINE_SELECT` in `forecast/core.ts` gained a
+`LEFT JOIN booking`/`unit` for display-only `booking_number`/`unit_number` — a real, small backend
+addition within this spec's own `Files` list (the Collections Forecast lines table names "booking"
+as a column; `forecast_line` itself carries only ids).
+
+**Advisor review before landing caught 4 real gaps, all fixed:**
+1. **Assumptions panel was write-only** — `listScenarios` never read `forecast_assumption` back, so
+   switching scenario tabs away and back always showed blank inputs regardless of what was saved,
+   while the waterfall below kept using the real saved values. Same shape as 26's
+   `raiseCustomerRequest` bug: a write contract with no matching read, invisible until a real UI was
+   built against it. Fixed by joining `forecast_assumption` into `listScenarios`'s response (new
+   `assumptions: Record<string, number>` field) and prefilling the panel from it on scenario switch;
+   `saveAssumptions` now applies `putScenarioAssumptions`'s own returned scenario list directly
+   instead of a second round trip. Mutation-tested: reverted the join to always return `{}`,
+   confirmed the new `forecast.test.ts` assertion failed exactly there, then restored.
+2. **Zero tests for ~500 lines of new UI plus the backend query change** — added
+   `apps/workspace/e2e/finance.spec.ts` (7 tests: waterfall renders at 3 breakpoints, scenario
+   assumptions round-trip across a tab switch, a `BK-` booking number appears in the Collections
+   Forecast lines list — pinning the LEFT JOIN this session once mistook for a stale-server bug —
+   override round trip supersedes the old line, and Portfolio Comparison's drill-to-project). Plus
+   one backend integration test (`forecast.test.ts`) for the `listScenarios`/assumptions round trip.
+3. **`CashFlowPlanner` didn't role-gate its write controls** — `CollectionsForecast.tsx` already
+   gated "Override"/"Take snapshot" behind a client-side `WRITE_ROLES` check (same pattern as
+   Queues' bulk-reassign button) but `CashFlowPlanner` rendered "+ New scenario" and "Save
+   assumptions" unconditionally, which would 403 for a BANKING login (in `FORECAST_READ_ROLES` but
+   not `FORECAST_WRITE_ROLES`). Not a security hole — the server already enforces — but inconsistent
+   UX; added the same `roles`/`canWrite` gate.
+4. **Two dead filter options + a false "every" claim** — `buildForecastView` only ever returns
+   `ACTIVE`/`REALISED` lines (SUPERSEDED/LAPSED lines are deliberately excluded from the committed
+   view), so Collections Forecast's status filter offered two options that could never match
+   anything; removed them. The page's copy also claimed "every committed forecast line" while
+   silently applying the API's default this-month-+-3 window (no `from`/`to` passed); reworded to
+   name the window honestly.
+
+**Also fixed, found while addressing the above:** `monthsFromToday` in `CashFlowPlanner.tsx`
+operated on today's day-of-month before adding the month offset, overflowing near month-end (e.g.
+Aug 31 + 3 → Dec, a 4-month skip instead of 3); fixed to mirror `forecast/core.ts`'s own
+`defaultRange` (fix the day to 1 first, then add the offset).
+
+**Deliberate scope cuts, declared:** the "Project 360 header" Screen (spec 28, which owns no UI at
+all yet) is not built here — it belongs to 28's own future UI slice, not 20's three named
+dashboards. The 4th Studio tab named in this spec's own Screens list ("Forecast policy — snapshot
+cadence") is still not registered, per the same reasoning already recorded in the backend build
+note above (no config table backs a cadence policy; `takeSnapshot`'s `kind` is caller-supplied).
+
+Full regression evidence (fresh `db:reset`, real API server restart): backend `vitest run` 785/789
+(the 4 failures are the same pre-existing `registration.test.ts` worker-pool-contention flake
+documented above, reproduced again with this slice's code present); `apps/workspace` full
+`playwright test` 118 passed / 1 pre-existing skip / 1 pre-existing flake ("Act on an intervention…
+H11", reproduced identically at every prior spec landing this session) — includes all 7 new
+`finance.spec.ts` tests passing; `tsc --noEmit` clean; `vite build` clean (pre-existing chunk-size
+warning only, not investigated — out of scope).
