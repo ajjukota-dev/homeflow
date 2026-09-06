@@ -142,6 +142,14 @@ export const TAB_REGISTRY: TabDef[] = [
   // enum on 26's own `customer_check_in.kind` CHECK, not configurable data; making them
   // configurable would mean widening 26's schema, out of scope here.
   { key: "30.checkin_schedule", label: "Check-in schedule", owner_spec: 30, built: false, edit_roles: ["FM"] },
+
+  // 31 — intelligence layer
+  { key: "31.risk_rules", label: "Risk rules", owner_spec: 31, built: true, edit_roles: MGMT },
+  // LLM budget stays built:false — the cap is a single env var (`LLM_MONTHLY_BUDGET_INR`), read
+  // live by `intelligence/llm-tasks/store.ts::withinBudget` on every call; there's no config table
+  // for a generic-envelope tab to CRUD (same "no edit path" gap already flagged for 27's own
+  // `management_config`, which is also env/in-code, not a table).
+  { key: "31.llm_budget", label: "LLM budget", owner_spec: 31, built: false, edit_roles: MGMT },
 ];
 
 /** Rule 3: role-filtered listing for GET /studio/tabs — read access is any staff role

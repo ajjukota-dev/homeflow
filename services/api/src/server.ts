@@ -53,6 +53,7 @@ import { registerManagementRoutes } from "./routes-management";
 import { registerViewRoutes } from "./routes-views";
 import { registerCommunicationsRoutes } from "./routes-communications";
 import { registerPostHandoverRoutes } from "./routes-post-handover";
+import { registerIntelligenceRoutes } from "./routes-intelligence";
 import { getAudit } from "./events";
 import { failHttp } from "./authz/httpError";
 
@@ -328,6 +329,7 @@ registerManagementRoutes(app);
 registerViewRoutes(app);
 registerCommunicationsRoutes(app);
 registerPostHandoverRoutes(app);
+registerIntelligenceRoutes(app);
 
 // files port: local-disk adapter serves its own presigned-URL routes; the
 // s3 adapter needs no server route (real presigned URLs hit S3 directly).

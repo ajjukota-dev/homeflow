@@ -224,6 +224,16 @@ export const EVENT_TYPES: EventTypeDef[] = [
   { name: "intervention.dismissed", family: "intervention", customer_visible: false, built: true },
   { name: "kpi.snapshot_taken", family: "kpi", customer_visible: false, built: true },
   { name: "economic_event.recorded", family: "economic_event", customer_visible: false, built: true },
+
+  // 31 intelligence — not in Appendix B (predates this layer). `score.recomputed` extends 14's
+  // own compute-on-read scores with an event, emitted only when a score's value actually moves
+  // (see intelligence/shared.ts's own header comment for why unconditional-on-every-GET was
+  // rejected). LLM outputs are internal review-queue events, never customer-visible per p32 §27.
+  { name: "score.recomputed", family: "score", customer_visible: false, built: true },
+  { name: "llm.suggestion_created", family: "llm", customer_visible: false, built: true },
+  { name: "llm.suggestion_accepted", family: "llm", customer_visible: false, built: true },
+  { name: "llm.suggestion_rejected", family: "llm", customer_visible: false, built: true },
+  { name: "llm.budget_exhausted", family: "llm", customer_visible: false, built: true },
 ];
 
 /** Appendix B (p42) names verbatim — the coverage test's universe. Extensions are exempt by design. */
