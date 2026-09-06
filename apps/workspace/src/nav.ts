@@ -1,4 +1,4 @@
-import { Building2, Store, Users, Banknote, Scale, ClipboardCheck, HeartHandshake, Landmark, Map, Settings2, CalendarClock, Inbox, Route, Handshake } from "lucide-react";
+import { Building2, Store, Users, Banknote, Scale, ClipboardCheck, HeartHandshake, Landmark, Map, Settings2, CalendarClock, Inbox, Route, Handshake, FileText } from "lucide-react";
 import { ROLE_CODES } from "./pages/admin/roles";
 
 export type View =
@@ -19,7 +19,8 @@ export type View =
   | "admin-permissions"
   | "admin-data"
   | "journey-control"
-  | "promise-ledger";
+  | "promise-ledger"
+  | "sales-handover";
 
 // Rule 3: read access is any staff role; per-tab edit eligibility is enforced server-side
 // (studio/registry.ts's tabsForRoles/can_edit) — every seeded staff role except CUSTOMER sees
@@ -62,6 +63,11 @@ export const NAV: { id: View; label: string; role: string; short: string; Icon: 
   // approver, rule 1's waiver) + SUPER_ADMIN, matching Journey Control's own narrower-than-matrix
   // precedent, rather than adding four more nav entries for a READ-only view nothing asked for.
   { id: "promise-ledger", label: "Promise Ledger", role: "Every commitment — status, owner, confidence", short: "Promises", Icon: Handshake, roles: ["CRM", "MANAGEMENT", "SUPER_ADMIN"] },
+  // 17-sales-crm-handover.md Screens — additive to CrmQueue.tsx's pre-existing "Acceptance
+  // queue" (unchanged, still bookings-crm.ts's old accept/return flow), not a replacement.
+  // Roles match the seed/permissions.ts "sales_handover" matrix row: SALES/CRM=WRITE,
+  // MANAGEMENT=READ, plus SUPER_ADMIN per this file's own precedent for every other entry.
+  { id: "sales-handover", label: "Handover Packets", role: "Sales → CRM packet, completeness, accept/return", short: "Handover", Icon: FileText, roles: ["SALES", "CRM", "MANAGEMENT", "SUPER_ADMIN"] },
 ];
 
 export const ADMIN_NAV: { id: View; label: string }[] = [

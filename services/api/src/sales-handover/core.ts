@@ -7,6 +7,7 @@ import { requiredApprovers } from "../approvals/matrix";
 import { createAction } from "../actions/core";
 import { createCommitmentFromSource, approveCommitment, activateCommitment, type CommitmentCategory } from "../commitments/core";
 import { acceptBooking as acceptBookingLegacy, returnBooking as returnBookingLegacy } from "../bookings-crm";
+import { MANDATORY_DOCS } from "../bookings";
 import { resolveChecklistRules, scoreCompleteness, type ChecklistRuleRow, type CompletenessResult } from "./checklist";
 
 // 17-sales-crm-handover.md. Additive alongside the existing bookings.ts/bookings-crm.ts
@@ -295,8 +296,13 @@ function satisfiedItemCodes(packet: HandoverPacket, commercialApprovalSatisfied:
   if (co.payment_plan_ref) s.add("payment_plan_ref");
   if (co.booking_amount_inr !== null) s.add("booking_amount_inr");
 
+  // Bug found live-verifying the UI (2026-09-07): this used to match a fictional doc-type list
+  // ("PAN", "Address Proof", ...) that bookings.ts's real MANDATORY_DOCS never produces
+  // ("PAN card", "Address proof", ...) — every real booking's documents checklist items were
+  // permanently unsatisfiable, capping every packet below 100% no matter what Sales did. Matching
+  // against the same single source of truth bookings.ts's own completeness gate uses fixes it.
   const receivedTypes = new Set(packet.documents_section.filter((d) => d.received).map((d) => d.type));
-  for (const t of ["Booking Form", "Cost Sheet", "PAN", "Identity Proof", "Address Proof", "Photograph", "Passport", "OCI card", "POA"]) {
+  for (const t of MANDATORY_DOCS) {
     if (receivedTypes.has(t)) s.add(t);
   }
 

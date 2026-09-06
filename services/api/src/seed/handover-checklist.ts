@@ -1,4 +1,5 @@
 import type { DbClient } from "../db/types";
+import { MANDATORY_DOCS } from "../bookings";
 
 // 17-sales-crm-handover.md rule 2 + Data table seed [E §4.1 + §8.1]. Standard rows
 // (project_id null) apply to every project until Amarsh adds a project-specific override via
@@ -23,7 +24,14 @@ const FIELDS = ["final_price_inr", "discount_inr", "payment_plan_ref", "booking_
 // factory/checklist) isn't built, and the spec's own fallback ("documents section stores
 // uploaded files via files with category") names a table that doesn't exist either. booking.docs
 // is real, live data already produced by the one flow that reaches this checklist.
-const DOCS_ALL = ["Booking Form", "Cost Sheet", "PAN", "Identity Proof", "Address Proof", "Photograph"];
+//
+// Bug fix (2026-09-07, found live-verifying the UI): this used to list six fictional doc types
+// ("Booking Form", "Cost Sheet", "Identity Proof", plus mismatched-case "PAN"/"Address Proof").
+// createBooking only ever stamps MANDATORY_DOCS onto a real booking — no flow anywhere produces
+// the other three, so those items were permanently required-and-unsatisfiable, capping every
+// packet's completeness below 100% no matter what Sales did. Now sourced from the same single
+// source of truth bookings.ts's own completeness gate uses.
+const DOCS_ALL = MANDATORY_DOCS;
 
 export async function seedHandoverChecklist(db: DbClient): Promise<void> {
   const existing = await db.query<{ count: string }>(`SELECT count(*)::text FROM handover_checklist_rule`);
@@ -42,8 +50,12 @@ export async function seedHandoverChecklist(db: DbClient): Promise<void> {
   for (const c of CONFIRMATIONS) await insert(c, "CONFIRMATION", "ANY");
   for (const f of FIELDS) await insert(f, "FIELD", "ANY");
   for (const d of DOCS_ALL) await insert(d, "DOCUMENT", "ANY");
-  await insert("Passport", "DOCUMENT", "NRI");
-  await insert("OCI card", "DOCUMENT", "OCI");
+  // Same "no data source" gap as POA below: booking.docs only ever carries MANDATORY_DOCS,
+  // never a residency-specific Passport/OCI card entry (04's booking flow doesn't branch by
+  // residency when stamping docs) — required:false, weight 0 until that's real, not a permanent
+  // unsatisfiable blocker for every NRI/OCI packet.
+  await insert("Passport", "DOCUMENT", "NRI", false, 0);
+  await insert("OCI card", "DOCUMENT", "OCI", false, 0);
   // "POA if applicable" (rule per Data table) — no applicability flag exists anywhere in the
   // model to say whether a given booking has a POA applicant, so this can't be scored as
   // required without guessing. Seeded as optional AND weight 0 — visible in the checklist

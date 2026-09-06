@@ -167,6 +167,25 @@ const BREACH_ROOT_CAUSE: Record<BreachRootCause, string> = {
 };
 export const breachRootCauseLabel = (v: string) => lookup(BREACH_ROOT_CAUSE, v);
 
+// SalesHandover packet.customer_section.residency / SubmitHandoverInput.residency
+type Residency = "RESIDENT" | "NRI" | "OCI";
+const RESIDENCY: Record<Residency, string> = {
+  RESIDENT: "Resident",
+  NRI: "NRI",
+  OCI: "OCI",
+};
+export const residencyLabel = (v: string) => lookup(RESIDENCY, v);
+
+// SalesHandover.status (17-sales-crm-handover.md)
+type HandoverStatus = "DRAFT" | "SUBMITTED" | "RETURNED" | "ACCEPTED";
+const HANDOVER_STATUS: Record<HandoverStatus, string> = {
+  DRAFT: "Draft",
+  SUBMITTED: "Submitted",
+  RETURNED: "Returned",
+  ACCEPTED: "Accepted",
+};
+export const handoverStatusLabel = (v: string) => lookup(HANDOVER_STATUS, v);
+
 // Event log plain-language rendering (spec 02 Screens: "Activity tab ... rendering events in
 // plain language via labels.ts"). Falls back to a readable version of the dotted type name
 // for any event not covered here yet.
