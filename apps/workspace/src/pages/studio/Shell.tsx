@@ -15,6 +15,7 @@ import { DocumentClausesStudio } from "./DocumentClausesStudio";
 import { DocumentSelectionRulesStudio } from "./DocumentSelectionRulesStudio";
 import { MergeFieldsStudio } from "./MergeFieldsStudio";
 import { DocumentChecklistRulesStudio } from "./DocumentChecklistRulesStudio";
+import { ChangeGateRuleStudio } from "./ChangeGateRuleStudio";
 
 // Tabs with their own bespoke screen (not the generic /studio/:table envelope) — same "flag,
 // don't fake" spirit as GENERIC_TABLES, but for tabs whose edit surface isn't a plain table.
@@ -31,6 +32,7 @@ const BESPOKE_TABS: Record<string, (canEdit: boolean) => ReactNode> = {
   "22.selection_rules": (canEdit) => <DocumentSelectionRulesStudio canEdit={canEdit} />,
   "22.merge_fields": (canEdit) => <MergeFieldsStudio canEdit={canEdit} />,
   "22.document_checklist_rules": (canEdit) => <DocumentChecklistRulesStudio canEdit={canEdit} />,
+  "08.change_gate_rule_studio": (canEdit) => <ChangeGateRuleStudio canEdit={canEdit} />,
 };
 
 /** Policy Studio shell (25-policy-studio.md Screens): left nav grouped by owning spec, one

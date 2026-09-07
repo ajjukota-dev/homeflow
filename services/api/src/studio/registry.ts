@@ -58,7 +58,10 @@ export const TAB_REGISTRY: TabDef[] = [
   // 08 — changeability engine (change_category registered in the generic envelope; the rule
   // studio itself keeps its own bespoke draft/publish routes in routes-changeability.ts)
   { key: "08.change_categories", label: "Change categories", owner_spec: 8, built: true, edit_roles: ["SITE"] },
-  { key: "08.change_gate_rule_studio", label: "Change Gate Rule Studio", owner_spec: 8, built: true, edit_roles: ["SITE"] },
+  // edit_roles matches changeability/core.ts's real RULE_EDIT_ROLES (SITE + MANAGEMENT, SUPER_ADMIN
+  // implicit) — was ["SITE"] only, which hid working save/publish controls from MANAGEMENT users
+  // even though the backend already accepted their writes. Found while building this tab's UI.
+  { key: "08.change_gate_rule_studio", label: "Change Gate Rule Studio", owner_spec: 8, built: true, edit_roles: ["SITE", "MANAGEMENT"] },
   // Investigated 2026-09-06: confirmed a documentation-only duplicate, not separate work. Spec
   // 08's own Config line names "gate-expiry source mapping" alongside change_gate_rule, but its
   // Data table backs no separate gate_expiry_source table — rule 2's expected_close_at derivation

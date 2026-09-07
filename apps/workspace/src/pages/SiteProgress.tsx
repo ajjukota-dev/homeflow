@@ -6,6 +6,7 @@ import { GateChip } from "../ui/GateChip";
 import { ScoreDial } from "../ui/ScoreDial";
 import { cn } from "../lib/utils";
 import { ProgressConsole } from "./site/ProgressConsole";
+import { ChangeabilityHeatmap } from "./site/ChangeabilityHeatmap";
 import { WRITE_ROLES } from "./site/labels";
 
 const STATES: { value: ProgressState; label: string }[] = [
@@ -23,7 +24,7 @@ const inputCls = "w-full rounded-lg border border-line bg-surface px-3 py-2 text
  *  unit segmented-control view (still useful for a quick one-cell update on-site). */
 export function SiteProgress({ projectId, roles }: { projectId: string; roles: string[] }) {
   const canWrite = roles.some((r) => WRITE_ROLES.includes(r));
-  const [tab, setTab] = useState<"villa" | "console">("villa");
+  const [tab, setTab] = useState<"villa" | "console" | "changeability">("villa");
   const [units, setUnits] = useState<Unit[]>([]);
   const [unit, setUnit] = useState<Unit | null>(null);
   const [loading, setLoading] = useState(true);
@@ -86,15 +87,17 @@ export function SiteProgress({ projectId, roles }: { projectId: string; roles: s
       </header>
 
       <div className="mb-6 overflow-x-auto">
-        <Tabs value={tab} onValueChange={(v) => setTab(v as "villa" | "console")}>
+        <Tabs value={tab} onValueChange={(v) => setTab(v as "villa" | "console" | "changeability")}>
           <TabsList className="flex-nowrap">
             <TabsTrigger value="villa" className="shrink-0 whitespace-nowrap">By villa</TabsTrigger>
             <TabsTrigger value="console" className="shrink-0 whitespace-nowrap">Console</TabsTrigger>
+            <TabsTrigger value="changeability" className="shrink-0 whitespace-nowrap">Changeability</TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
 
       {tab === "console" && <ProgressConsole projectId={projectId} roles={roles} />}
+      {tab === "changeability" && <ChangeabilityHeatmap projectId={projectId} />}
 
       {tab === "villa" && (
       <>
