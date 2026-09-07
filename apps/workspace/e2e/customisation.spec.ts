@@ -146,6 +146,19 @@ test("raising a change request routes it through capture, feasibility, costing a
   await drawer.getByRole("button", { name: "Waive payment" }).click();
   await expect(drawer.getByText("Approved", { exact: true })).toBeVisible();
 
+  // 09-specification-revisions.md regression guard: release used to fail here with "unit has no
+  // specification baseline attached" for every East Crest unit — seed.ts now attaches an APPROVED
+  // baseline + rev-0 to every villa unit (the real gap spec 18's own fork found and reported).
+  // Release creates the rev-1 spec_revision from this CR's items — proving the fix end-to-end,
+  // not just that a baseline row exists.
+  await drawer.getByRole("button", { name: "Release (creates spec revision + execution actions)" }).click();
+  await expect(drawer.getByText("In progress", { exact: true })).toBeVisible();
+
+  const spec = await (await page.request.get(`/api/units/${cr.unit_id}/specification`)).json();
+  expect(spec.data.blocker).toBeNull();
+  expect(spec.data.current_revision.status).toBe("RELEASED");
+  expect(spec.data.current_revision.change_request_id).toBe(cr.id);
+
   await assertNoHorizontalOverflow(page);
 });
 
