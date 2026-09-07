@@ -172,10 +172,12 @@ instead as a pre-existing environmental characteristic (§9 already tracks the s
   already established, and a separate run taken *while* the Playwright suite was still running
   concurrently landed at 785/789 — 4 failures under that added contention, consistent with the
   same flake, not a new one).
-- `apps/workspace/e2e/registration.spec.ts` (new, 6 tests) run standalone after the race-condition
-  fix: **5 passed, 1 skipped** (the lazy-case-creation test skips gracefully — every booking in
-  this project already has a registration case on this non-fresh-reset dev DB, its own documented,
-  expected behavior).
+- `apps/workspace/e2e/registration.spec.ts` (new, 8 tests after the `advisor()`-driven 3-breakpoint
+  Studio-tabs fix) run standalone, twice: once right after the race-condition fix (then 6 tests,
+  before the breakpoint fix) — **5 passed, 1 skipped** (the lazy-case-creation test skips
+  gracefully — every booking in this project already has a registration case on this non-fresh-
+  reset dev DB, its own documented, expected behavior); once again after the breakpoint fix,
+  standalone — **8/8 passed**, including the new tablet/mobile Studio-tabs variants.
 - Full Playwright suite from a freshly `db:reset` DB (both dev servers restarted clean, run to
   completion, real output): **171 passed, 1 failed, 1 skipped (173 total)**. All 6
   `registration.spec.ts` tests passed, including the lazy-case-creation test — which had skipped
