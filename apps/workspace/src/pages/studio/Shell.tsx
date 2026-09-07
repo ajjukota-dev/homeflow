@@ -22,6 +22,7 @@ import { HoldPolicyStudio } from "./HoldPolicyStudio";
 import { RegistrationChecklistStudio } from "./RegistrationChecklistStudio";
 import { SroOfficesStudio } from "./SroOfficesStudio";
 import { CommunicationTemplatesStudio } from "./CommunicationTemplatesStudio";
+import { LlmUsageStudio } from "./LlmUsageStudio";
 
 // Tabs with their own bespoke screen (not the generic /studio/:table envelope) — same "flag,
 // don't fake" spirit as GENERIC_TABLES, but for tabs whose edit surface isn't a plain table.
@@ -45,6 +46,10 @@ const BESPOKE_TABS: Record<string, (canEdit: boolean) => ReactNode> = {
   "23.registration_checklists": (canEdit) => <RegistrationChecklistStudio canEdit={canEdit} />,
   "23.sro_offices": (canEdit) => <SroOfficesStudio canEdit={canEdit} />,
   "29.communication_templates": (canEdit) => <CommunicationTemplatesStudio canEdit={canEdit} />,
+  // Read-only usage dashboard, not an edit path — registry.ts's own comment explains why
+  // 31.llm_budget stays `built: false` (the cap is an env var, no config table to CRUD); this
+  // screen still gives the tab real content instead of the generic "not built" EmptyState.
+  "31.llm_budget": () => <LlmUsageStudio />,
 };
 
 /** Policy Studio shell (25-policy-studio.md Screens): left nav grouped by owning spec, one

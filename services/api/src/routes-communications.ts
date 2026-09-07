@@ -2,7 +2,7 @@ import type { Express } from "express";
 import type { AuthedRequest } from "./auth/middleware";
 import { failHttp } from "./authz/httpError";
 import { AppError } from "./authz/types";
-import { logCommunication, sendCommunicationEmail, publishCommunicationToPortal, listCustomerCommunications, getGuardrailStatus } from "./communications/core";
+import { logCommunication, sendCommunicationEmail, publishCommunicationToPortal, listCustomerCommunications, getGuardrailStatus, getCommunication } from "./communications/core";
 import {
   createCommunicationTemplate, submitTemplateForLegalReview, approveCommunicationTemplate, listCommunicationTemplates, previewCommunicationTemplate,
 } from "./communications/templates";
@@ -39,6 +39,12 @@ export function registerCommunicationsRoutes(app: Express): void {
       if (!customer_id) throw new AppError("validation", "customer_id is required");
       res.json({ data: await getGuardrailStatus(customer_id, template_id, ctx(req)) });
     } catch (e) { failHttp(res, e); }
+  });
+
+  // Registered after every static-segment /api/communications/* GET above (guardrail-status) —
+  // Express matches in registration order, and this :id wildcard would otherwise shadow them.
+  app.get("/api/communications/:id", async (req: AuthedRequest, res) => {
+    try { res.json({ data: await getCommunication(req.params.id, ctx(req)) }); } catch (e) { failHttp(res, e); }
   });
 
   app.post("/api/communication-templates/:id/preview", async (req: AuthedRequest, res) => {

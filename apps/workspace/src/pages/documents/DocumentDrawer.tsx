@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
 import { Drawer, DrawerContent, KeyValue, Badge, Button, Skeleton, EmptyState, Textarea, Select, SelectTrigger, SelectOptions } from "@homeflow/ui";
-import { FileText } from "lucide-react";
+import { FileText, Sparkles } from "lucide-react";
 import { ApiError } from "../../auth/api";
 import { formatIstDateTime } from "../../lib/utils";
 import { documentsApi, type DocumentRow, type DeviationRow, type DocumentApproval, type ApprovalStage } from "./api";
+import { suggestionsApi } from "../suggestions/api";
 import { DOCUMENT_STATUS_LABEL, documentStatusTone, prettifyCode, APPROVAL_STAGE_LABEL } from "./labels";
 
 const WRITE_ROLES = ["LEGAL", "SUPER_ADMIN"]; // mirrors documents/workflow.ts's "documents" module WRITE (LEGAL only)
+// 31-intelligence.md rule 5's 3rd bullet — Legal/CRM own this suggestion kind in the Suggestions inbox.
+const AI_CHECK_ROLES = ["LEGAL", "CRM", "SUPER_ADMIN"];
 const STAGES: ApprovalStage[] = ["INTERNAL_REVIEW", "LEGAL", "COMMERCIAL"];
 
 function ApprovalsStepper({ approvals }: { approvals: DocumentApproval[] }) {
@@ -144,12 +147,14 @@ function ExecutionForm({ doc, canWrite, onChanged }: { doc: DocumentRow; canWrit
 
 export function DocumentDrawer({ documentId, roles, onClose, onChanged }: { documentId: string | null; roles: string[]; onClose: () => void; onChanged?: () => void }) {
   const canWrite = roles.some((r) => WRITE_ROLES.includes(r));
+  const canAiCheck = roles.some((r) => AI_CHECK_ROLES.includes(r));
   const [doc, setDoc] = useState<DocumentRow | null>(null);
   const [approvals, setApprovals] = useState<DocumentApproval[]>([]);
   const [deviations, setDeviations] = useState<DeviationRow[]>([]);
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [checkNotice, setCheckNotice] = useState<{ text: string; ok: boolean } | null>(null);
 
   const load = useCallback(() => {
     if (!documentId) return;
@@ -171,6 +176,19 @@ export function DocumentDrawer({ documentId, roles, onClose, onChanged }: { docu
       notifyThenReload();
     } catch (e) {
       setNotice(e instanceof ApiError ? e.message : "That didn't work.");
+    }
+    setBusy(null);
+  }
+
+  async function checkInconsistencies() {
+    if (!doc) return;
+    setBusy("ai-check");
+    setCheckNotice(null);
+    try {
+      await suggestionsApi.create("DOCUMENT_INCONSISTENCY", doc.id);
+      setCheckNotice({ text: "Suggestion created — review it under Suggestions.", ok: true });
+    } catch (e) {
+      setCheckNotice({ text: e instanceof ApiError ? e.message : "Couldn't run that check.", ok: false });
     }
     setBusy(null);
   }
@@ -223,6 +241,19 @@ export function DocumentDrawer({ documentId, roles, onClose, onChanged }: { docu
               <h3 className="mb-2 text-footnote font-semibold uppercase tracking-wide text-fg-subtle">Approvals</h3>
               <ApprovalsStepper approvals={approvals} />
             </div>
+
+            {canAiCheck && (
+              <div>
+                <Button size="sm" variant="ghost" onClick={checkInconsistencies} disabled={busy === "ai-check"}>
+                  <Sparkles className="h-3.5 w-3.5" /> {busy === "ai-check" ? "Checking…" : "Check for inconsistencies vs source records"}
+                </Button>
+                {checkNotice && (
+                  <p role={checkNotice.ok ? "status" : "alert"} className={`mt-1 text-footnote ${checkNotice.ok ? "text-fg-muted" : "text-overdue"}`}>
+                    {checkNotice.text}
+                  </p>
+                )}
+              </div>
+            )}
 
             {notice && <p role="alert" className="text-footnote text-overdue">{notice}</p>}
 

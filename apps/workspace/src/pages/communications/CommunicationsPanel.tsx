@@ -2,14 +2,20 @@
 // read-only embed to the real interactive surface: log/send/publish. Visibility is always icon +
 // label (CLAUDE.md "status never by colour alone"), never colour-only.
 import { useEffect, useState } from "react";
-import { Phone, Mail, Send, Lock, Eye, CircleAlert, MessageSquare } from "lucide-react";
+import { Phone, Mail, Send, Lock, Eye, CircleAlert, MessageSquare, Sparkles } from "lucide-react";
 import { Button, Badge, EmptyState, Skeleton, Dialog, DialogContent } from "@homeflow/ui";
+import { ApiError } from "../../auth/api";
 import { communicationsApi, CHANNEL_LABEL, type CommunicationRow } from "./api";
+import { suggestionsApi } from "../suggestions/api";
 import { LogCommunicationDrawer } from "./LogCommunicationDrawer";
 import { SendEmailDrawer } from "./SendEmailDrawer";
 
 const WRITE_ROLES = ["SALES", "CRM", "SUPER_ADMIN"];
 const PUBLISH_ROLES = ["CRM", "MANAGEMENT", "SUPER_ADMIN"];
+// 31-intelligence.md rule 5's own trigger points aren't specified by that spec (it only says
+// suggestions are "on logged communications") — CRM is this feature's own write role, reused
+// here rather than inventing a separate gate for "who may spend LLM budget."
+const ANALYZE_ROLES = WRITE_ROLES;
 
 function relativeTime(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -29,9 +35,25 @@ export function CommunicationsPanel({ customerId, bookingId, customerEmail, role
   const [publishing, setPublishing] = useState<CommunicationRow | null>(null);
   const [publishBusy, setPublishBusy] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
+  const [analyzing, setAnalyzing] = useState<string | null>(null);
+  const [analyzeNotice, setAnalyzeNotice] = useState<{ id: string; text: string; ok: boolean } | null>(null);
 
   const canWrite = roles.some((r) => WRITE_ROLES.includes(r));
   const canPublish = roles.some((r) => PUBLISH_ROLES.includes(r));
+  const canAnalyze = roles.some((r) => ANALYZE_ROLES.includes(r));
+
+  async function analyze(c: CommunicationRow, kind: "COMMITMENT_DETECTION" | "COMMUNICATION_SUMMARY" | "SENTIMENT") {
+    setAnalyzing(`${c.id}:${kind}`);
+    setAnalyzeNotice(null);
+    try {
+      await suggestionsApi.create(kind, c.id);
+      setAnalyzeNotice({ id: c.id, text: "Suggestion created — review it under Suggestions.", ok: true });
+    } catch (e) {
+      setAnalyzeNotice({ id: c.id, text: e instanceof ApiError ? e.message : "Couldn't run that analysis.", ok: false });
+    } finally {
+      setAnalyzing(null);
+    }
+  }
 
   function load() {
     setError(false);
@@ -95,12 +117,30 @@ export function CommunicationsPanel({ customerId, bookingId, customerEmail, role
               {c.follow_up_required && (
                 <p className="mt-2 text-caption text-atrisk">Follow-up needed{c.follow_up_due ? ` by ${new Date(c.follow_up_due).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}` : ""}</p>
               )}
-              {canPublish && c.visibility === "INTERNAL" && c.booking_id && (
-                <div className="mt-2">
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                {canPublish && c.visibility === "INTERNAL" && c.booking_id && (
                   <Button size="sm" variant="ghost" onClick={() => setPublishing(c)}>
                     <Send className="h-3.5 w-3.5" /> Publish to portal
                   </Button>
-                </div>
+                )}
+                {canAnalyze && (
+                  <>
+                    <Button size="sm" variant="ghost" onClick={() => analyze(c, "COMMITMENT_DETECTION")} disabled={analyzing !== null}>
+                      <Sparkles className="h-3.5 w-3.5" /> {analyzing === `${c.id}:COMMITMENT_DETECTION` ? "Detecting…" : "Detect commitment"}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => analyze(c, "COMMUNICATION_SUMMARY")} disabled={analyzing !== null}>
+                      <Sparkles className="h-3.5 w-3.5" /> {analyzing === `${c.id}:COMMUNICATION_SUMMARY` ? "Summarizing…" : "Summarize"}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => analyze(c, "SENTIMENT")} disabled={analyzing !== null}>
+                      <Sparkles className="h-3.5 w-3.5" /> {analyzing === `${c.id}:SENTIMENT` ? "Analyzing…" : "Sentiment"}
+                    </Button>
+                  </>
+                )}
+              </div>
+              {analyzeNotice && analyzeNotice.id === c.id && (
+                <p role={analyzeNotice.ok ? "status" : "alert"} className={`mt-1 text-footnote ${analyzeNotice.ok ? "text-fg-muted" : "text-overdue"}`}>
+                  {analyzeNotice.text}
+                </p>
               )}
             </li>
           ))}

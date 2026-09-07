@@ -39,6 +39,15 @@ async function loadCommunication(id: string, handle: DbLike = db): Promise<Commu
   return r.rows[0];
 }
 
+// 31-intelligence.md's Suggestions inbox needs to resolve a COMMITMENT_DETECTION suggestion's
+// `input_ref` (a communication id) back to its `booking_id` before it can build a real
+// CreateCommitmentInput — the only other read path is the customer-scoped list, which doesn't fit
+// a single-id lookup. Thin wrapper over the existing loader, same gate as the list read.
+export async function getCommunication(id: string, ctx: Ctx): Promise<CommunicationRow> {
+  await authorize(ctx, "communications", "READ");
+  return loadCommunication(id);
+}
+
 async function customerBooking(customerId: string, bookingId: string | undefined | null, handle: DbLike): Promise<{ project_id: string | null; booking_id: string | null }> {
   if (bookingId) {
     const r = await handle.query<{ project_id: string }>(`SELECT project_id FROM booking WHERE id = $1`, [bookingId]);

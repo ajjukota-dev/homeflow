@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, CircleAlert, ListChecks, FileText, Scale } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent, EmptyState, Skeleton, ScoreCard, Badge, Button } from "@homeflow/ui";
-import { threeSixtyApi, type Booking360View } from "../three-sixty/api";
+import { threeSixtyApi, type Booking360View, type Score } from "../three-sixty/api";
 import { scoreCardProps } from "../three-sixty/format";
 import { TabPanel, TabBadge } from "../three-sixty/TabPanel";
 import { ActivityFeed } from "../../components/ActivityFeed";
@@ -40,15 +40,24 @@ export function Booking360({
   const [openingHandoverPacket, setOpeningHandoverPacket] = useState(false);
   const [openingRegistration, setOpeningRegistration] = useState(false);
   const [openingHandoverCase, setOpeningHandoverCase] = useState(false);
+  // 31-intelligence.md rule 3 — own fetches, not blocking the main view (undefined = still
+  // loading, null = failed to load; either renders as a skeleton/nothing rather than an error
+  // banner for the whole page, since these two cards are additive to an otherwise-working screen).
+  const [financialHealth, setFinancialHealth] = useState<Score | null | undefined>(undefined);
+  const [journeyRisk, setJourneyRisk] = useState<Score | null | undefined>(undefined);
 
   const load = useCallback(() => {
     setError(false);
     threeSixtyApi.getBooking360(bookingId).then(setView).catch(() => setError(true));
+    threeSixtyApi.getFinancialHealth(bookingId).then(setFinancialHealth).catch(() => setFinancialHealth(null));
+    threeSixtyApi.getJourneyRisk(bookingId).then(setJourneyRisk).catch(() => setJourneyRisk(null));
   }, [bookingId]);
 
   useEffect(() => {
     setView(undefined);
     setTab(undefined);
+    setFinancialHealth(undefined);
+    setJourneyRisk(undefined);
     load();
     threeSixtyApi.setMyContext({ entity_type: "booking", entity_id: bookingId }).catch(() => {});
   }, [bookingId, load]);
@@ -111,9 +120,11 @@ export function Booking360({
             <Badge tone="accent">{view.status}</Badge>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <ScoreCard label="Booking Readiness" {...scoreCardProps(view.booking_readiness)} />
             <ScoreCard label="Handover Readiness" {...scoreCardProps(view.handover_readiness)} />
+            {financialHealth ? <ScoreCard label="Financial Health" {...scoreCardProps(financialHealth)} /> : financialHealth === undefined ? <Skeleton className="h-32 w-full" /> : null}
+            {journeyRisk ? <ScoreCard label="Journey Risk" {...scoreCardProps(journeyRisk)} /> : journeyRisk === undefined ? <Skeleton className="h-32 w-full" /> : null}
           </div>
 
           <div className="rounded-card border border-line bg-surface p-4">

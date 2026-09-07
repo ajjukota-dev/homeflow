@@ -1,4 +1,4 @@
-import { Building2, Store, Users, Banknote, Scale, ClipboardCheck, HeartHandshake, Landmark, Map, Settings2, CalendarClock, Inbox, Route, Handshake, FileText, Bell, TrendingUp, Receipt, BarChart3, Hammer } from "lucide-react";
+import { Building2, Store, Users, Banknote, Scale, ClipboardCheck, HeartHandshake, Landmark, Map, Settings2, CalendarClock, Inbox, Route, Handshake, FileText, Bell, TrendingUp, Receipt, BarChart3, Hammer, Sparkles } from "lucide-react";
 import { ROLE_CODES } from "./pages/admin/roles";
 
 export type View =
@@ -26,7 +26,8 @@ export type View =
   | "collections-forecast"
   | "portfolio-compare"
   | "customisation"
-  | "sales-desk";
+  | "sales-desk"
+  | "suggestions";
 
 // Rule 3: read access is any staff role; per-tab edit eligibility is enforced server-side
 // (studio/registry.ts's tabsForRoles/can_edit) — every seeded staff role except CUSTOMER sees
@@ -97,6 +98,11 @@ export const NAV: { id: View; label: string; role: string; short: string; Icon: 
   // WRITE grant), prospects/needs (SALES/MANAGEMENT per prospects.ts's SALES_WRITE_ROLES),
   // and hold approval (hold_policy.approver_role, seeded default SITE) — plus SUPER_ADMIN.
   { id: "sales-desk", label: "Sales Desk", role: "Inventory discovery, match, holds & booking", short: "Sales Desk", Icon: Store, roles: ["SALES", "CRM", "MANAGEMENT", "SITE", "SUPER_ADMIN"] },
+  // 31-intelligence.md Screens — "Suggestions inbox per role." Union of every kind's own
+  // KIND_ROLES (pages/suggestions/labels.ts) — CRM (commitments/summaries/sentiment), LEGAL
+  // (document extraction/inconsistency), QA (snag root-cause), plus MANAGEMENT/SUPER_ADMIN per
+  // this file's own "any staff role reads, matrix narrows" precedent.
+  { id: "suggestions", label: "Suggestions", role: "AI-assisted suggestions — reviewed and accepted by a human", short: "Suggestions", Icon: Sparkles, roles: ["CRM", "LEGAL", "QA", "MANAGEMENT", "SUPER_ADMIN"] },
 ];
 
 export const ADMIN_NAV: { id: View; label: string }[] = [

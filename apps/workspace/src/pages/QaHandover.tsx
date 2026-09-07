@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ClipboardCheck } from "lucide-react";
+import { ClipboardCheck, Sparkles } from "lucide-react";
 import { api } from "../api";
 import type { ReadinessRow } from "../api-lifecycle";
 import { Card, CardBody, Button } from "@homeflow/ui";
@@ -8,6 +8,10 @@ import { cn } from "../lib/utils";
 import { gateRunStateLabel, gateTypeLabel, snagSeverityLabel } from "../lib/labels";
 import { handoverApi, type HandoverView } from "./handover/api";
 import { HandoverCaseDrawer } from "./handover/HandoverCaseDrawer";
+import { suggestionsApi } from "./suggestions/api";
+
+// 31-intelligence.md rule 5's 4th bullet — QA is this suggestion's own reviewing role.
+const ROOT_CAUSE_ROLES = ["QA", "MANAGEMENT", "SUPER_ADMIN"];
 
 /** QA evidence (qa/spec.md §3.1) + handover gates (16-handover-gates.md — stateful case machine,
  *  replacing this page's own legacy inline handover-gates half: pipeline summary here, full case
@@ -36,6 +40,8 @@ export function QaHandover({ projectId, roles }: { projectId: string; roles: str
   useEffect(() => {
     load();
   }, [load]);
+
+  const canSuggestRootCause = roles.some((r) => ROOT_CAUSE_ROLES.includes(r));
 
   async function run(key: string, fn: () => Promise<unknown>) {
     setBusy(key);
@@ -119,9 +125,21 @@ export function QaHandover({ projectId, roles }: { projectId: string; roles: str
                         </span>
                         <span>{s.description}</span>
                         {s.status !== "closed" && (
-                          <Button size="sm" variant="ghost" onClick={() => run(s.id, () => api.closeSnag(s.id))} disabled={busy === s.id}>
-                            Verify & close
-                          </Button>
+                          <>
+                            <Button size="sm" variant="ghost" onClick={() => run(s.id, () => api.closeSnag(s.id))} disabled={busy === s.id}>
+                              Verify & close
+                            </Button>
+                            {canSuggestRootCause && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => run(`rootcause-${s.id}`, () => suggestionsApi.create("SNAG_ROOT_CAUSE_SUGGESTION", s.id))}
+                                disabled={busy === `rootcause-${s.id}`}
+                              >
+                                <Sparkles className="h-3.5 w-3.5" /> {busy === `rootcause-${s.id}` ? "Suggesting…" : "Suggest root cause"}
+                              </Button>
+                            )}
+                          </>
                         )}
                       </li>
                     ))}

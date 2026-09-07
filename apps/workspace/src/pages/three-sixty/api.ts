@@ -74,6 +74,10 @@ export const threeSixtyApi = {
   getCustomer360: (id: string) => req<Customer360View>(`/api/customers/${id}/360`, "GET"),
   getBooking360: (id: string) => req<Booking360View>(`/api/bookings/${id}/360`, "GET"),
   getProjectHeader: (id: string) => req<ProjectHeaderView>(`/api/projects/${id}/header`, "GET"),
+  // 31-intelligence.md rule 3 — not part of the 360 composite payload itself (each is its own
+  // real endpoint, computed fresh), fetched alongside it by the booking screen.
+  getFinancialHealth: (bookingId: string) => req<Score>(`/api/bookings/${bookingId}/scores/financial-health`, "GET"),
+  getJourneyRisk: (bookingId: string) => req<Score>(`/api/bookings/${bookingId}/scores/journey-risk`, "GET"),
   getMyContext: () => req<RecentContext>(`/api/me/context`, "GET"),
   setMyContext: (input: { project_id?: string | null; entity_type?: "unit" | "customer" | "booking" | null; entity_id?: string | null }) => req<RecentContext>(`/api/me/context`, "PUT", input),
   /** The one generic reader every tab-manifest entry uses (`tabs[].api`) — a same-origin GET
