@@ -1,33 +1,22 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 
 const shot = (name: string) => `e2e/__screenshots__/${name}.png`;
 
-async function bookVilla(page: Page, applicant: string, phone: string, pan: string): Promise<void> {
-  await page.goto("/");
-  await page.getByRole("button", { name: /^Sales/ }).first().click();
-  await expect(page.getByRole("heading", { name: "Inventory" })).toBeVisible();
-  await page.getByRole("button", { name: "Book this villa" }).first().click();
-  await expect(page.getByRole("heading", { name: /Book Villa/ })).toBeVisible();
-  await page.getByPlaceholder("e.g. Anita Sharma").fill(applicant);
-  await page.getByPlaceholder("10-digit mobile").fill(phone);
-  await page.getByPlaceholder("ABCDE1234F").fill(pan);
-  await page.getByPlaceholder(/00,000/).fill("8500000");
-  await page.getByRole("checkbox").first().waitFor();
-  for (const doc of await page.getByRole("checkbox").all()) await doc.click();
-  await page.getByRole("button", { name: "Submit to CRM" }).click();
-  await expect(page.getByRole("heading", { name: "CRM · Relationship" })).toBeVisible();
-}
-
 // 29-communications.md Screens: Customer 360's Communications tab (log/send/publish) and a
 // reusable Notes panel — the interactive UI this spec's own backend build note flagged as
-// missing. Drives a real booking through Customer 360 rather than a seeded fixture, same
-// precedent as customer-updates.spec.ts.
+// missing. Drives the seeded customer Rohan Desai / Villa V113 (already ACCEPTED in seed data,
+// so no booking+accept dance is needed — other e2e specs touch his Commitments/Handover data,
+// none touch Communications, so this file's own mutations don't collide) rather than a fresh
+// booking: a fresh `bookVilla()` call fires the real booking.created welcome-draft event
+// (18 §12), which pollutes customer-updates.spec.ts's own "exactly one draft" assumption once
+// this file sorts ahead of it alphabetically — found the hard way, first draft of this file used
+// bookVilla and broke that other file's suite.
 test("log a call, send a freeform email, publish it to the portal, and add an internal note", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
-  const applicant = "Comms Flow Test";
-  await bookVilla(page, applicant, "9876500022", "COMTK1234N");
-
-  await page.getByRole("button", { name: new RegExp(applicant) }).click();
+  await page.goto("/");
+  await page.getByRole("button", { name: /^(CRM \/ RM|CRM)/ }).first().click();
+  await expect(page.getByRole("heading", { name: "CRM · Relationship" })).toBeVisible();
+  await page.getByRole("button", { name: /Rohan Desai/ }).click();
   await page.getByRole("tab", { name: "Communications" }).click();
   await expect(page.getByText("No communications logged yet.")).toBeVisible();
 
@@ -41,7 +30,7 @@ test("log a call, send a freeform email, publish it to the portal, and add an in
   // Send a freeform email
   await page.getByRole("button", { name: "Send email" }).click();
   await page.getByRole("radio", { name: "Write freeform" }).click();
-  await page.getByRole("textbox", { name: "To" }).fill("comms.flow@example.com");
+  await page.getByRole("textbox", { name: "To" }).fill("rohan.desai@example.com");
   await page.getByRole("textbox", { name: "Subject" }).fill("Welcome");
   await page.getByRole("textbox", { name: "Message" }).fill("Welcome to East Crest!");
   await page.getByRole("button", { name: "Send" }).click();
@@ -64,8 +53,9 @@ test("log a call, send a freeform email, publish it to the portal, and add an in
 });
 
 // 29-communications.md rule 4 — the guardrail-blocked UX shows the last-sent facts, not just a
-// disabled button, and CRM/Management can override with a reason. Reuses the customer this file's
-// own first test just created (its email counts toward the GENERAL purpose's guardrail).
+// disabled button, and CRM/Management can override with a reason. Reuses the customer this
+// file's own first test just emailed (that freeform send has no template_id, so it doesn't
+// count toward the guardrail — the templated send below is this customer's first GENERAL send).
 test("Policy Studio: create, submit and approve a template; guardrail blocks a second send until overridden", async ({ page, browser }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/");
@@ -96,20 +86,30 @@ test("Policy Studio: create, submit and approve a template; guardrail blocks a s
   await expect(mgmt.getByRole("row", { name: /^GENERAL/ }).getByRole("cell", { name: "1", exact: true })).toBeVisible();
   await mgmtCtx.close();
 
-  // As CRM, go send this template to the customer from the first test — first send succeeds,
-  // is now hitting the freshly-lowered cap, so this is the send that gets blocked.
+  // As CRM: first templated send to Rohan succeeds, second (this one) hits the freshly-lowered cap.
   const crmCtx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
   const crm = await crmCtx.newPage();
   await crm.goto("/");
   await crm.getByLabel("Email").fill("crm@demo.pranava");
   await crm.getByLabel("Password").fill("Demo@2026");
   await crm.getByRole("button", { name: "Sign in" }).click();
-  await crm.getByRole("button", { name: new RegExp("Comms Flow Test") }).click();
+  await expect(crm.getByRole("heading", { name: "CRM · Relationship" })).toBeVisible();
+  await crm.getByRole("button", { name: /Rohan Desai/ }).click();
   await crm.getByRole("tab", { name: "Communications" }).click();
-  await crm.getByRole("button", { name: "Send email" }).click();
-  await crm.getByRole("textbox", { name: "To" }).fill("comms.flow@example.com");
-  await crm.getByRole("combobox", { name: "Template" }).click();
-  await crm.getByRole("option", { name: /E2E_GENERAL_NOTE/ }).click();
+
+  async function sendTemplated() {
+    await crm.getByRole("button", { name: "Send email" }).click();
+    await crm.getByRole("textbox", { name: "To" }).fill("rohan.desai@example.com");
+    await crm.getByRole("combobox", { name: "Template" }).click();
+    await crm.getByRole("option", { name: /E2E_GENERAL_NOTE/ }).click();
+  }
+
+  await sendTemplated();
+  await expect(crm.getByText("Frequency guardrail blocked")).not.toBeVisible();
+  await crm.getByRole("button", { name: "Send" }).click();
+  await expect(crm.getByText("A plain note with no merge fields.").first()).toBeVisible();
+
+  await sendTemplated();
   await expect(crm.getByText("Frequency guardrail blocked")).toBeVisible();
   await expect(crm.getByRole("button", { name: "Send" })).toBeDisabled();
   await crm.screenshot({ path: shot("guardrail-blocked-desktop") });
@@ -117,7 +117,7 @@ test("Policy Studio: create, submit and approve a template; guardrail blocks a s
   await crm.getByRole("textbox", { name: "Override reason" }).fill("Customer explicitly asked for this in writing.");
   await expect(crm.getByRole("button", { name: "Send" })).toBeEnabled();
   await crm.getByRole("button", { name: "Send" }).click();
-  await expect(crm.getByText("A plain note with no merge fields.")).toBeVisible();
+  await expect(crm.getByText("A plain note with no merge fields.").nth(1)).toBeVisible();
   await crmCtx.close();
 });
 
@@ -132,7 +132,7 @@ for (const s of sizes) {
     await page.goto("/");
     await page.getByRole("button", { name: /^(CRM \/ RM|CRM)/ }).first().click();
     await expect(page.getByRole("heading", { name: "CRM · Relationship" })).toBeVisible();
-    await page.getByRole("button", { name: new RegExp("Comms Flow Test") }).click();
+    await page.getByRole("button", { name: /Rohan Desai/ }).click();
     await page.getByRole("tab", { name: "Communications" }).click();
     await expect(page.getByText("Log a call/meeting")).toBeVisible();
     await page.screenshot({ path: shot(`communications-${s.name}`), fullPage: true });
