@@ -26,6 +26,7 @@ import { CashFlowPlanner } from "./pages/finance/CashFlowPlanner";
 import { CollectionsForecast } from "./pages/finance/CollectionsForecast";
 import { PortfolioCompare } from "./pages/finance/PortfolioCompare";
 import { CustomisationDesk } from "./pages/customisation/CustomisationDesk";
+import { SalesDesk } from "./pages/sales/SalesDesk";
 import type { useAuth } from "./auth/AuthContext";
 import { NAV, ADMIN_NAV, defaultViewFor, type View } from "./nav";
 import { api, type Project, type Unit } from "./api";
@@ -132,6 +133,7 @@ export function Workspace({ me, onLogout }: { me: NonNullable<ReturnType<typeof 
       />
     ),
     customisation: <CustomisationDesk projectId={projectId} roles={roles} />,
+    "sales-desk": <SalesDesk projectId={projectId} roles={roles} />,
   };
 
   const content = bookingUnit ? (

@@ -25,7 +25,8 @@ export type View =
   | "cash-planner"
   | "collections-forecast"
   | "portfolio-compare"
-  | "customisation";
+  | "customisation"
+  | "sales-desk";
 
 // Rule 3: read access is any staff role; per-tab edit eligibility is enforced server-side
 // (studio/registry.ts's tabsForRoles/can_edit) — every seeded staff role except CUSTOMER sees
@@ -89,6 +90,13 @@ export const NAV: { id: View; label: string; role: string; short: string; Icon: 
   // Ledger (the write role set, capture.ts's own CUSTOMISATION_DESK_ROLES, not the wider set of
   // roles that can act on one CR mid-flow from elsewhere, e.g. SITE's feasibility review).
   { id: "customisation", label: "Customisation Desk", role: "Change requests — capture to as-built", short: "Custom.", Icon: Hammer, roles: ["CUSTOMISATION", "MANAGEMENT", "SUPER_ADMIN"] },
+  // 24-sales-inventory-discovery.md Screens — additive next to the pre-24 "Sales" tab
+  // (SalesInventory.tsx/BookingWizard, unchanged, 6 e2e files depend on it): inventory
+  // discovery/compare/book, prospects, and holds. Roles cover every real write path this
+  // spec's own backend gates on: booking (SALES/CRM per sales/booking.ts's sales_handover
+  // WRITE grant), prospects/needs (SALES/MANAGEMENT per prospects.ts's SALES_WRITE_ROLES),
+  // and hold approval (hold_policy.approver_role, seeded default SITE) — plus SUPER_ADMIN.
+  { id: "sales-desk", label: "Sales Desk", role: "Inventory discovery, match, holds & booking", short: "Sales Desk", Icon: Store, roles: ["SALES", "CRM", "MANAGEMENT", "SITE", "SUPER_ADMIN"] },
 ];
 
 export const ADMIN_NAV: { id: View; label: string }[] = [

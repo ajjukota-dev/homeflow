@@ -8,7 +8,9 @@ export type GateState =
   | "CLOSING"
   | "CONDITIONAL"
   | "EXCEPTION_ONLY"
-  | "HARD_CLOSED";
+  | "HARD_CLOSED"
+  // 24-sales-inventory-discovery.md rule 2: freshness display, never shown as OPEN (p31 §26).
+  | "VERIFICATION_REQUIRED";
 
 const meta: Record<GateState, { label: string; Icon: typeof Circle; className: string }> = {
   OPEN: { label: "Open", Icon: CircleDot, className: "text-ontrack bg-ontrack/10" },
@@ -16,6 +18,7 @@ const meta: Record<GateState, { label: string; Icon: typeof Circle; className: s
   CONDITIONAL: { label: "Conditional", Icon: MinusCircle, className: "text-atrisk bg-atrisk/10" },
   EXCEPTION_ONLY: { label: "Exception only", Icon: CircleSlash, className: "text-atrisk bg-atrisk/10" },
   HARD_CLOSED: { label: "Hard closed", Icon: Circle, className: "text-overdue bg-overdue/10" },
+  VERIFICATION_REQUIRED: { label: "Verification required", Icon: CircleSlash, className: "text-atrisk bg-atrisk/10" },
 };
 
 export function GateChip({ state, note }: { state: GateState; note?: string }) {
