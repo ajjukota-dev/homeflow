@@ -166,7 +166,10 @@ export const TAB_REGISTRY: TabDef[] = [
 
   // 29 — communications (merged; templates keep their own bespoke DRAFT/LEGAL_REVIEW/APPROVED
   // workflow, not the generic envelope — same class as 05's Journey Template Studio)
-  { key: "29.communication_templates", label: "Communication templates", owner_spec: 29, built: true, edit_roles: MGMT },
+  // edit_roles wider than plain MGMT: create/submit needs "communications" WRITE (SALES/CRM per
+  // the seeded matrix), approve is purpose-conditional (LEGAL for payment/delay purposes, else
+  // CRM/MANAGEMENT) — same gap-class as 08's change_gate_rule_studio fix, corrected here too.
+  { key: "29.communication_templates", label: "Communication templates", owner_spec: 29, built: true, edit_roles: ["MANAGEMENT", "SUPER_ADMIN", "SALES", "CRM", "LEGAL"] },
   { key: "29.frequency_guardrails", label: "Frequency guardrails", owner_spec: 29, built: true, edit_roles: MGMT },
 
   // 30 — post-handover (not built)

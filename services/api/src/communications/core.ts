@@ -141,7 +141,7 @@ export async function logCommunication(input: LogCommunicationInput, ctx: Ctx): 
 
 /** POST /communications/send-email — rule 5: outbound email via the mailer port (03), auto-logged. */
 export async function sendCommunicationEmail(
-  input: { customer_id: string; booking_id?: string | null; to: string; template_id?: string; body?: string; subject?: string },
+  input: { customer_id: string; booking_id?: string | null; to: string; template_id?: string; body?: string; subject?: string; override_reason?: string },
   ctx: Ctx
 ): Promise<CommunicationRow> {
   await authorize(ctx, "communications", "WRITE");
@@ -162,7 +162,7 @@ export async function sendCommunicationEmail(
     }
   }
 
-  await checkFrequencyGuardrail(input.customer_id, input.template_id, ctx);
+  await checkFrequencyGuardrail(input.customer_id, input.template_id, ctx, input.override_reason);
 
   // Rule 1 ("every customer touch is logged") requires the row to exist before the customer sees
   // the message — send-then-log left an unlogged email on any insert failure. Validate/insert
@@ -192,25 +192,37 @@ export async function sendCommunicationEmail(
  *  WAIVER-bands fail-closed (a guardrail is a courtesy cap, not a financial control). Override
  *  requires CRM lead + reason — modeled as `overrideReason` present + a CRM/MANAGEMENT/SUPER_ADMIN
  *  actor, same seniority-has-no-role-value simplification as elsewhere. */
-export async function checkFrequencyGuardrail(customerId: string, templateId: string | undefined, ctx: Ctx, overrideReason?: string): Promise<void> {
-  if (!templateId) return;
+export interface GuardrailStatus { blocked: boolean; purpose: string | null; sent: number; max: number | null; window_days: number | null }
+
+/** Send-email flow's "blocked with the last-sent facts, not just a disabled button" (rule 4) —
+ *  the same read `checkFrequencyGuardrail` does, but returned as data instead of thrown, so the
+ *  UI can show the count/window before the customer ever clicks Send. */
+export async function getGuardrailStatus(customerId: string, templateId: string | undefined, ctx: Ctx): Promise<GuardrailStatus> {
+  await authorize(ctx, "communications", "READ");
+  if (!templateId) return { blocked: false, purpose: null, sent: 0, max: null, window_days: null };
   const t = await loadCommunicationTemplate(templateId);
   const g = (await db.query<{ max_per_customer_per_window: number; window_days: number }>(
     `SELECT max_per_customer_per_window, window_days FROM frequency_guardrail WHERE purpose = $1`,
     [t.purpose]
   )).rows[0];
-  if (!g) return;
+  if (!g) return { blocked: false, purpose: t.purpose, sent: 0, max: null, window_days: null };
   const count = (await db.query<{ n: string }>(
     `SELECT count(*)::text AS n FROM communication WHERE customer_id = $1 AND template_id IN (SELECT id FROM communication_template WHERE purpose = $2)
        AND occurred_at >= now() - ($3 || ' days')::interval AND direction = 'OUTBOUND'`,
     [customerId, t.purpose, g.window_days]
   )).rows[0];
-  if (Number(count?.n ?? 0) < g.max_per_customer_per_window) return;
+  const sent = Number(count?.n ?? 0);
+  return { blocked: sent >= g.max_per_customer_per_window, purpose: t.purpose, sent, max: g.max_per_customer_per_window, window_days: g.window_days };
+}
+
+export async function checkFrequencyGuardrail(customerId: string, templateId: string | undefined, ctx: Ctx, overrideReason?: string): Promise<void> {
+  const status = await getGuardrailStatus(customerId, templateId, ctx);
+  if (!status.blocked) return;
   if (overrideReason?.trim()) {
     requireRole(ctx, ["CRM", "MANAGEMENT", "SUPER_ADMIN"]);
     return;
   }
-  throw new AppError("conflict", `frequency guardrail: already sent ${count?.n} of ${g.max_per_customer_per_window} allowed in the last ${g.window_days} days for ${t.purpose}`);
+  throw new AppError("conflict", `frequency guardrail: already sent ${status.sent} of ${status.max} allowed in the last ${status.window_days} days for ${status.purpose}`);
 }
 
 /** POST /communications/:id/publish-to-portal — rule 2: only CRM (+ MANAGEMENT/SUPER_ADMIN) may

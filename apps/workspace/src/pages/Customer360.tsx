@@ -18,6 +18,8 @@ import { Booking360 } from "./booking/Booking360";
 import { JourneyTimeline } from "./journey/JourneyTimeline";
 import { CommitmentsSection } from "./commitments/CommitmentsSection";
 import { kycStatusLabel, bookingStatusLabel } from "../lib/labels";
+import { CommunicationsPanel } from "./communications/CommunicationsPanel";
+import { InternalNotesPanel } from "./communications/InternalNotesPanel";
 
 const COMMITMENT_WRITE_ROLES = new Set(["CRM", "SUPER_ADMIN"]);
 
@@ -117,6 +119,7 @@ export function Customer360({ customerId, onBack, roles }: { customerId: string;
                 <TabsTrigger value="profile" className="shrink-0 whitespace-nowrap">Profile</TabsTrigger>
                 <TabsTrigger value="requests" className="shrink-0 whitespace-nowrap">Change requests</TabsTrigger>
                 <TabsTrigger value="health" className="shrink-0 whitespace-nowrap">Health</TabsTrigger>
+                <TabsTrigger value="notes" className="shrink-0 whitespace-nowrap">Notes</TabsTrigger>
                 {view.tabs
                   .filter((t) => t.key !== "requests")
                   .map((t) => (
@@ -170,11 +173,21 @@ export function Customer360({ customerId, onBack, roles }: { customerId: string;
               </div>
             </TabsContent>
 
+            <TabsContent value="notes">
+              <InternalNotesPanel entityType="customer" entityId={customerId} />
+            </TabsContent>
+
             {view.tabs
               .filter((t) => t.key !== "requests")
               .map((t) => (
                 <TabsContent key={t.key} value={t.key}>
-                  {t.key === "activity" ? <ActivityFeed entityType="customer" entityId={customerId} /> : <TabPanel entry={t} />}
+                  {t.key === "activity" ? (
+                    <ActivityFeed entityType="customer" entityId={customerId} />
+                  ) : t.key === "communications" ? (
+                    <CommunicationsPanel customerId={customerId} bookingId={view.bookings[0]?.id ?? null} customerEmail={view.primary_email} roles={roles} />
+                  ) : (
+                    <TabPanel entry={t} />
+                  )}
                 </TabsContent>
               ))}
           </Tabs>

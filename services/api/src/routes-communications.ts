@@ -2,9 +2,9 @@ import type { Express } from "express";
 import type { AuthedRequest } from "./auth/middleware";
 import { failHttp } from "./authz/httpError";
 import { AppError } from "./authz/types";
-import { logCommunication, sendCommunicationEmail, publishCommunicationToPortal, listCustomerCommunications } from "./communications/core";
+import { logCommunication, sendCommunicationEmail, publishCommunicationToPortal, listCustomerCommunications, getGuardrailStatus } from "./communications/core";
 import {
-  createCommunicationTemplate, submitTemplateForLegalReview, approveCommunicationTemplate, listCommunicationTemplates,
+  createCommunicationTemplate, submitTemplateForLegalReview, approveCommunicationTemplate, listCommunicationTemplates, previewCommunicationTemplate,
 } from "./communications/templates";
 import { createInternalNote, listInternalNotes } from "./communications/notes";
 
@@ -29,6 +29,20 @@ export function registerCommunicationsRoutes(app: Express): void {
 
   app.post("/api/communications/:id/publish-to-portal", async (req: AuthedRequest, res) => {
     try { res.json({ data: await publishCommunicationToPortal(req.params.id, ctx(req)) }); } catch (e) { failHttp(res, e); }
+  });
+
+  // Send-email flow's own pre-flight checks (rule 4's "blocked with the last-sent facts" UX and
+  // rule 3's "preview before send") — both call existing pure functions, no new domain logic.
+  app.get("/api/communications/guardrail-status", async (req: AuthedRequest, res) => {
+    try {
+      const { customer_id, template_id } = req.query as { customer_id?: string; template_id?: string };
+      if (!customer_id) throw new AppError("validation", "customer_id is required");
+      res.json({ data: await getGuardrailStatus(customer_id, template_id, ctx(req)) });
+    } catch (e) { failHttp(res, e); }
+  });
+
+  app.post("/api/communication-templates/:id/preview", async (req: AuthedRequest, res) => {
+    try { res.json({ data: await previewCommunicationTemplate(req.params.id, req.body?.booking_id ?? null) }); } catch (e) { failHttp(res, e); }
   });
 
   app.get("/api/communication-templates", async (req: AuthedRequest, res) => {

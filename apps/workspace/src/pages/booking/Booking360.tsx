@@ -16,6 +16,8 @@ import { CommitmentsSection } from "../commitments/CommitmentsSection";
 import { HandoverPacketDrawer } from "../sales-handover/HandoverPacketDrawer";
 import { CaseDrawer as RegistrationCaseDrawer } from "../registration/CaseDrawer";
 import { HandoverCaseDrawer } from "../handover/HandoverCaseDrawer";
+import { CommunicationsPanel } from "../communications/CommunicationsPanel";
+import { InternalNotesPanel } from "../communications/InternalNotesPanel";
 
 const COMMITMENT_WRITE_ROLES = new Set(["CRM", "SUPER_ADMIN"]);
 
@@ -153,6 +155,7 @@ export function Booking360({
                     <TabBadge entry={t} />
                   </TabsTrigger>
                 ))}
+                <TabsTrigger value="notes" className="shrink-0 whitespace-nowrap">Notes</TabsTrigger>
               </TabsList>
             </div>
 
@@ -160,9 +163,15 @@ export function Booking360({
               <TabsContent key={t.key} value={t.key}>
                 {t.key === "activity" && <ActivityFeed entityType="booking" entityId={bookingId} />}
                 {t.key === "commitments" && <CommitmentsSection bookingId={bookingId} canWrite={canWriteCommitments} />}
-                {t.key !== "activity" && t.key !== "commitments" && <TabPanel entry={t} />}
+                {t.key === "communications" && view.customer && (
+                  <CommunicationsPanel customerId={view.customer.id} bookingId={bookingId} roles={roles} />
+                )}
+                {t.key !== "activity" && t.key !== "commitments" && t.key !== "communications" && <TabPanel entry={t} />}
               </TabsContent>
             ))}
+            <TabsContent value="notes">
+              <InternalNotesPanel entityType="booking" entityId={bookingId} />
+            </TabsContent>
           </Tabs>
 
           <HandoverPacketDrawer bookingId={openingHandoverPacket ? bookingId : null} onClose={() => setOpeningHandoverPacket(false)} onChanged={load} />

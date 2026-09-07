@@ -107,6 +107,20 @@ export async function resolveCommunicationTemplate(input: { purpose: TemplatePur
   return r.rows[0] ?? null;
 }
 
+/** Send-email flow's own preview step (Screens: "template picker + preview"). No booking yet
+ *  (customer picked but not a specific booking) just surfaces the raw `{{code}}` slots as
+ *  unresolved rather than guessing a context — same "flag, don't fake" call as the rest of this file. */
+export async function previewCommunicationTemplate(templateId: string, bookingId?: string | null): Promise<{ subject: string; body: string; unresolved: string[] }> {
+  const t = await loadCommunicationTemplate(templateId);
+  if (!bookingId) {
+    const codes = [...new Set([...((t.subject ?? "") + " " + t.body).matchAll(/\{\{([a-zA-Z0-9_.\[\]]+)\}\}/g)].map((m) => m[1]!))];
+    return { subject: t.subject ?? "", body: t.body, unresolved: codes };
+  }
+  const subject = await renderTemplateBody(t.subject ?? "", bookingId);
+  const body = await renderTemplateBody(t.body, bookingId);
+  return { subject: subject.text, body: body.text, unresolved: [...new Set([...subject.unresolved, ...body.unresolved])] };
+}
+
 /** Rule 3's "merge fields resolve from 22 definitions; preview before send" — a plain `{{code}}`
  *  substitution against a booking's live context, no clause/PDF machinery. Returns the codes that
  *  had no matching `merge_field_definition` row (left as literal `{{code}}` in the output) so a

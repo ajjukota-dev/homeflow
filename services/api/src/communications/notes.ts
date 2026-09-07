@@ -13,12 +13,14 @@ import { createNotification } from "../notifications/core";
 // (12-escalations-notifications.md's own header already flagged "@mention has no comment/mention
 // system anywhere in this codebase" — this is that mechanism's first real build).
 
-export interface InternalNoteRow { id: string; entity_type: string; entity_id: string; body: string; author_user_id: string; mentions: string[]; created_at: string }
-const SELECT = `SELECT id, entity_type, entity_id, body, author_user_id, mentions, created_at::text AS created_at FROM internal_note`;
+export interface InternalNoteRow { id: string; entity_type: string; entity_id: string; body: string; author_user_id: string; author_name: string; mentions: string[]; created_at: string }
+// Joined to display_name, not the raw id — same fix as 27's exceptions.ts (granted_by/requested_by).
+const SELECT = `SELECT n.id, n.entity_type, n.entity_id, n.body, n.author_user_id, u.display_name AS author_name, n.mentions, n.created_at::text AS created_at
+  FROM internal_note n LEFT JOIN "user" u ON u.id = n.author_user_id`;
 
 export async function listInternalNotes(entityType: string, entityId: string, ctx: Ctx): Promise<InternalNoteRow[]> {
   requireRole(ctx, STAFF_ROLES);
-  const r = await db.query<InternalNoteRow>(`${SELECT} WHERE entity_type = $1 AND entity_id = $2 ORDER BY created_at DESC`, [entityType, entityId]);
+  const r = await db.query<InternalNoteRow>(`${SELECT} WHERE n.entity_type = $1 AND n.entity_id = $2 ORDER BY n.created_at DESC`, [entityType, entityId]);
   return r.rows;
 }
 
@@ -43,6 +45,6 @@ export async function createInternalNote(input: { entity_type: string; entity_id
     }
   });
 
-  const r = await db.query<InternalNoteRow>(`${SELECT} WHERE id = $1`, [id]);
+  const r = await db.query<InternalNoteRow>(`${SELECT} WHERE n.id = $1`, [id]);
   return r.rows[0]!;
 }
