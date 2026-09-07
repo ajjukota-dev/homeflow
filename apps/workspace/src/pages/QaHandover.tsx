@@ -1,25 +1,30 @@
 import { useCallback, useEffect, useState } from "react";
 import { ClipboardCheck } from "lucide-react";
 import { api } from "../api";
-import type { HandoverRow, ReadinessRow } from "../api-lifecycle";
+import type { ReadinessRow } from "../api-lifecycle";
 import { Card, CardBody, Button } from "@homeflow/ui";
 import { ScoreDial } from "../ui/ScoreDial";
 import { cn } from "../lib/utils";
 import { gateRunStateLabel, gateTypeLabel, snagSeverityLabel } from "../lib/labels";
+import { handoverApi, type HandoverView } from "./handover/api";
+import { HandoverCaseDrawer } from "./handover/HandoverCaseDrawer";
 
-/** QA evidence + handover eligibility (qa/spec.md §3.1). */
-export function QaHandover({ projectId }: { projectId: string }) {
+/** QA evidence (qa/spec.md §3.1) + handover gates (16-handover-gates.md — stateful case machine,
+ *  replacing this page's own legacy inline handover-gates half: pipeline summary here, full case
+ *  work (override, appointment, checklist, signatures, complete/close) in HandoverCaseDrawer. */
+export function QaHandover({ projectId, roles }: { projectId: string; roles: string[] }) {
   const [units, setUnits] = useState<ReadinessRow[]>([]);
-  const [handovers, setHandovers] = useState<HandoverRow[]>([]);
+  const [handovers, setHandovers] = useState<HandoverView[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [openBookingId, setOpenBookingId] = useState<string | null>(null);
 
   const load = useCallback(() => {
     if (!projectId) return;
     setLoading(true);
-    Promise.all([api.readiness(projectId), api.handover(projectId)])
+    Promise.all([api.readiness(projectId), handoverApi.pipeline(projectId)])
       .then(([u, h]) => {
         setUnits(u);
         setHandovers(h);
@@ -130,54 +135,60 @@ export function QaHandover({ projectId }: { projectId: string }) {
 
       <h2 className="mb-3 mt-8 text-title3 font-semibold">Handover gates</h2>
       <div className="flex flex-col gap-3">
-        {handovers.map((h) => (
-          <Card key={h.booking_id}>
-            <CardBody>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-                <div className="flex-1">
-                  <div className="text-headline font-semibold">
-                    {h.customer_name} · Villa {h.unit_number}
-                  </div>
-                  <p className="mt-1 text-footnote text-fg-muted">
-                    {h.lifecycle === "completed" ? "Keys issued" : h.eligible ? "Eligible for keys" : "Not eligible yet"}
-                  </p>
-                  <ul className="mt-3 flex flex-wrap gap-1.5">
-                    {h.gates
-                      .filter((g) => g.classification === "hard")
-                      .map((g) => (
-                        <li
-                          key={g.type}
-                          className={cn(
-                            "rounded-full px-2.5 py-1 text-caption font-medium",
-                            g.state === "passed" ? "bg-ontrack/10 text-ontrack" : "bg-surface-2 text-fg-muted"
-                          )}
-                        >
-                          {gateTypeLabel(g.type)} · {gateRunStateLabel(g.state)}
-                        </li>
-                      ))}
-                  </ul>
-                  {h.blockers.length > 0 && h.lifecycle !== "completed" && (
-                    <ul className="mt-2 list-disc pl-5 text-footnote text-fg-muted">
-                      {h.blockers.slice(0, 3).map((b) => (
-                        <li key={b.gate + b.reason}>{b.reason}</li>
-                      ))}
+        {handovers.map((h) => {
+          const keysIssued = h.case.status === "COMPLETED" || h.case.status === "CLOSED";
+          return (
+            <Card key={h.case.booking_id}>
+              <CardBody>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+                  <div className="flex-1">
+                    <div className="text-headline font-semibold">
+                      {h.customer_name} · Villa {h.unit_number}
+                    </div>
+                    <p className="mt-1 text-footnote text-fg-muted">
+                      {keysIssued ? "Keys issued" : h.eligible ? "Eligible for keys" : "Not eligible yet"}
+                    </p>
+                    <ul className="mt-3 flex flex-wrap gap-1.5">
+                      {h.gates
+                        .filter((g) => g.classification === "hard")
+                        .map((g) => (
+                          <li
+                            key={g.type}
+                            className={cn(
+                              "rounded-full px-2.5 py-1 text-caption font-medium",
+                              g.state === "passed" ? "bg-ontrack/10 text-ontrack" : "bg-surface-2 text-fg-muted"
+                            )}
+                          >
+                            {gateTypeLabel(g.type)} · {gateRunStateLabel(g.state)}
+                          </li>
+                        ))}
                     </ul>
-                  )}
-                </div>
-                {h.lifecycle !== "completed" && (
-                  <Button
-                    size="sm"
-                    onClick={() => run(h.booking_id, () => api.completeHandover(h.booking_id))}
-                    disabled={!h.eligible || busy === h.booking_id}
-                  >
-                    Complete handover
+                    {h.blockers.length > 0 && !keysIssued && (
+                      <ul className="mt-2 list-disc pl-5 text-footnote text-fg-muted">
+                        {h.blockers.slice(0, 3).map((b) => (
+                          <li key={b.gate + b.reason}>{b.reason}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  <Button size="sm" variant="secondary" onClick={() => setOpenBookingId(h.case.booking_id)}>
+                    Open case
                   </Button>
-                )}
-              </div>
-            </CardBody>
-          </Card>
-        ))}
+                </div>
+              </CardBody>
+            </Card>
+          );
+        })}
       </div>
+
+      <HandoverCaseDrawer
+        bookingId={openBookingId}
+        roles={roles}
+        onClose={() => {
+          setOpenBookingId(null);
+          load();
+        }}
+      />
     </div>
   );
 }

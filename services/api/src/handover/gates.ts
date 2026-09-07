@@ -13,6 +13,8 @@ export interface EvaluatedGate extends HandoverGateView {
 
 export interface CaseView {
   case: HoCaseRow;
+  unit_number: string;
+  customer_name: string | null;
   gates: EvaluatedGate[];
   eligible: boolean;
   lifecycle: string;
@@ -82,7 +84,12 @@ export async function evaluateCase(bookingId: string, tx: DbLike = db): Promise<
     await tx.query(`UPDATE handover_record SET predicted_date = $1, predicted_confidence = $2 WHERE id = $3`, [predicted_date, predicted_confidence, hoCase.id]);
   }
 
-  return { case: { ...hoCase, predicted_date, predicted_confidence }, gates, eligible, lifecycle, blockers, input };
+  return {
+    case: { ...hoCase, predicted_date, predicted_confidence },
+    unit_number: built.unitNumber,
+    customer_name: built.customerName,
+    gates, eligible, lifecycle, blockers, input,
+  };
 }
 
 function addDays(d: Date, n: number): Date {

@@ -94,11 +94,16 @@ export async function evaluateAndLog(bookingId: string, ctx: Ctx): Promise<Hando
   return view;
 }
 
+/** Every active booking in the project, not just ones a case row already exists for —
+ *  `getHandoverCase` -> `evaluateCase` -> `loadOrCreateCase` lazily creates the row on first
+ *  touch, same as the legacy `qa.ts::projectHandover` this replaces, which iterated all active
+ *  bookings rather than pre-existing `handover_record` rows. Found live: querying
+ *  `handover_record` directly silently dropped every villa nobody had opened a case for yet. */
 export async function listHandoverPipeline(projectId: string, ctx: Ctx): Promise<HandoverView[]> {
   requireRole(ctx, STAFF_ROLES);
-  const rows = await db.query<{ booking_id: string }>(`SELECT booking_id FROM handover_record WHERE project_id = $1 ORDER BY created_at`, [projectId]);
+  const rows = await db.query<{ id: string }>(`SELECT id FROM booking WHERE project_id = $1 AND status = 'active' ORDER BY created_at`, [projectId]);
   const out: HandoverView[] = [];
-  for (const r of rows.rows) out.push(await getHandoverCase(r.booking_id, ctx));
+  for (const r of rows.rows) out.push(await getHandoverCase(r.id, ctx));
   return out;
 }
 

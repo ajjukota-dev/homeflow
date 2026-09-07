@@ -153,8 +153,59 @@ test("QA handover completes keys for an eligible villa", async ({ page }) => {
   await expect.poll(() => page.getByText(/^Commitments · (Open|Passed)$/).count()).toBeGreaterThanOrEqual(5);
   await expect(page.getByText("Eligible for keys").first()).toBeVisible();
 
-  const complete = page.locator("button:enabled", { hasText: "Complete handover" });
-  if ((await complete.count()) > 0) await complete.click();
+  // Villa V112 is seeded with every hard gate already passing but no handover_record yet — the
+  // one villa that reaches "Eligible for keys" on a fresh DB without an override. Completion now
+  // requires the full case-machine flow (16-handover-gates.md rule 5: keys handed over + both
+  // signatures), not the old one-click pipeline-row shortcut, so this drives that flow for real
+  // instead of faking through it.
+  const openCase = page
+    .locator("main")
+    .getByText("Ananya Rao · Villa V112", { exact: true })
+    .last()
+    .locator("xpath=ancestor::div[contains(@class,'rounded-card')][1]")
+    .getByRole("button", { name: "Open case" });
+  await openCase.click();
+
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByText("Eligible for keys")).toBeVisible();
+
+  // Appointment (rule 4): propose two slots, then confirm one — done here, in the same test that
+  // owns V112 for the whole run, rather than a separate spec file racing this one for the booking.
+  if (await dialog.getByRole("button", { name: "Propose slots" }).count()) {
+    await dialog.getByLabel("First proposed slot").fill("2026-10-01T10:00");
+    await dialog.getByLabel("Second proposed slot").fill("2026-10-02T11:00");
+    await dialog.getByRole("button", { name: "Propose slots" }).click();
+    await expect(dialog.getByText("Proposed slots — confirm one:")).toBeVisible();
+    await dialog.getByRole("button", { name: /2026/ }).first().click();
+  }
+  await expect(dialog.getByText(/^Confirmed for /)).toBeVisible();
+
+  // A plain .check() fails here: the checkbox disables itself the instant it's clicked (an
+  // optimistic busy indicator while updateChecklist's round trip is in flight), which Playwright's
+  // actionability check reads as "can't retry a disabled element" and gives up fast. Click, then
+  // let a polling assertion wait out the round trip instead.
+  const keysCheckbox = dialog.getByRole("checkbox", { name: "All Handed Over" });
+  await keysCheckbox.click();
+  await expect(keysCheckbox).toBeChecked();
+  for (const who of ["Customer", "Company"]) {
+    const pad = dialog.getByRole("img", { name: new RegExp(`^${who} signature signature pad`) });
+    const box = (await pad.boundingBox())!;
+    // A same-point dragTo() can produce zero intermediate pointermove events (the canvas only
+    // marks itself non-empty on a move while drawing), so draw a real stroke with distinct
+    // start/end coordinates instead.
+    await page.mouse.move(box.x + 20, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width - 20, box.y + box.height / 2, { steps: 5 });
+    await page.mouse.up();
+    // Scope to this pad's own button row (its next sibling), not "Save signature" globally —
+    // both signature panes render one each, and only one becomes enabled per iteration.
+    await pad.locator("xpath=following-sibling::div[1]").getByRole("button", { name: "Save signature" }).click();
+  }
+
+  await dialog.getByRole("button", { name: "Complete handover" }).click();
+  await expect(dialog.getByText("Keys issued")).toBeVisible();
+  await dialog.getByRole("button", { name: "Close", exact: true }).click();
+
   await expect(page.getByText("Keys issued").first()).toBeVisible();
 });
 

@@ -44,6 +44,7 @@ Depends on 13, 14, 15, 19, 22, 23, 04, 10. Feeds 26, 27, 30.
 
 ## Files
 `services/api/src/handover/**` (replace `handover.ts`, `handover.test.ts`), `services/api/migrations/0014_handover.sql`, `services/api/src/seed/handover-gates.ts`, `apps/workspace/src/pages/handover/**` (replace `QaHandover.tsx` handover half), `apps/workspace/src/components/SignaturePad.tsx`.
+UI slice also touched: `apps/workspace/src/pages/handover/HandoverCaseDrawer.tsx`, `apps/workspace/src/pages/handover/api.ts`, `apps/workspace/src/pages/QaHandover.tsx`, `apps/workspace/src/Workspace.tsx`, `apps/workspace/src/api-lifecycle.ts` (dead legacy exports removed), `apps/workspace/e2e/visual.spec.ts`, `apps/workspace/e2e/handover-gates.spec.ts` (new).
 
 ## Not in this feature
 Post-handover cases (30), FM onboarding content (30), readiness math (14).
@@ -108,3 +109,51 @@ appointment); `handover.scheduled`/`handover.completed` are Appendix B's own can
 (l) `handover_gate_run` now persists only on a `(state, override_id)` change per gate, not on
 every read — otherwise every GET/pipeline row would write 8 identical rows, burying rule 7's
 "history visible" in noise (same precedent as 23's `refresh()`).
+
+## Build note (2026-09-07, UI)
+Built the QA/Handover role's screens on top of the (b)-through-(l) backend above: the pipeline
+table, a full case drawer (8 gate cards, override dialog, appointment scheduler, digital checklist,
+a real canvas `SignaturePad`, and complete/close with the actual blocking reasons listed), replacing
+the pre-existing `QaHandover.tsx`'s legacy inline handover-gates half in place.
+
+(m) **Two real bugs caught before landing, both by reading the backend against what the UI needed
+before writing UI code** (this build's now-established discipline, having already caught the same
+class of raw-id leak 4 times across specs 20/27/18): `evaluateCase`'s `CaseView` computed
+`unit_number`/`customer_name` internally via `buildHandoverInput` but discarded them before
+returning — added both fields rather than have the UI show raw ids. Separately, `listHandoverPipeline`
+queried `handover_record` directly, silently excluding any villa the stateful case machine hadn't
+lazily touched yet (only 2 of 6 seeded villas showed up) — found live via Playwright MCP, not by
+reading the code; fixed to source from all active bookings and lazily create case rows via
+`loadOrCreateCase`, matching the legacy `qa.ts::projectHandover`'s own behaviour.
+(n) **The old "Complete handover" pipeline-row shortcut is gone.** It bypassed rule 5's real
+requirements (checklist `keys.all_handed_over` + both signatures) by calling the legacy
+`completeHandover` directly. "Open case" now opens the full drawer, and completion only happens
+from there once every precondition is genuinely met — the two pre-existing `visual.spec.ts` tests
+that used the old shortcut were rewritten to drive the real flow instead of preserving the shortcut.
+(o) **No file-upload port exists anywhere in this codebase** (same gap `CommitmentDrawer.tsx`'s own
+comment already flags for evidence files) — `SignaturePad`'s captured PNG `data:` URL stands in for
+a `*_signature_file_id`, and the override dialog's "Evidence reference(s)" field is honest freeform
+text, not a fake upload control. Flagged in both components' own comments.
+(p) **Scope cut: no Booking 360 tab.** No Booking 360 page exists yet in this codebase (same finding
+spec 18's UI slice made) — nothing to add a Handover tab to.
+(q) **Scope cut: no separate Management pipeline/override-log screen.** `ControlTower.tsx`'s
+existing Exceptions tab already surfaces `HANDOVER_OVERRIDE` entries from the shared audit log
+(`management-views.spec.ts`'s own passing test covers it); a second, duplicate override-log UI
+wasn't built.
+(r) **Scope cut: no Portal (26) screens.** Portal 26 is itself unbuilt in this codebase; appointment
+confirmation, checklist summary, and the possession letter are customer-facing pages that belong to
+that spec's own build, not this one's UI slice.
+(s) **e2e coverage lives in two files.** `visual.spec.ts`'s pre-existing "QA handover completes keys
+for an eligible villa" test now drives V112 (the one villa seeded fully eligible on a fresh DB) all
+the way through propose→confirm appointment→checklist→both signatures→complete. New
+`handover-gates.spec.ts` covers the pipeline view and two override permutations (approval-required
+on Financial, evidence-required on Quality) against V110, which can never reach eligibility (Physical
+is blocked by real readiness/utilities and isn't overridable) — deliberately chosen so nothing here
+races another spec file into completing a shared booking. A third variant (override Commitments on
+V113 to reach eligibility, chasing the full propose→confirm→complete→close chain) was tried and
+dropped: `commitments.spec.ts`'s own gate-integration test opens a real commitment against
+`handovers[0]` — whichever booking the pipeline happens to return first, not pinned to a villa — so
+V113 isn't a stable fixture for a second file to also drive toward eligibility. "Close case" (rule 6)
+is exercised only by live Playwright MCP verification, not an automated e2e test, for the same
+reason plus rule 6's own already-flagged incompleteness (n above's sibling, (g) above) — a
+proportionate cut given the core pipeline + case view is the real deliverable here.

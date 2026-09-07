@@ -107,7 +107,7 @@ export function Workspace({ me, onLogout }: { me: NonNullable<ReturnType<typeof 
     crm: <CrmQueue roles={roles} projectId={projectId} />,
     accounts: <Collections projectId={projectId} />,
     legal: <LegalFactory projectId={projectId} />,
-    qa: <QaHandover projectId={projectId} />,
+    qa: <QaHandover projectId={projectId} roles={roles} />,
     after: <PostHandover projectId={projectId} />,
     tower: <ControlTower projectId={projectId} roles={roles} onOpenProject={setProjectId} />,
     roadmap: <Roadmap />,

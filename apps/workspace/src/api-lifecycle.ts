@@ -47,25 +47,6 @@ export interface ReadinessRow {
   snags: SnagRow[];
 }
 
-export interface HandoverGateView {
-  type: string;
-  classification: string;
-  state: string;
-  blockers: string[];
-}
-
-export interface HandoverRow {
-  booking_id: string;
-  unit_id: string;
-  unit_number: string;
-  customer_name: string;
-  eligible: boolean;
-  lifecycle: string;
-  gates: HandoverGateView[];
-  blockers: { gate: string; reason: string }[];
-  readiness: { value: number; drivers: string[] };
-}
-
 export interface WarrantyView {
   windows: {
     id: string;
@@ -162,8 +143,6 @@ export const lifecycleApi = {
     mutate(`/api/units/${unitId}/qa/${component}/verify`, { evidence_note: "Checklist and photo signed off" }),
   closeSnag: (id: string) =>
     mutate(`/api/snags/${id}/close`, { before_note: "Defect photographed before work", after_note: "Rectified and re-photographed" }),
-  handover: (projectId: string) => fetch(`/api/projects/${projectId}/handover`).then((r) => json<HandoverRow[]>(r)),
-  completeHandover: (bookingId: string) => mutate(`/api/bookings/${bookingId}/handover/complete`),
   warranty: (projectId: string) => fetch(`/api/projects/${projectId}/warranty`).then((r) => json<WarrantyView>(r)),
   serviceHistory: (unitId: string) => fetch(`/api/units/${unitId}/service-history`).then((r) => json<ServiceEvent[]>(r)),
   closeWarranty: (id: string) => mutate(`/api/warranty-cases/${id}/close`),
