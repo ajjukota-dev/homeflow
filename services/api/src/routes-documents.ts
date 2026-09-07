@@ -5,8 +5,8 @@ import { listTemplates, createTemplate, updateTemplate, submitTemplateForReview,
 import { listClauses, createClause, updateClause, approveClause, listSelectionRules, putSelectionRules } from "./documents/clauses";
 import { computeReadiness } from "./documents/readiness";
 import { generateDocument } from "./documents/generate";
-import { loadDocument } from "./documents/store";
-import { submitForReview, decideStage, sendForCustomerReview, approveForExecution, recordExecution, archiveDocument } from "./documents/workflow";
+import { loadDocument, listDocuments, listBookingsForDocuments, withLabels } from "./documents/store";
+import { submitForReview, decideStage, sendForCustomerReview, approveForExecution, recordExecution, archiveDocument, listApprovals } from "./documents/workflow";
 import { listDeviations, raiseDeviation, approveDeviation, rejectDeviation } from "./documents/deviations";
 import { listChecklist, requestDocument, uploadDocument, validateDocument, acceptDocument, rejectDocument, markNotApplicable, listChecklistRules, putChecklistRules } from "./documents/checklist";
 
@@ -61,37 +61,61 @@ export function registerDocumentRoutes(app: Express): void {
   });
 
   // --- Documents ---
+  app.get("/api/documents", async (req: AuthedRequest, res) => {
+    try {
+      res.json({
+        data: await listDocuments(
+          { project_id: req.query.project_id as string | undefined, booking_id: req.query.booking_id as string | undefined, status: req.query.status as string | undefined, family_code: req.query.family_code as string | undefined },
+          ctx(req)
+        ),
+      });
+    } catch (e) { failHttp(res, e); }
+  });
+  app.get("/api/documents/bookings", async (req: AuthedRequest, res) => {
+    try { res.json({ data: await listBookingsForDocuments(req.query.project_id as string | undefined, ctx(req)) }); } catch (e) { failHttp(res, e); }
+  });
   app.get("/api/bookings/:id/documents/readiness", async (req: AuthedRequest, res) => {
     try { res.json({ data: await computeReadiness(req.params.id, req.query.family as string) }); } catch (e) { failHttp(res, e); }
   });
-  app.post("/api/bookings/:id/documents/generate", async (req: AuthedRequest, res) => {
+  // Same URL as routes-lifecycle.ts's legacy legal-docs.ts::generateDocument (spec 22's own API
+  // list names this exact path). The two systems partition by request shape, not path: the legacy
+  // caller (api-lifecycle.ts) always sends `document_family`, never `family` — so an absent
+  // `family` falls through via next() to the legacy handler, which server.ts registers after this one.
+  app.post("/api/bookings/:id/documents/generate", async (req: AuthedRequest, res, next) => {
+    if (!req.body?.family) return next();
     try {
-      res.json({ data: await generateDocument(req.params.id, req.body?.family, { template_id: req.body?.template_version_id, clause_params: req.body?.clause_params }, ctx(req)) });
+      res.json({ data: await withLabels(await generateDocument(req.params.id, req.body?.family, { template_id: req.body?.template_version_id, clause_params: req.body?.clause_params }, ctx(req))) });
     } catch (e) { failHttp(res, e); }
   });
   app.get("/api/documents/:id", async (req: AuthedRequest, res) => {
-    try { res.json({ data: await loadDocument(req.params.id) }); } catch (e) { failHttp(res, e); }
+    try { res.json({ data: await withLabels(await loadDocument(req.params.id)) }); } catch (e) { failHttp(res, e); }
   });
   app.post("/api/documents/:id/submit-review", async (req: AuthedRequest, res) => {
-    try { res.json({ data: await submitForReview(req.params.id, ctx(req)) }); } catch (e) { failHttp(res, e); }
+    try { res.json({ data: await withLabels(await submitForReview(req.params.id, ctx(req))) }); } catch (e) { failHttp(res, e); }
   });
-  app.post("/api/documents/:id/approve", async (req: AuthedRequest, res) => {
-    try { res.json({ data: await decideStage(req.params.id, req.body?.stage, "APPROVED", req.body?.note ?? null, ctx(req)) }); } catch (e) { failHttp(res, e); }
+  // Same collision as generate above: legacy legal-docs.ts::approveDocument also answers
+  // POST /api/documents/:id/approve, with no `stage` in its body — that's the fall-through signal.
+  app.post("/api/documents/:id/approve", async (req: AuthedRequest, res, next) => {
+    if (!req.body?.stage) return next();
+    try { res.json({ data: await withLabels(await decideStage(req.params.id, req.body?.stage, "APPROVED", req.body?.note ?? null, ctx(req))) }); } catch (e) { failHttp(res, e); }
   });
   app.post("/api/documents/:id/reject", async (req: AuthedRequest, res) => {
-    try { res.json({ data: await decideStage(req.params.id, req.body?.stage, "REJECTED", req.body?.note ?? null, ctx(req)) }); } catch (e) { failHttp(res, e); }
+    try { res.json({ data: await withLabels(await decideStage(req.params.id, req.body?.stage, "REJECTED", req.body?.note ?? null, ctx(req))) }); } catch (e) { failHttp(res, e); }
   });
   app.post("/api/documents/:id/send-customer-review", async (req: AuthedRequest, res) => {
-    try { res.json({ data: await sendForCustomerReview(req.params.id, ctx(req)) }); } catch (e) { failHttp(res, e); }
+    try { res.json({ data: await withLabels(await sendForCustomerReview(req.params.id, ctx(req))) }); } catch (e) { failHttp(res, e); }
   });
   app.post("/api/documents/:id/approve-for-execution", async (req: AuthedRequest, res) => {
-    try { res.json({ data: await approveForExecution(req.params.id, ctx(req)) }); } catch (e) { failHttp(res, e); }
+    try { res.json({ data: await withLabels(await approveForExecution(req.params.id, ctx(req))) }); } catch (e) { failHttp(res, e); }
   });
   app.post("/api/documents/:id/record-execution", async (req: AuthedRequest, res) => {
-    try { res.json({ data: await recordExecution(req.params.id, req.body ?? {}, ctx(req)) }); } catch (e) { failHttp(res, e); }
+    try { res.json({ data: await withLabels(await recordExecution(req.params.id, req.body ?? {}, ctx(req))) }); } catch (e) { failHttp(res, e); }
   });
   app.post("/api/documents/:id/archive", async (req: AuthedRequest, res) => {
-    try { res.json({ data: await archiveDocument(req.params.id, ctx(req)) }); } catch (e) { failHttp(res, e); }
+    try { res.json({ data: await withLabels(await archiveDocument(req.params.id, ctx(req))) }); } catch (e) { failHttp(res, e); }
+  });
+  app.get("/api/documents/:id/approvals", async (req: AuthedRequest, res) => {
+    try { res.json({ data: await listApprovals(req.params.id, ctx(req)) }); } catch (e) { failHttp(res, e); }
   });
   app.get("/api/documents/:id/deviations", async (req: AuthedRequest, res) => {
     try { res.json({ data: await listDeviations(req.params.id, ctx(req)) }); } catch (e) { failHttp(res, e); }

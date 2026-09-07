@@ -7,7 +7,7 @@ import { SalesInventory } from "./pages/SalesInventory";
 import { CrmQueue } from "./pages/CrmQueue";
 import { BookingWizard } from "./pages/BookingWizard";
 import { Collections } from "./pages/Collections";
-import { LegalFactory } from "./pages/LegalFactory";
+import { LegalWorkspace } from "./pages/LegalWorkspace";
 import { QaHandover } from "./pages/QaHandover";
 import { PostHandover } from "./pages/PostHandover";
 import { ControlTower } from "./pages/ControlTower";
@@ -106,7 +106,7 @@ export function Workspace({ me, onLogout }: { me: NonNullable<ReturnType<typeof 
     sales: <SalesInventory projectId={projectId} onBook={setBookingUnit} />,
     crm: <CrmQueue roles={roles} projectId={projectId} />,
     accounts: <Collections projectId={projectId} />,
-    legal: <LegalFactory projectId={projectId} />,
+    legal: <LegalWorkspace projectId={projectId} roles={roles} />,
     qa: <QaHandover projectId={projectId} roles={roles} />,
     after: <PostHandover projectId={projectId} />,
     tower: <ControlTower projectId={projectId} roles={roles} onOpenProject={setProjectId} />,

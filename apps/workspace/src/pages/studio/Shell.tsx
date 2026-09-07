@@ -10,6 +10,11 @@ import { SlaPolicyStudio } from "./SlaPolicyStudio";
 import { PaymentPlanStudio } from "./PaymentPlanStudio";
 import { CustomisationApprovalMatrixStudio } from "./CustomisationApprovalMatrixStudio";
 import { CustomisationPolicyStudio } from "./CustomisationPolicyStudio";
+import { DocumentTemplatesStudio } from "./DocumentTemplatesStudio";
+import { DocumentClausesStudio } from "./DocumentClausesStudio";
+import { DocumentSelectionRulesStudio } from "./DocumentSelectionRulesStudio";
+import { MergeFieldsStudio } from "./MergeFieldsStudio";
+import { DocumentChecklistRulesStudio } from "./DocumentChecklistRulesStudio";
 
 // Tabs with their own bespoke screen (not the generic /studio/:table envelope) — same "flag,
 // don't fake" spirit as GENERIC_TABLES, but for tabs whose edit surface isn't a plain table.
@@ -21,6 +26,11 @@ const BESPOKE_TABS: Record<string, (canEdit: boolean) => ReactNode> = {
   // only this frontend editor was missing, same "not built" EmptyState gap as before this fix.
   "18.cr_approval_rule": (canEdit) => <CustomisationApprovalMatrixStudio canEdit={canEdit} />,
   "18.customisation_policy": (canEdit) => <CustomisationPolicyStudio canEdit={canEdit} />,
+  "22.templates": (canEdit) => <DocumentTemplatesStudio canEdit={canEdit} />,
+  "22.clauses": (canEdit) => <DocumentClausesStudio canEdit={canEdit} />,
+  "22.selection_rules": (canEdit) => <DocumentSelectionRulesStudio canEdit={canEdit} />,
+  "22.merge_fields": (canEdit) => <MergeFieldsStudio canEdit={canEdit} />,
+  "22.document_checklist_rules": (canEdit) => <DocumentChecklistRulesStudio canEdit={canEdit} />,
 };
 
 /** Policy Studio shell (25-policy-studio.md Screens): left nav grouped by owning spec, one

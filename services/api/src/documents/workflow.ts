@@ -36,6 +36,18 @@ async function approvedStages(documentId: string, tx: DbLike): Promise<Set<Appro
   return new Set(r.rows.map((x) => x.stage));
 }
 
+export interface DocumentApprovalRow { document_id: string; stage: ApprovalStage; approver_user_id: string; decision: "APPROVED" | "REJECTED"; note: string | null; at: string }
+
+/** GET /documents/:id/approvals — the Screens section's own "approvals stepper" needs this
+ *  history; no route existed for it before this build (decideStage only returns the document). */
+export async function listApprovals(documentId: string, ctx: Ctx): Promise<DocumentApprovalRow[]> {
+  await authorize(ctx, "documents", "READ");
+  return (await db.query<DocumentApprovalRow>(
+    `SELECT document_id, stage, approver_user_id, decision, note, at::text AS at FROM document_approval WHERE document_id = $1 ORDER BY at`,
+    [documentId]
+  )).rows;
+}
+
 /** Rule 6: commercial approval only "when money terms deviate" — operationalised as at least one
  *  APPROVED deviation existing for this document (no monetary threshold is named in the spec, so
  *  no approval-matrix band is invented for it — UNCONFIRMED judgment call, flagged in the build note). */

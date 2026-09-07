@@ -300,6 +300,11 @@ app.get("/api/audit", async (req: AuthedRequest, res) => {
   }
 });
 
+// registerDocumentRoutes before registerLifecycleRoutes: both register POST
+// /api/bookings/:id/documents/generate and POST /api/documents/:id/approve (spec 22's API list
+// reuses the legacy legal-docs.ts paths verbatim) — the doc-factory handlers call next() to fall
+// through to the legacy ones when the request doesn't look like theirs (see routes-documents.ts).
+registerDocumentRoutes(app);
 registerLifecycleRoutes(app);
 registerModelRoutes(app);
 registerJourneyRoutes(app);
@@ -319,7 +324,6 @@ registerQaRoutes(app);
 registerChangeabilityRoutes(app);
 registerSalesRoutes(app);
 registerSpecificationRoutes(app);
-registerDocumentRoutes(app);
 registerChangeRequestRoutes(app);
 registerRegistrationRoutes(app);
 registerHandoverRoutes(app);
