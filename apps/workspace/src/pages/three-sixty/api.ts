@@ -71,11 +71,8 @@ function req<T>(path: string, method: string, body?: unknown): Promise<T> {
 
 export const threeSixtyApi = {
   getUnit360: (id: string) => req<Unit360View>(`/api/units/${id}/360`, "GET"),
-  getUnitActivity: (id: string) => req<{ type: string; occurred_at: string; payload: unknown }[]>(`/api/units/${id}/activity`, "GET"),
   getCustomer360: (id: string) => req<Customer360View>(`/api/customers/${id}/360`, "GET"),
-  getCustomerActivity: (id: string) => req<{ type: string; occurred_at: string; payload: unknown }[]>(`/api/customers/${id}/activity`, "GET"),
   getBooking360: (id: string) => req<Booking360View>(`/api/bookings/${id}/360`, "GET"),
-  getBookingActivity: (id: string) => req<{ type: string; occurred_at: string; payload: unknown }[]>(`/api/bookings/${id}/activity`, "GET"),
   getProjectHeader: (id: string) => req<ProjectHeaderView>(`/api/projects/${id}/header`, "GET"),
   getMyContext: () => req<RecentContext>(`/api/me/context`, "GET"),
   setMyContext: (input: { project_id?: string | null; entity_type?: "unit" | "customer" | "booking" | null; entity_id?: string | null }) => req<RecentContext>(`/api/me/context`, "PUT", input),

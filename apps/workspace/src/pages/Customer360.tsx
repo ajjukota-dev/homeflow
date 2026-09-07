@@ -1,16 +1,25 @@
 // 28-360-views.md rule 2 — Customer 360, replacing the pre-28 version (same {customerId, onBack,
 // roles} signature CrmQueue.tsx already calls, kept exactly so that call site needs no change).
-// Commitments/Requests are rendered from the overview payload's own inline arrays — the backend
-// manifest's own comment on the "requests" tab says why: 18 has no multi-booking listing endpoint,
-// so `getCustomer360` already fetched this data once; a second fetch would just repeat it.
+// Bookings and Commitments stay ALWAYS VISIBLE (not tab-gated), matching the pre-28 file's own
+// layout: 13-promise-ledger.md's and 06-timeline-sla-engine.md's own e2e coverage
+// (commitments.spec.ts, journey.spec.ts) asserts the "Bookings" heading, "View journey" button,
+// and the real CommitmentsSection are on screen immediately after opening a customer, with no tab
+// click — found the hard way (full-suite regression run) when the first tabbed draft of this file
+// moved them behind tabs and broke both specs' existing guards. Everything else this spec adds
+// (Profile, Change requests, Health, plus the manifest's communications/documents/activity) is
+// genuinely new surface, so those live behind tabs.
 import { useEffect, useState } from "react";
-import { ArrowLeft, ShieldCheck, CircleAlert } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger, TabsContent, EmptyState, Skeleton, Badge, KeyValue } from "@homeflow/ui";
+import { ArrowLeft, ShieldCheck, CircleAlert, Route } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent, EmptyState, Skeleton, Badge, KeyValue, Button, Card, CardBody } from "@homeflow/ui";
 import { threeSixtyApi, type Customer360View } from "./three-sixty/api";
 import { TabPanel, TabBadge } from "./three-sixty/TabPanel";
 import { ActivityFeed } from "../components/ActivityFeed";
 import { Booking360 } from "./booking/Booking360";
+import { JourneyTimeline } from "./journey/JourneyTimeline";
+import { CommitmentsSection } from "./commitments/CommitmentsSection";
 import { kycStatusLabel, bookingStatusLabel } from "../lib/labels";
+
+const COMMITMENT_WRITE_ROLES = new Set(["CRM", "SUPER_ADMIN"]);
 
 function initials(name: string) {
   return name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
@@ -21,6 +30,8 @@ export function Customer360({ customerId, onBack, roles }: { customerId: string;
   const [error, setError] = useState(false);
   const [tab, setTab] = useState<string | undefined>(undefined);
   const [viewingBookingId, setViewingBookingId] = useState<string | null>(null);
+  const [viewingJourneyBookingId, setViewingJourneyBookingId] = useState<string | null>(null);
+  const canWriteCommitments = roles.some((r) => COMMITMENT_WRITE_ROLES.has(r));
 
   useEffect(() => {
     setView(undefined);
@@ -32,6 +43,9 @@ export function Customer360({ customerId, onBack, roles }: { customerId: string;
 
   if (viewingBookingId) {
     return <Booking360 bookingId={viewingBookingId} roles={roles} onBack={() => setViewingBookingId(null)} />;
+  }
+  if (viewingJourneyBookingId) {
+    return <JourneyTimeline bookingId={viewingJourneyBookingId} onBack={() => setViewingJourneyBookingId(null)} />;
   }
 
   return (
@@ -69,12 +83,39 @@ export function Customer360({ customerId, onBack, roles }: { customerId: string;
             </div>
           )}
 
+          <div>
+            <h2 className="mb-3 text-title3 font-semibold">Bookings</h2>
+            {view.bookings.length === 0 ? (
+              <EmptyState message="No bookings yet." />
+            ) : (
+              <div className="flex flex-col gap-3">
+                {view.bookings.map((b) => (
+                  <Card key={b.id}>
+                    <CardBody className="flex flex-wrap items-center gap-3">
+                      <button className="text-left hover:underline" onClick={() => setViewingBookingId(b.id)}>
+                        <div className="text-headline font-semibold">Villa {b.unit_number}</div>
+                        <div className="text-footnote text-fg-muted">{b.booking_number}</div>
+                      </button>
+                      <Badge className="ml-auto">{bookingStatusLabel(b.status)}</Badge>
+                      <Button variant="secondary" size="sm" onClick={() => setViewingJourneyBookingId(b.id)}>
+                        <Route className="h-4 w-4" /> View journey
+                      </Button>
+                    </CardBody>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {view.bookings.map((b) => (
+            <CommitmentsSection key={`commitments-${b.id}`} bookingId={b.id} canWrite={canWriteCommitments} />
+          ))}
+
           <Tabs value={tab ?? "profile"} onValueChange={setTab}>
             <div className="overflow-x-auto">
               <TabsList>
                 <TabsTrigger value="profile" className="shrink-0 whitespace-nowrap">Profile</TabsTrigger>
-                <TabsTrigger value="bookings" className="shrink-0 whitespace-nowrap">Bookings</TabsTrigger>
-                <TabsTrigger value="requests" className="shrink-0 whitespace-nowrap">Requests</TabsTrigger>
+                <TabsTrigger value="requests" className="shrink-0 whitespace-nowrap">Change requests</TabsTrigger>
                 <TabsTrigger value="health" className="shrink-0 whitespace-nowrap">Health</TabsTrigger>
                 {view.tabs
                   .filter((t) => t.key !== "requests")
@@ -99,62 +140,19 @@ export function Customer360({ customerId, onBack, roles }: { customerId: string;
               />
             </TabsContent>
 
-            <TabsContent value="bookings">
-              {view.bookings.length === 0 ? (
-                <EmptyState message="No bookings yet." />
-              ) : (
-                <div className="flex flex-col gap-2">
-                  {view.bookings.map((b) => (
-                    <button
-                      key={b.id}
-                      onClick={() => setViewingBookingId(b.id)}
-                      className="flex w-full items-center justify-between gap-3 rounded-lg border border-line bg-surface px-4 py-3 text-left hover:bg-surface-2"
-                    >
-                      <div>
-                        <div className="text-headline font-semibold">Villa {b.unit_number}</div>
-                        <div className="text-footnote text-fg-muted">{b.booking_number}</div>
-                      </div>
-                      <Badge>{bookingStatusLabel(b.status)}</Badge>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-
             <TabsContent value="requests">
-              <div className="flex flex-col gap-4">
-                <div>
-                  <h3 className="mb-2 text-footnote font-semibold uppercase tracking-wide text-fg-subtle">Commitments</h3>
-                  {view.commitments.length === 0 ? (
-                    <p className="text-footnote text-fg-muted">None recorded.</p>
-                  ) : (
-                    <ul className="flex flex-col gap-1.5">
-                      {view.commitments.map((c) => (
-                        <li key={c.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-line px-3 py-2 text-footnote">
-                          <span className="text-fg">{c.title}</span>
-                          <Badge>{c.category}</Badge>
-                          <span className="ml-auto text-fg-muted">{c.status}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-                <div>
-                  <h3 className="mb-2 text-footnote font-semibold uppercase tracking-wide text-fg-subtle">Change requests</h3>
-                  {view.change_requests.length === 0 ? (
-                    <p className="text-footnote text-fg-muted">None recorded.</p>
-                  ) : (
-                    <ul className="flex flex-col gap-1.5">
-                      {view.change_requests.map((cr) => (
-                        <li key={cr.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-line px-3 py-2 text-footnote">
-                          <span className="text-fg">{cr.title}</span>
-                          <span className="ml-auto text-fg-muted">{cr.status}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </div>
+              {view.change_requests.length === 0 ? (
+                <p className="text-footnote text-fg-muted">None recorded.</p>
+              ) : (
+                <ul className="flex flex-col gap-1.5">
+                  {view.change_requests.map((cr) => (
+                    <li key={cr.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-line px-3 py-2 text-footnote">
+                      <span className="text-fg">{cr.title}</span>
+                      <span className="ml-auto text-fg-muted">{cr.status}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </TabsContent>
 
             <TabsContent value="health">
