@@ -117,7 +117,7 @@ function CaseActions({ c, contractors, onChanged }: { c: WarrantyCaseRow; contra
           {(c.in_coverage || c.quote_accepted_at || c.waived_reason) && (
             <div className="flex gap-2">
               <Select value={contractorId} onValueChange={setContractorId}>
-                <SelectTrigger placeholder="Contractor" className="max-w-[200px]" />
+                <SelectTrigger placeholder="Contractor" aria-label="Contractor" className="max-w-[200px]" />
                 <SelectOptions options={contractors.map((ct) => ({ value: ct.id, label: ct.name }))} />
               </Select>
               <Button size="sm" onClick={() => run(() => postHandoverApi.assign(c.id, contractorId))} disabled={busy || !contractorId}>Assign</Button>
@@ -156,7 +156,7 @@ function CaseActions({ c, contractors, onChanged }: { c: WarrantyCaseRow; contra
  *  (open→triaged→assigned→in_progress→resolved→closed, or rejected) driven from
  *  `post-handover/warranty.ts`'s own real state machine — every transition button here maps
  *  1:1 to a real server-side `assertFrom` guard, no client-only status faking. */
-export function WarrantyPanel({ unitId, bookingId, canWrite }: { unitId: string; bookingId: string; canWrite: boolean }) {
+export function WarrantyPanel({ unitId, bookingId, canWrite, onCaseCountChanged }: { unitId: string; bookingId: string; canWrite: boolean; onCaseCountChanged?: () => void }) {
   const [cases, setCases] = useState<WarrantyCaseRow[] | null>(null);
   const [contractors, setContractors] = useState<Contractor[]>([]);
   const [error, setError] = useState(false);
@@ -171,12 +171,21 @@ export function WarrantyPanel({ unitId, bookingId, canWrite }: { unitId: string;
 
   useEffect(load, [load]);
 
+  // The outer cases-list table's "open warranty cases" count is a separate fetch (`postHandoverApi.
+  // listCases`) — any status transition here has to explicitly ask the parent to re-fetch it, or
+  // the count reads stale until the drawer is closed and reopened (found live: closed a case here,
+  // the list behind the drawer still said "1 open"). `load()` alone only refreshes this panel.
+  function reload() {
+    load();
+    onCaseCountChanged?.();
+  }
+
   if (error) return <EmptyState icon={Wrench} message="Couldn't reach the API on :3001." action={{ label: "Retry", onClick: load }} />;
   if (cases === null) return <p className="text-footnote text-fg-muted">Loading…</p>;
 
   return (
     <div className="flex flex-col gap-3">
-      {canWrite && <CreateCaseForm unitId={unitId} bookingId={bookingId} onCreated={load} />}
+      {canWrite && <CreateCaseForm unitId={unitId} bookingId={bookingId} onCreated={reload} />}
 
       {cases.length === 0 ? (
         <p className="text-footnote text-fg-muted">No warranty work raised for this home.</p>
@@ -195,7 +204,7 @@ export function WarrantyPanel({ unitId, bookingId, canWrite }: { unitId: string;
                 </div>
               </button>
               {expanded === c.id && canWrite && c.status !== "closed" && c.status !== "rejected" && (
-                <CaseActions c={c} contractors={contractors} onChanged={load} />
+                <CaseActions c={c} contractors={contractors} onChanged={reload} />
               )}
             </li>
           ))}

@@ -184,6 +184,16 @@ async function seedHandedOverVilla(db: DbClient) {
       ('ci_v113_7','b_v113',7,'scheduled'),
       ('ci_v113_30','b_v113',30,'scheduled'),
       ('ci_v113_90','b_v113',90,'scheduled');
+
+    -- 15-qa-evidence-snags.md's own contractor table (0032_qa.sql) had no demo seed anywhere in
+    -- this codebase — only test fixtures insert one (post-handover.test.ts's 'con_a'). 30's own
+    -- WarrantyPanel is the first real UI consumer of the contractor picker (assignWarrantyCase),
+    -- and QA's snag-assignment flow shares the same picker gap; a couple of real rows here make
+    -- both actually demoable instead of a permanently-empty dropdown.
+    INSERT INTO contractor (id, name, trade, contact) VALUES
+      ('con_sunrise_plumbing','Sunrise Plumbing & Waterproofing','plumbing','contact@sunriseplumbing.example'),
+      ('con_voltage_electricals','Voltage Electricals','electrical','service@voltageelectricals.example'),
+      ('con_eastcrest_fm','East Crest FM Services','general','fm@eastcrestservices.example');
   `);
 
   // 30-post-handover.md rule 1: this seed's own `handover_record` insert above is raw SQL, not a

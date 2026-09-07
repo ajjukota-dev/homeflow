@@ -213,7 +213,10 @@ export async function completeMoveInTask(caseId: string, taskKey: MoveInTaskKey,
 
 /** Rule 4 — append-only service history, visible in the portal passport. `kind`/`cost_inr` are
  *  this spec's own additions to the pre-existing `service_history` table (warranty.ts's own
- *  serviceHistory() already reads/returns the shared columns, unaffected). */
+ *  serviceHistory() already reads/returns the shared columns, unaffected). `actor` is free text,
+ *  not a FK — the pre-existing seed rows already store real names, so `display_name` (not the raw
+ *  `user_id`) is what stays consistent with that; caught live once the new post-handover UI became
+ *  the first read surface for a row this function itself had inserted. */
 export async function addServiceRecord(
   input: { unit_id: string; kind: "WARRANTY_FIX" | "MAINTENANCE" | "INSPECTION" | "UPGRADE"; description: string; cost_inr?: number | null; warranty_case_id?: string | null },
   ctx: Ctx
@@ -223,7 +226,7 @@ export async function addServiceRecord(
   await db.query(
     `INSERT INTO service_history (id, unit_id, event_type, kind, warranty_case_id, description, cost_inr, actor)
      VALUES ($1,$2,$3,$3,$4,$5,$6,$7)`,
-    [id, input.unit_id, input.kind, input.warranty_case_id ?? null, input.description, input.cost_inr ?? null, ctx.actor.user_id ?? "system"]
+    [id, input.unit_id, input.kind, input.warranty_case_id ?? null, input.description, input.cost_inr ?? null, ctx.actor.display_name ?? "System"]
   );
   return { id };
 }

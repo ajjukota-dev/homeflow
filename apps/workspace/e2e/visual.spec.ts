@@ -221,12 +221,22 @@ for (const s of sizes) {
   });
 }
 
-test("After keys shows DLP and warranty", async ({ page }) => {
+// 30-post-handover.md's own real Post-handover module (post-handover/PostHandoverCases.tsx)
+// replaced this test's original target outright — the legacy warranty.ts-backed PostHandover.tsx
+// screen this test used to drive is gone, and "month cover" was that legacy screen's own copy, not
+// this one's. Rewritten to the new screen's real content rather than patched around (same call
+// spec 16 made rewriting this file's own eligible-villa test after replacing QaHandover.tsx's
+// legacy half) — full interactive coverage lives in e2e/post-handover.spec.ts; this keeps only the
+// smoke-level "does the replacement screen render for real seeded data" check this file already did.
+test("After keys shows onboarding and defect-liability windows", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/");
   await page.getByRole("button", { name: /^After/ }).first().click();
   await expect(page.getByRole("heading", { name: "After keys" })).toBeVisible();
-  await expect(page.getByText(/month cover/i).first()).toBeVisible();
+  await expect(page.getByRole("cell", { name: "V113" })).toBeVisible();
+  await page.getByRole("row", { name: /V113/ }).click();
+  await expect(page.getByRole("heading", { name: "Defect-liability windows" })).toBeVisible();
+  await expect(page.getByText(/STRUCTURAL · \d+ mo/)).toBeVisible();
   await page.screenshot({ path: shot("after-keys"), fullPage: true });
 });
 

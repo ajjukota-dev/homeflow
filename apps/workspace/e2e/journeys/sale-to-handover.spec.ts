@@ -57,10 +57,12 @@ for (const s of sizes) {
     await expect(page.getByText("Keys issued").first()).toBeVisible();
     await page.screenshot({ path: shot(`journey-qa-${s.name}`), fullPage: true });
 
-    // After keys — Rohan's open warranty case and active DLP window.
+    // After keys — Rohan's onboarding case and its DLP windows (30-post-handover.md's own
+    // Post-handover module, which replaced the legacy warranty.ts-backed screen this test used
+    // to assert "month cover" against).
     await page.getByRole("button", { name: /^After/ }).first().click();
     await expect(page.getByRole("heading", { name: "After keys" })).toBeVisible();
-    await expect(page.getByText(/month cover/i).first()).toBeVisible();
+    await expect(page.getByRole("cell", { name: "V113" })).toBeVisible();
     await page.screenshot({ path: shot(`journey-after-keys-${s.name}`), fullPage: true });
   });
 }

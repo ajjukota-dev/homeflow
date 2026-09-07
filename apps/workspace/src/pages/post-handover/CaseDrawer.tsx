@@ -160,7 +160,7 @@ export function CaseDrawer({ bookingId, roles, onClose, onChanged }: { bookingId
               </div>
             </TabsContent>
             <TabsContent value="warranty">
-              <WarrantyPanel unitId={row.unit_id} bookingId={row.booking_id} canWrite={canWrite} />
+              <WarrantyPanel unitId={row.unit_id} bookingId={row.booking_id} canWrite={canWrite} onCaseCountChanged={onChanged} />
             </TabsContent>
             <TabsContent value="passport">
               <PassportPanel unitId={row.unit_id} canWrite={canWrite} />
