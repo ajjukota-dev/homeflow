@@ -3,7 +3,7 @@ import { Card, CardBody, Button, Badge, Dialog, DialogContent, Field, Select, Se
 import { Clock, Lock } from "lucide-react";
 import { ApiError } from "../../auth/api";
 import { salesApi, type Hold, type InventoryUnit, type HoldPolicy } from "./api";
-import { CHANGE_CATEGORIES, CATEGORY_LABEL } from "./labels";
+import { CHANGE_CATEGORIES, CATEGORY_LABEL, HOLD_STATUS_LABEL } from "./labels";
 
 const REQUEST_ROLES = ["SALES", "MANAGEMENT", "SUPER_ADMIN"]; // sales/holds.ts's real REQUEST_ROLES
 
@@ -133,7 +133,7 @@ export function HoldsPanel({ projectId, units, roles }: { projectId: string; uni
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-subhead font-semibold text-fg">{h.code}</span>
-                    <Badge>{h.status}</Badge>
+                    <Badge>{HOLD_STATUS_LABEL[h.status] ?? h.status}</Badge>
                   </div>
                   <p className="text-footnote text-fg-muted">
                     Villa {u?.unit_number ?? h.unit_id.slice(0, 8)} · {CATEGORY_LABEL[h.category_code] ?? h.category_code} · {h.reason}

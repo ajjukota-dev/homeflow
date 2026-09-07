@@ -4,6 +4,7 @@ import { UserPlus, Users2 } from "lucide-react";
 import { ApiError } from "../../auth/api";
 import { salesApi, type Prospect, type InventoryUnit } from "./api";
 import { ProspectDrawer } from "./ProspectDrawer";
+import { PROSPECT_STATUS_LABEL } from "./labels";
 
 const WRITE_ROLES = ["SALES", "MANAGEMENT", "SUPER_ADMIN"]; // sales/prospects.ts's real SALES_WRITE_ROLES
 
@@ -118,7 +119,7 @@ export function ProspectsPanel({ projectId, roles, units }: { projectId: string;
                 </div>
                 <p className="text-footnote text-fg-muted">{p.phone ?? p.email ?? "No contact on file"}{p.source ? ` · ${p.source}` : ""}</p>
               </div>
-              <Badge>{p.status}</Badge>
+              <Badge>{PROSPECT_STATUS_LABEL[p.status] ?? p.status}</Badge>
             </button>
           ))}
         </div>

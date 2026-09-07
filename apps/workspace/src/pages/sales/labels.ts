@@ -24,6 +24,23 @@ export const IMPORTANCE_LABEL: Record<Importance, string> = {
   NOT_IMPORTANT: "Not Important",
 };
 
+// sales/holds.ts's real change_window_hold.status enum.
+export const HOLD_STATUS_LABEL: Record<string, string> = {
+  REQUESTED: "Requested",
+  APPROVED: "Approved",
+  REJECTED: "Rejected",
+  EXPIRED: "Expired",
+  RELEASED: "Released",
+  CONSUMED: "Consumed",
+};
+
+// sales/prospects.ts's real prospect.status enum.
+export const PROSPECT_STATUS_LABEL: Record<string, string> = {
+  ACTIVE: "Active",
+  BOOKED: "Booked",
+  LOST: "Lost",
+};
+
 export function possessionLabel(w: { from: string; to: string; confidence: string } | null): string {
   if (!w) return "No handover date set";
   const fmt = (d: string) => new Date(d).toLocaleDateString("en-IN", { month: "short", year: "numeric" });
