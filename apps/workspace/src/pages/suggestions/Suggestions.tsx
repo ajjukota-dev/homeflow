@@ -2,7 +2,7 @@
 // gated by rule 7's own "AI suggestion — review" badge and never applies itself; content per kind
 // is dispatched to the matching accept flow (each kind's own apply step lives server-side, per
 // llm-tasks/index.ts's own dispatch comment — this page never re-derives that logic).
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Sparkles, CircleAlert } from "lucide-react";
 import { PageHeader, Segmented, Tabs, TabsList, TabsTrigger, TabsContent, Badge, Button, Card, CardBody, Textarea, EmptyState, Skeleton } from "@homeflow/ui";
 import { ApiError } from "../../auth/api";
@@ -115,14 +115,19 @@ export function Suggestions({ roles }: { roles: string[] }) {
   const [tasks, setTasks] = useState<LlmTaskRow[] | null>(null);
   const [error, setError] = useState(false);
 
+  // A late-resolving fetch for a since-abandoned tab must never clobber a newer tab's data — guard
+  // by request order (seq) and belt-and-suspenders filter by kind, since either an out-of-order
+  // response or a stray fetch from elsewhere could otherwise render the wrong tab's rows.
+  const seq = useRef(0);
   function load() {
     if (!kind) return;
+    const mySeq = ++seq.current;
     setError(false);
-    suggestionsApi.list(kind).then(setTasks).catch(() => setError(true));
+    suggestionsApi.list(kind).then((rows) => { if (mySeq === seq.current) setTasks(rows); }).catch(() => { if (mySeq === seq.current) setError(true); });
   }
   useEffect(() => { setTasks(null); load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [kind]);
 
-  const filtered = (tasks ?? []).filter((t) => (status === "pending" ? t.accepted === null : t.accepted !== null));
+  const filtered = (tasks ?? []).filter((t) => t.kind === kind && (status === "pending" ? t.accepted === null : t.accepted !== null));
 
   if (visibleKinds.length === 0) {
     return (

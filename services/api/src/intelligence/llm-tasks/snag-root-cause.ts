@@ -15,15 +15,21 @@ import { withinBudget, createSuggestion, reviewSuggestion, loadSuggestion, type 
 
 export async function createRootCauseSuggestion(snagId: string): Promise<LlmTaskRow> {
   if (!(await withinBudget())) throw new AppError("conflict", "LLM monthly budget exhausted for this month — rule-based features are unaffected");
-  const snag = await db.query<{ description: string; trade: string; location: string; severity: string }>(
-    `SELECT description, trade, location, severity FROM snag WHERE id = $1`,
+  const snag = await db.query<{ description: string; trade: string | null; location: string | null; room: string | null; category: string | null; severity: string }>(
+    `SELECT description, trade, location, room, category, severity FROM snag WHERE id = $1`,
     [snagId]
   );
   if (!snag.rows[0]) throw new AppError("not_found", "snag not found");
 
+  // `trade`/`location` (legacy) and `room`/`category` (current, 0032_qa.sql) are both nullable —
+  // a snag created via either shape must still produce a usable prompt, so fall back rather than
+  // send the model a literal "null" for whichever pair the caller didn't populate.
+  const s = snag.rows[0];
+  const trade = s.trade ?? s.category;
+  const location = s.location ?? s.room;
   const result = await llm.complete({
     system: "You suggest a likely root cause for a construction QA snag, from its description alone (no photos). Be specific and grounded only in the text given — never invent facts not present in it.",
-    user: `trade: ${snag.rows[0].trade}; location: ${snag.rows[0].location}; severity: ${snag.rows[0].severity}; description: ${snag.rows[0].description}`,
+    user: `trade: ${trade}; location: ${location}; severity: ${s.severity}; description: ${s.description}`,
     json_schema: { type: "object", properties: { root_cause: { type: "string" }, confidence: { type: "number" } }, required: ["root_cause"] },
     purpose: "snag_root_cause",
   });
