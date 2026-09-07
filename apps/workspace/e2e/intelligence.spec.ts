@@ -171,8 +171,14 @@ for (const s of sizes) {
   test(`Suggestions inbox renders at @ ${s.name}`, async ({ page }) => {
     await page.setViewportSize({ width: s.width, height: s.height });
     await page.goto("/");
+    // Screenshotting right after the heading appears races the tab's own data fetch — found live:
+    // the panel was still blank (neither the loading skeleton nor the empty state had painted) in
+    // the saved screenshot, even after awaiting the underlying network response (the response
+    // settling doesn't guarantee React has committed + painted before the screenshot's own frame).
+    // Wait for the network to go fully idle so the paint has settled before capturing.
     await page.getByRole("button", { name: /^Suggestions/ }).first().click();
     await expect(page.getByRole("heading", { name: "Suggestions" })).toBeVisible();
+    await page.waitForLoadState("networkidle");
     await page.screenshot({ path: shot(`suggestions-inbox-${s.name}`), fullPage: true });
   });
 }

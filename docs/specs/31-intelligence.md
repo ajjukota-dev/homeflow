@@ -126,3 +126,89 @@ any `json_schema` call under test, never a realistic structured output. Every "a
 therefore requires the human's own explicit edited/override fields (matching rule 5's literal "CRM
 accepts/edits" wording) rather than trusting raw LLM JSON — sidesteps the fake adapter entirely
 rather than fighting it in tests.
+
+## Build note (2026-09-07, UI landing)
+
+Finished landing the UI whose backend/code was already on `main` (commit `7172207`, an
+auto-checkpoint — see `CLAUDE.md`'s own note on that mechanism): `ScoreCard` usage on Booking 360
+(Financial Health / Journey Risk, rule 7's drivers+confidence), the `Suggestions` inbox (6 kinds,
+role-gated, accept/reject, override text), and two Policy Studio tabs (Risk rules — via the generic
+table-editor registry, already fully built, not something this pass had to add; LLM budget & usage
+— bespoke read-only dashboard). Two corrections to the prior handoff's own briefing, checked
+against the actual code before doing anything: a dedicated `ScoreCard` component did **not** need
+building — it already existed (`packages/ui/src/components/ScoreCard.tsx`, built during spec 28)
+and was already wired on Booking 360; a Risk Rules Studio tab was **not** missing — it's served by
+the generic `registry.ts`/`RowEditor.tsx` table-editor mechanism, with `Shell.test.tsx` already
+asserting it. The real remaining gap was verification, a genuine bug fix, and polish, not
+component-building.
+
+**One real bug found and fixed — a stale-async-response race in `Suggestions.tsx`:** its
+`useEffect(() => { setTasks(null); load(); }, [kind])` had no guard against out-of-order responses.
+Switching tabs quickly (SUPER_ADMIN mounts on `visibleKinds[0]` = `COMMITMENT_DETECTION`, then the
+"QA suggests a root cause..." e2e test immediately switches to `SNAG_ROOT_CAUSE_SUGGESTION`) let the
+initial-mount fetch resolve *after* the tab-switch fetch, silently overwriting the correct rows with
+the wrong kind's — reproduced deterministically (`intelligence.spec.ts` line ~127 failed 2/2 runs in
+isolation, "element was detached from the DOM, retrying" on the Reject click, because the card had
+vanished from state between being asserted visible and being clicked). Fixed with the standard
+"latest request wins" pattern — a `useRef` sequence number that discards a response if a newer
+request has since been fired — plus a belt-and-suspenders `t.kind === kind` filter on the rendered
+list, so a wrong-kind row can never render even if a future refactor reintroduces a race elsewhere.
+Same general bug class ("an assertion raced an async fetch") specs 23/29 already document finding
+elsewhere in this codebase.
+
+**Two more real bugs, both found during this pass's screenshot/UI review, both fixed:**
+- `snag-root-cause.ts` only ever `SELECT`ed the legacy `trade`/`location` columns for its LLM
+  prompt. A snag created via the current `room`/`category` shape (which is what the QA flow and its
+  own e2e test both use) has `trade`/`location` as `NULL`, so the model prompt read `trade: null;
+  location: null` — degraded prompt quality, no error, easy to miss. Fixed to `SELECT` all four
+  columns and fall back (`trade ?? category`, `location ?? room`) so either shape produces a usable
+  prompt.
+- Policy Studio's sidebar showed a "not built" badge on the "LLM budget" tab (`Shell.tsx`) even
+  though it renders a real, working dashboard with live month-to-date numbers — the badge condition
+  only checked the generic-CRUD-table `built` flag (correctly `false` here, there's no config table
+  to CRUD) and had no idea `BESPOKE_TABS` gives this tab real content anyway. Actively misleading:
+  a user would see "not built" and reasonably not click it. Fixed the condition to
+  `!t.built && !BESPOKE_TABS[t.key]`; verified via screenshot (`studio-llm-usage-desktop.png`) that
+  "LLM budget" now shows unbadged next to "Risk rules", both spec 31's tabs.
+
+**A fourth, test-only bug also fixed:** the 3 `suggestions-inbox-@{desktop,tablet,mobile}`
+screenshot tests clicked into Suggestions and screenshotted right after the heading appeared,
+racing the tab's own data fetch — the saved screenshots were genuinely blank (no skeleton, no empty
+state, nothing painted), reproduced deterministically across repeated runs. Not an app bug —
+manually reproducing the same navigation in a live browser rendered correctly every time. Fixed by
+waiting for `page.waitForLoadState("networkidle")` before screenshotting (an earlier attempt to fix
+it by awaiting the specific `waitForResponse` wasn't sufficient — the response settling doesn't
+guarantee React has committed and painted before the screenshot's own frame).
+
+**Real verification, from a freshly-reset DB (`npm run db:reset`), read for real, not assumed:**
+- `intelligence.spec.ts`: **8/8 passed** in a single clean run (`npx playwright test
+  e2e/intelligence.spec.ts`, 11.6s). Also passed as part of a full-suite run (`npx playwright test`,
+  185/193 passed, single worker, 6.2m) with zero intelligence-spec failures.
+- Full Playwright suite: 185 passed, 7 failed, 1 skipped (193 total). All 7 failures are in files
+  this pass never touched (`admin-model.spec.ts`, `communications.spec.ts` ×2,
+  `handover-gates.spec.ts` ×2, `post-handover.spec.ts`, `visual.spec.ts`) — consistent with
+  `playwright.config.ts`'s own documented `workers: 1` DB-sharing flakiness ("3 identical full-suite
+  runs, 2-5 different failures each time, including once on a clean main baseline"), not a
+  regression from this pass.
+- Backend vitest, full suite: 713 passed, 7 failed, 69 skipped (789 total) on the first (resource-
+  contended, 3 dev servers + vitest all running at once) pass; re-running just the 6 failed suite
+  files in isolation dropped that to **1 real failure**, confirming the other 6 were resource-
+  contention timeouts, not real breakage. The 1 genuine failure — `management.test.ts` rule 6
+  (`expected 30000 to be 25000`) — predates this pass entirely (`git log` shows it's spec 27's own
+  code, last touched by PR #66, nothing this pass changed); flagged here rather than fixed, out of
+  this pass's scope.
+- `services/api/src/intelligence/intelligence.test.ts`: 15/15 passed (re-run after the
+  `snag-root-cause.ts` edit, to confirm the fallback change didn't break the existing rule-1-7
+  coverage).
+- `Shell.test.tsx` (frontend): 2/2 passed (re-run after the "not built" badge condition change).
+
+`advisor()` reviewed this pass's diagnosis and fix plan before the `Suggestions.tsx` fix was
+written; its main correction — verify the fix under both possible root-cause mechanisms (a stale
+duplicate response vs. a genuine remount), not just the one favoured by reasoning — is why the
+`t.kind === kind` filter was added alongside the seq-number guard rather than the guard alone.
+
+**Deliberate non-fix, flagged not built:** `risk_rule` has no `wired`/`unconfirmed`-style column
+(unlike `escalation_rule.wired` from spec 12 or `dlp_policy`/`snag_sla_policy.unconfirmed` from spec
+30) to surface in the Studio UI that editing a row currently affects zero live scores (see this
+file's own earlier build note: "no scorer reads it"). Not added — a schema change, and CLAUDE.md's
+own boundary is "ask first" on DB schema/migrations; noted here for whoever picks it up.

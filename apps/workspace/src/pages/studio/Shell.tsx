@@ -118,7 +118,11 @@ export function Studio() {
                   )}
                 >
                   <span className="truncate">{t.label}</span>
-                  {!t.built && (
+                  {/* `t.built` is a generic-CRUD-table signal only — a tab like 31.llm_budget can be
+                      `built: false` there (no config table to CRUD) yet still have a real, working
+                      BESPOKE_TABS screen. Found live: the badge read "not built" over a panel
+                      showing real month-to-date numbers, actively misleading. */}
+                  {!t.built && !BESPOKE_TABS[t.key] && (
                     <Badge tone="neutral" className="shrink-0">
                       not built
                     </Badge>
