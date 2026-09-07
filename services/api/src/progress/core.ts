@@ -170,6 +170,7 @@ export interface ProgressCell {
   planned_next_event_date: string | null;
   source: ProgressSource;
   updated_by: string | null;
+  updated_by_name: string | null;
   updated_at: string;
   freshness: FreshnessStatus;
 }
@@ -184,11 +185,12 @@ export async function getUnitProgress(unitId: string, ctx?: Ctx, asOf?: string):
   const gateDependent = new Set(rls.map((r) => r.trigger_component_code));
   const r = await db.query<{
     component_code: string; label: string; stale_after_days: number; state_code: ProgressState; pct: number | null;
-    actual_date: unknown; planned_next_event: string | null; planned_next_event_date: unknown; source: ProgressSource; updated_by: string | null; updated_at: unknown;
+    actual_date: unknown; planned_next_event: string | null; planned_next_event_date: unknown; source: ProgressSource; updated_by: string | null; updated_by_name: string | null; updated_at: unknown;
   }>(
     `SELECT c.code AS component_code, c.label, c.stale_after_days, p.state_code, p.pct, p.actual_date, p.planned_next_event,
-            p.planned_next_event_date, p.source, p.updated_by, p.updated_at
+            p.planned_next_event_date, p.source, p.updated_by, u2.display_name AS updated_by_name, p.updated_at
        FROM component_definition c JOIN unit_progress p ON p.component_code = c.code AND p.unit_id = $1
+       LEFT JOIN "user" u2 ON u2.id = p.updated_by
       WHERE c.effective_from <= CURRENT_DATE AND (c.effective_to IS NULL OR c.effective_to > CURRENT_DATE)
       ORDER BY c.sort_order`,
     [unitId]
@@ -200,7 +202,7 @@ export async function getUnitProgress(unitId: string, ctx?: Ctx, asOf?: string):
       return {
         component_code: row.component_code, label: row.label, state_code: toSpecProgressState(row.state_code), pct: row.pct,
         actual_date: asDate(row.actual_date), planned_next_event: row.planned_next_event, planned_next_event_date: asDate(row.planned_next_event_date),
-        source: row.source, updated_by: row.updated_by, updated_at: updatedAt,
+        source: row.source, updated_by: row.updated_by, updated_by_name: row.updated_by_name, updated_at: updatedAt,
         freshness: deriveFreshness({ state: row.state_code, updatedAt, staleAfterDays: row.stale_after_days, gateDependent: gateDependent.has(row.component_code), asOf }),
       };
     }),
