@@ -103,3 +103,79 @@ approval-matrix thresholds — real SRO office data and lead times are Amarsh's 
 `23.sro_offices`) flip to `built:true`, backed by the one `registration_checklist_template` table
 (two edit surfaces, one table) — same shape 18 used for `cr_approval_rule`/`customisation_policy`.
 Full suite: 91 files / 574 tests, `tsc --noEmit` clean.
+
+## Build note (2026-09-07, UI)
+UI: `apps/workspace/src/pages/registration/{api,labels,RegistrationDesk,CaseDrawer,ExecutionPanel}.tsx`
+(new "Registration Desk" tab on `LegalWorkspace.tsx`, alongside the untouched legacy AOS and
+Document Factory tabs) + two Policy Studio tabs, `RegistrationChecklistStudio.tsx` and
+`SroOfficesStudio.tsx` (registered in `studio/Shell.tsx`'s `BESPOKE_TABS`, flipping
+`23.registration_checklists`/`23.sro_offices` from placeholder to real). Pipeline table (status,
+forecast date, "Not started" booking picker for lazy case creation via `loadOrCreateCase`), case
+drawer (8-fact readiness card — 7 hard + `customer_availability` shown separately, never a raw
+`booking_id`/`unit_id`), availability + slot scheduler with `slot_history` timeline, day-of
+checklist, execution form, completion form (SALE_DEED FINAL/ARCHIVED picker) + a COMPLETED-state
+summary linking the archived deed's real PDF.
+
+**Cut, flagged not faked**: Booking 360 tab (same reason as 16/18 before it — no Booking 360 page
+exists anywhere in this app, only `Customer360.tsx`) and the Portal (26) Registration area (rule
+2's "portal or CRM on behalf" already ships CRM-on-behalf only, per this spec's own backend Build
+note (j) — the UI has nothing new to add on top of that).
+
+**Real bugs found and fixed, live via Playwright + e2e iteration:**
+1. `RegistrationDesk.tsx`'s pipeline table showed a raw `—` for any case whose booking wasn't in
+   the current picker list (an orphaned/unit-less demo fixture) — falls back to the case's own
+   `code` (e.g. `REG-000002`) instead of a blank cell.
+2. Both Studio components' initial "Global default" scope loaded silently empty even though its
+   row has real seeded items — the `Select`'s own `onValueChange` only fires on user interaction,
+   so nothing populated the form on first paint. Fixed with a `useEffect` on `[templates]` that
+   calls `selectScope` once data arrives.
+3. Saving the GLOBAL scope broke the Select's own displayed value — `save()` was resetting
+   `scopeId` to the saved row's real db id, which `scopeOptions` deliberately excludes (it must
+   stay pinned to the `"__global__"` sentinel). Fixed by keeping the sentinel selected when the
+   scope being saved is GLOBAL.
+4. **A genuine, reproducible client-side race, not a test artifact** — found via the SRO-offices
+   add/remove e2e round trip failing at the "undo" step: `save()` always called `load()`
+   (fire-and-forget, unawaited) afterward to refresh `templates` from the network. That fetch's
+   resolution feeds finding (2)'s own `[templates]` effect, which re-populates the form straight
+   from the fetched row. If a user made a further edit (e.g. deleting the office they just added)
+   before that in-flight fetch resolved, the fetch's resolution silently overwrote the edit back
+   to the pre-edit value in place — and the next Save then persisted that stale, reverted list.
+   Reproduced 3/3 times; confirmed server-side too (`GET /api/registration-checklist-templates`
+   still showed both leftover test offices after a delete-then-save that the UI itself showed as
+   removed). **Fixed** in both Studio components by merging the `saved` row `putChecklistTemplate`
+   already returns directly into local `templates` state instead of re-fetching — no network round
+   trip left to race against. A real production bug: any staff member deleting then immediately
+   saving an SRO office (or a checklist item) could have silently failed to persist the delete.
+
+**`registration.test.ts` full-suite-timeout — root-caused, not fixed (pre-existing, no file this
+slice touched is in its chain):** ran the full backend suite 4 times this segment (2 in the prior
+segment, 2 this one) with no overlapping process launches — every time, only this file's own 6
+tests are affected (0-6 of them, varying run to run), each failing with `Test timed out in
+5000ms`, while the other ~783 tests across ~103 other files pass. Isolated in-file run: 6/6 pass
+reliably in ~4.6s. No `testTimeout`/`vitest.config.ts` override exists anywhere in `services/api`
+(confirmed by grep), and other DB-heavy tests with real query latency well over 5000ms (e.g.
+`change-requests.test.ts`) never time out despite the same nominal default — this is a genuine
+race between real query latency (worsened under full-suite CPU load, on a single shared, ever-
+growing, file-backed PGlite database with no per-file reset — `playwright.config.ts`'s own
+documented characteristic of the *e2e* DB, same root shape here) and vitest's own timeout timer,
+both delayed under contention, sometimes letting a slow test lose the race and sometimes not. Not
+"fixed" here — no precedent for touching backend test-timeout config in a UI-only PR, logged
+instead as a pre-existing environmental characteristic (§9 already tracks the same class of gap).
+
+**Full regression evidence, real output in front of me:**
+- Backend vitest, synchronous foreground run (2026-09-07, no overlapping processes but run
+  concurrently with the Playwright suite below, so under real CPU contention): **785/789 passing,
+  103/104 files** — the 4 failures are `registration.test.ts`'s own environmental flake described
+  above (isolated pass rate 6/6 already established across 3 prior clean runs this build).
+- `apps/workspace/e2e/registration.spec.ts` (new, 6 tests) run standalone after the race-condition
+  fix: **5 passed, 1 skipped** (the lazy-case-creation test skips gracefully — every booking in
+  this project already has a registration case on this non-fresh-reset dev DB, its own documented,
+  expected behavior).
+- Full Playwright suite from a freshly `db:reset` DB (both dev servers restarted clean, run to
+  completion, real output): **171 passed, 1 failed, 1 skipped (173 total)**. All 6
+  `registration.spec.ts` tests passed, including the lazy-case-creation test — which had skipped
+  on the earlier non-fresh dev DB (no "Not started" booking left) but, on this genuinely fresh
+  reset, found one and exercised the real bootstrap path end to end. The 1 failure
+  (`sales-desk.spec.ts:73`, a prospect-row visibility timeout) and the 1 skip
+  (`commitments.spec.ts:50`) both belong to specs 24/13 — no file this slice touched is in either
+  chain.

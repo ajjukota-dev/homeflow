@@ -77,7 +77,11 @@ export function SroOfficesStudio({ canEdit }: { canEdit: boolean }) {
       // Keep the GLOBAL sentinel selected after saving the global scope — `saved.id` is the row's
       // real db id, which doesn't match any option's value once scopeOptions filters that row out.
       setScopeId(scopeId === GLOBAL ? GLOBAL : saved.id);
-      load();
+      // Merge the saved row locally instead of calling load() — a re-fetch here raced a
+      // fast follow-up edit (e.g. delete-then-save): the in-flight GET resolved AFTER the user's
+      // next edit and the [templates] effect below stomped it back to the pre-edit value, so the
+      // next save silently persisted stale data (found live via e2e — server-confirmed round trip).
+      setTemplates((prev) => (prev ? (prev.some((t) => t.id === saved.id) ? prev.map((t) => (t.id === saved.id ? saved : t)) : [...prev, saved]) : prev));
     } catch {
       setSaveError("Couldn't save SRO offices.");
     } finally {
@@ -135,7 +139,7 @@ export function SroOfficesStudio({ canEdit }: { canEdit: boolean }) {
             <h3 className="mb-2 text-footnote font-semibold uppercase tracking-wide text-fg-subtle">SRO offices</h3>
             <div className="flex flex-col gap-2">
               {offices.map((o, i) => (
-                <div key={i} className="flex items-center gap-2">
+                <div key={i} data-testid="sro-office-row" className="flex items-center gap-2">
                   <Input value={o} onChange={(e) => setOffices(offices.map((x, idx) => (idx === i ? e.target.value : x)))} placeholder="e.g. SRO Bengaluru North" />
                   <Button variant="ghost" size="sm" onClick={() => setOffices(offices.filter((_, idx) => idx !== i))}><Trash2 className="h-4 w-4" /></Button>
                 </div>

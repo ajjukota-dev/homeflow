@@ -77,7 +77,11 @@ export function RegistrationChecklistStudio({ canEdit }: { canEdit: boolean }) {
       // Keep the GLOBAL sentinel selected after saving the global scope — `saved.id` is the row's
       // real db id, which doesn't match any option's value once scopeOptions filters that row out.
       setScopeId(scopeId === GLOBAL ? GLOBAL : saved.id);
-      load();
+      // Merge the saved row locally instead of calling load() — a re-fetch here raced a fast
+      // follow-up edit: the in-flight GET could resolve AFTER the user's next edit and the
+      // [templates] effect below would stomp it back to the pre-edit value (same class of bug
+      // found live in SroOfficesStudio.tsx's delete-then-save round trip).
+      setTemplates((prev) => (prev ? (prev.some((t) => t.id === saved.id) ? prev.map((t) => (t.id === saved.id ? saved : t)) : [...prev, saved]) : prev));
     } catch {
       setSaveError("Couldn't save the checklist.");
     } finally {
