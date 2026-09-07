@@ -11,17 +11,40 @@ import { test, expect } from "@playwright/test";
 
 const shot = (name: string) => `e2e/__screenshots__/${name}.png`;
 
-test("Handover pipeline lists every active booking with real gate chips", async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 1100 });
-  await page.goto("/");
-  await page.getByRole("button", { name: /^QA/ }).first().click();
-  await expect(page.getByRole("heading", { name: "Handover gates" })).toBeVisible();
-  // Both names also appear in the Unit readiness section above — .last() picks the
-  // Handover gates row, which renders later in the DOM.
-  await expect(page.getByText("Karthik Iyer · Villa V110").last()).toBeVisible();
-  await expect(page.getByText("Rohan Desai · Villa V113").last()).toBeVisible();
-  await page.screenshot({ path: shot("handover-pipeline"), fullPage: true });
-});
+const sizes = [
+  { name: "desktop", width: 1440, height: 1100 },
+  { name: "tablet", width: 768, height: 1200 },
+  { name: "mobile", width: 375, height: 1400 },
+];
+
+for (const s of sizes) {
+  test(`Handover pipeline lists every active booking with real gate chips @ ${s.name}`, async ({ page }) => {
+    await page.setViewportSize({ width: s.width, height: s.height });
+    await page.goto("/");
+    await page.getByRole("button", { name: /^QA/ }).first().click();
+    await expect(page.getByRole("heading", { name: "Handover gates" })).toBeVisible();
+    // Both names also appear in the Unit readiness section above — .last() picks the
+    // Handover gates row, which renders later in the DOM.
+    await expect(page.getByText("Karthik Iyer · Villa V110").last()).toBeVisible();
+    await expect(page.getByText("Rohan Desai · Villa V113").last()).toBeVisible();
+    await page.screenshot({ path: shot(`handover-pipeline-${s.name}`), fullPage: true });
+
+    // Read-only pass through the case drawer at this breakpoint (no gate mutation here —
+    // the override flows below run desktop-only so they don't collide with this loop).
+    const openCase = page
+      .locator("main")
+      .getByText("Karthik Iyer · Villa V110", { exact: true })
+      .last()
+      .locator("xpath=ancestor::div[contains(@class,'rounded-card')][1]")
+      .getByRole("button", { name: "Open case" });
+    await openCase.click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.getByRole("heading", { name: "Gates" })).toBeVisible();
+    await expect(dialog.getByRole("heading", { name: "Digital checklist" })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+    await page.screenshot({ path: shot(`handover-case-drawer-${s.name}`), fullPage: true });
+  });
+}
 
 test("Case drawer shows all eight gates and overrides one that requires an approver", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1100 });

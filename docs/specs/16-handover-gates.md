@@ -154,6 +154,7 @@ V113 to reach eligibility, chasing the full propose→confirm→complete→close
 dropped: `commitments.spec.ts`'s own gate-integration test opens a real commitment against
 `handovers[0]` — whichever booking the pipeline happens to return first, not pinned to a villa — so
 V113 isn't a stable fixture for a second file to also drive toward eligibility. "Close case" (rule 6)
-is exercised only by live Playwright MCP verification, not an automated e2e test, for the same
-reason plus rule 6's own already-flagged incompleteness (n above's sibling, (g) above) — a
+has no coverage at all in this slice — not e2e, not live MCP — because it only renders after a case
+reaches COMPLETED, and no MCP session this build reached that state either; combined with rule 6's
+own already-flagged incompleteness (o above), this is an honest gap, not a verified corner, and a
 proportionate cut given the core pipeline + case view is the real deliverable here.
