@@ -8,6 +8,52 @@ Rewritten 2026-09-05 04:20 IST (Amarsh: "the technical specs were vibecoded; mov
 
 ---
 
+## CONTINUE HERE (session handoff, 2026-09-07 ~14:15 IST)
+
+**If your first message in this repo is just "continue"**: read this section and `CLAUDE.md`'s
+"Autonomous build queue — continuation protocol" section, then resume from the next item below.
+Don't re-ask what those two already answer; do ask if you hit real ambiguity they don't resolve.
+
+**Landed and pushed** (verified via `git log` on both `main` and `origin/Amarsh`, they match):
+every R0–R6 spec's backend is merged, and full UI is landed for specs 05(backend-only deferred UI
+below), 06, 07, 08, 09, 10(same), 11, 12, 13, 14, 16, 17, 18, 19, 20(skipped, see §"Position"
+above), 21, 22, 23, 24, 25, 26, 27, 28, 29, 30. Each spec's own Build note (in
+`docs/specs/<n>-*.md`) has the real detail; this row's status-board table above has a one-line
+summary per spec.
+
+**In progress, needs finishing first — spec 31 (Intelligence) UI:**
+- Real UI code is committed on `main` (commit `7172207`): `ScoreCard` component,
+  `Suggestions*.tsx` pages, Studio tabs (Risk rules, LLM budget/usage), nav entries.
+- `apps/workspace/e2e/intelligence.spec.ts` has two real bugs, both fixed in code but
+  **NOT YET VERIFIED GREEN** — the fix was mid-debug when this session paused:
+  1. Cross-test string-collision risk in "CRM detects a commitment..." — fixed by scoping the
+     asserted text to the test's own `marker` instead of a fixed literal string.
+  2. A real race condition in "QA suggests a root cause..." — the test navigated to Suggestions
+     before the `POST /api/llm/tasks` call it had just triggered actually landed server-side, so
+     it saw stale "no pending suggestions" state. Fixed by awaiting the real
+     `page.waitForResponse(...)` calls instead of racing the UI.
+  **Next action: run `npx playwright test intelligence.spec.ts` from a fresh `db:reset` and
+  confirm both fixes are actually green — do not assume they are from reading the diff.**
+- Not yet done: `advisor()` review, full backend vitest + full Playwright suite from a fresh
+  `db:reset` (read the real output), build note appended to `docs/specs/31-intelligence.md`,
+  TODO.md status-board row for 31 (still says "✅ backend" below — wrong now that real UI is
+  landed, update once verified green) + a "Found while building" Record-section entry, git land
+  (branch → PR → CI → squash-merge, or a follow-up commit if an auto-checkpoint already put this
+  on `main` — check `git log --oneline -10 main` first), then `git push origin main:Amarsh`.
+
+**After 31 lands — two smaller Studio-UI gaps remain, either order:**
+- Spec 05 (Journey Templates Studio): bespoke swimlane/dependency-line editor, deferred pending
+  spec 25's generic tab pattern — that pattern is now built (spec 25 merged); check whether it
+  actually fits this editor's shape before building something bespoke.
+- Spec 10: `Queues.tsx` / `studio/ActionTypes.tsx` Studio UI, deferred for the same reason as 05.
+Read each spec file in full before building — this summary is not a substitute.
+
+**Once 31, 05, and 10 are all landed: the full application is complete against `docs/specs/*.md`.**
+Do a final sweep: confirm every spec file's own status is 🟩 in the table below, run the complete
+test suite once more end-to-end, and report completion.
+
+---
+
 ## 0. Status board (updated on every merge — the "where are we" view)
 
 **Position:** R0 complete (5/5 merged), R0.5 (schema reconciliation) done, R0.6 (authorization) merged, R1 code complete (4/4 sub-lanes merged; URL smoke test still outstanding, see R1 row), R2 fully backend-complete — 05 + 06 + 10 + 25 (journey templates + timeline/SLA engine + universal action + policy studio/approval matrix) all merged — all four Studio/dashboard UIs deferred. R3's first spec (19, collections & true risk) backend merged. **Then paused**: `docs/reports/2026-09-05-branch-review.md` (a colleague's, Vivek's, independent parallel Python/Postgres build) was discovered pushed to `main`; Amarsh chose "pause and start the consolidation procedure" (its §8) before any more R3 specs. P1 (row-level security), P5 (actor-attributed events), and P2 (Postgres-in-Docker parity check — confirmed RLS behaves identically on real Postgres 16, both Group A and Group B table shapes) are merged/done. P1b (thread GUCs into every query — the large ~100-call-site + ~70-test-file change), P3 (Google OIDC/OTP — blocked on Amarsh: `openid-client` dependency ask + a real OAuth client, TODO's open question #2), P4 (CDK/live-RDS-exposure lockdown), and P6 (fold Vivek's stack-neutral spec content) are all deliberately parked — Amarsh's own call (AskUserQuestion, 2026-09-05 ~21:15 IST: "hold off, return to R3 business specs") rather than this session choosing to defer P1b unilaterally. `0025_rls.sql` stays inert (superuser bypass) but harmless until P1b is revisited. **Resuming R3**: 21 loans merged (backend-complete, 28 new tests, matrix conflict flagged not resolved unilaterally). **20 (cash forecast) deliberately skipped, not silently deferred**: it depends on 23 (registration), which is sequenced in R6 (three waves out, nowhere near built) — building 20 now would mean stubbing 5 separate things at once (REGISTRATION_FINAL_DEMAND source type, snapshot cadence with no scheduler, `cash_target` values, future-sales assumptions, plus the spec's own `probability_rule` seed already marked `DEFAULT_UNCONFIRMED`), a wrong-next-item situation rather than a normal scope-cut. Surfaced to Amarsh directly (AskUserQuestion, 2026-09-05 ~21:55 IST); he picked **12 → 13 → 14 instead** — both 12 and 14 are fully unblocked and are exactly the two specs 21 (loans) just created real substitute-debt against (the Banking `createAction` stand-in for an escalation, the non-14-conformant risk score), and 13 (promise ledger) feeds 20's `PROMISE_TO_PAY` source type, making 20 more buildable once it's revisited. **12 (escalations & notifications) merged** — SLA-clock-driven ladder tiering is real and firing; the 13-rule named catalogue is honestly seeded `wired:false` (verified via exhaustive grep: no `createAction` call site outside `journey/instances.ts` sets a due date). **13 (promise ledger) merged** — full lifecycle + handover-gate integration real; approver-matrix/analytics/rule-6 auto-creation deferred per its own row above. **14 (readiness scores) merged** — shared Score contract + all 3 real scorers wired (unit/booking/handover), weighted blends real where data exists, forward dependencies (07/16/17/22) flagged not faked. **R3 done.** Amarsh chose R4 over revisiting 20 (AskUserQuestion, 2026-09-05 ~23:06 IST). **11 (my day) merged** — zero forward dependencies, fully real. **Next: 17 (sales-CRM handover) or 22 (document factory)** — both are the next-least-blocked R4 items (26/27 are heavily blocked on unbuilt 07/15/16/18/23/30, same "wrong next item" class as 20). The live RDS public-ingress exposure the brief flagged is **still open** — surfaced directly to Amarsh this session, not just logged. · **Live URL:** https://we947t2rq2.ap-south-1.awsapprunner.com (`/health` → `{"ok":true,"db":true}` against real RDS) · **Last deploy:** 2026-09-05 R0-03 merge — R1/R2/R3/consolidation changes are not yet deployed there · **Last updated:** 2026-09-05 22:20 IST

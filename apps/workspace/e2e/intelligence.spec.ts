@@ -75,14 +75,15 @@ test("CRM detects a commitment from a communication, reviews and accepts it, and
 
   await expect(page.getByRole("dialog", { name: "Accept detected commitment" })).toBeVisible();
   const dialog = page.getByRole("dialog", { name: "Accept detected commitment" });
-  await dialog.getByRole("textbox", { name: "Description" }).fill("Free chimney upgrade promised — confirm delivery by next Friday.");
+  const commitmentText = `${marker}: free chimney upgrade promised — confirm delivery by next Friday.`;
+  await dialog.getByRole("textbox", { name: "Description" }).fill(commitmentText);
   await page.screenshot({ path: shot("suggestions-accept-commitment-desktop") });
   await dialog.getByRole("button", { name: "Accept & create commitment" }).click();
   await expect(dialog).not.toBeVisible();
 
   await page.getByRole("button", { name: /^(CRM \/ RM|CRM)/ }).first().click();
   await page.getByRole("button", { name: /Rohan Desai/ }).click();
-  await expect(page.getByText("Free chimney upgrade promised")).toBeVisible();
+  await expect(page.getByText(commitmentText)).toBeVisible();
 });
 
 test("CRM summarizes a communication with an AI draft the fake adapter can't fill in, edits it, and accepts", async ({ page }) => {
@@ -137,10 +138,21 @@ test("QA suggests a root cause for a snag, then rejects the AI draft from the Su
   await page.goto("/");
   await page.getByRole("button", { name: /^QA/ }).first().click();
   const snagRow = page.locator("li").filter({ hasText: marker });
-  await snagRow.getByRole("button", { name: "Suggest root cause" }).click();
+  // "Suggest root cause" has no visible success confirmation (unlike the Communications panel's
+  // triggers) — wait on the real POST /api/llm/tasks response rather than any UI text, or the
+  // test can navigate to Suggestions before the suggestion actually exists server-side (found
+  // live: the request completes fine, just after the test had already moved on and asserted
+  // "no pending suggestions").
+  await Promise.all([
+    page.waitForResponse((r) => r.url().includes("/api/llm/tasks") && r.request().method() === "POST"),
+    snagRow.getByRole("button", { name: "Suggest root cause" }).click(),
+  ]);
 
   await page.getByRole("button", { name: /^Suggestions/ }).first().click();
-  await page.getByRole("tab", { name: "Snag root-cause suggestion" }).click();
+  await Promise.all([
+    page.waitForResponse((r) => r.url().includes("/api/llm/tasks?kind=SNAG_ROOT_CAUSE_SUGGESTION")),
+    page.getByRole("tab", { name: "Snag root-cause suggestion" }).click(),
+  ]);
   const editBox = page.getByRole("textbox", { name: /Edit root cause/ }).first();
   const card = editBox.locator("..");
   await expect(card.getByText("No root cause suggested")).toBeVisible();

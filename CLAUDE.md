@@ -104,6 +104,56 @@ A slice is done only when **all** are true:
 **Ask first:** DB schema/migrations; new dependency; changing a foundation spec; CI/infra changes; widening customer-visible data.
 **Never:** commit secrets; let Sales/CRM code mutate unit physics/gates; auto-send consequential customer comms from AI; hard-delete material history; hard-code project-specific values; introduce glass/translucency.
 
+## Autonomous build queue — continuation protocol
+
+This repo is being built by an unattended agent working through `docs/specs/*.md` one spec at a
+time, checkpointing state into `TODO.md` so the session can be picked up cold by anyone (a
+different machine, a different person, a fresh Claude Code session with zero prior conversation).
+
+**If your very first message in a session on this repo is just "continue" (or similarly bare):**
+read `TODO.md`'s `## CONTINUE HERE` section (near the top) and resume from what it names — don't
+ask what to do next, that section is written to answer it. If that section is stale (its own
+timestamp is old and the work it describes already looks done), fall back to: scan `TODO.md`'s
+status board for the first spec not marked 🟩, read that spec's file in full, and build its
+deferred piece (usually the UI — many specs shipped backend-only first and note their own UI as
+"deferred" in their own Build note).
+
+**Operational discipline that got the build this far — keep following it:**
+- **One agent/fork per spec, sequentially.** Before launching a subagent for a spec, check nothing
+  is already running on it (`ListAgents`, or check `git status`/recent `git log` for uncommitted
+  or freshly-committed work touching that spec's files) — launching a duplicate risks two agents
+  editing the same files concurrently.
+- **`advisor()` (or an equivalent independent review) before declaring any slice done.** Every use
+  of it in this build has surfaced a real defect worth fixing before landing.
+- **Never claim a test suite "passed" or a flow "works" without having actually run it to
+  completion and read the real output.** Run the full backend vitest suite AND the full Playwright
+  suite from a freshly-reset DB (`npm run db:reset` in `services/api` — stop any live API server
+  cleanly first) before calling a slice done.
+- **Watch for two recurring bug classes**, found repeatedly across specs: a raw DB id (`unit_id`,
+  `user.id`) displayed instead of a joined friendly label; and a GET/compute-on-read handler that
+  unconditionally writes an audit/snapshot row on every read (use a side-effect-free read variant).
+- **`page.getByRole` substring-matches by default in Playwright.** Scope to
+  `page.locator("main")` and/or pass `{ exact: true }` for short action-verb labels ("Save",
+  "Accept", "Send") to avoid false matches against sidebar nav.
+- **ALTER a pre-existing table rather than creating a parallel one** for the same concept; check
+  what already exists before adding a migration.
+- **An external auto-checkpoint mechanism sometimes commits in-progress working-tree changes
+  directly to `main`** (message pattern `claude: update <files>`), outside any branch/PR/CI gate.
+  Check `git log --oneline -10 main` before assuming a clean starting point. If found: don't
+  rewrite history (the content is usually legitimate finished or in-progress work) — verify the
+  diff matches what was intended (`git show --stat <sha>`), then land normally on top of it (a
+  follow-up commit direct to `main` is acceptable for doc-only changes, matching this repo's own
+  convention of small doc commits landing without a PR).
+- **After landing a spec, push `main` to the `Amarsh` branch** (`git push origin main:Amarsh`) so
+  progress stays visible to whoever is watching it on GitHub.
+- **TODO.md is a living doc** — fold every non-trivial finding into it (the owning spec's
+  status-board row, plus a "Found while building" entry in its Record section) as it happens, not
+  at the end. Some of its lines exceed normal editor/tool read limits (70,000+ characters) — if a
+  line is too long to read or edit directly, read/edit it as a line array (e.g.
+  `Get-Content -Encoding UTF8` in PowerShell, `[regex]::Matches` to find row markers,
+  `[System.IO.File]::WriteAllLines` with a BOM-less UTF8 encoding to write back) rather than
+  giving up on updating it.
+
 ## Commands
 
 Frontend `apps/workspace`: `npm run dev | build | test | lint`.
