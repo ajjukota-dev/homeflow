@@ -106,7 +106,14 @@ export async function getUnit360(unitId: string, ctx: Ctx): Promise<Unit360View>
         ? tab("customisations", "Customisations", `/api/change-requests?booking_id=${booking.rows[0].id}`)
         : notYetAvailable("customisations", "Customisations", "18 (no booking on this unit yet — nothing to show)"),
       tab("qa_snags", "QA & Snags", `/api/units/${unitId}/inspections`),
-      tab("handover", "Handover", booking.rows[0] ? `/api/bookings/${booking.rows[0].id}/handover` : `/api/units/${unitId}`),
+      // Handover is booking-scoped by definition (16's own handover_record FK is booking_id, not
+      // unit_id) — a unit with no booking has no handover case to show, so this degrades the same
+      // way customisations/documents already do above, rather than pointing `tab()` at the raw
+      // unit record (found while building this spec's UI: the old fallback marked `available: true`
+      // but the URL returned unrelated unit JSON, not a handover payload).
+      booking.rows[0]
+        ? tab("handover", "Handover", `/api/bookings/${booking.rows[0].id}/handover`)
+        : notYetAvailable("handover", "Handover", "16 (no booking on this unit yet — nothing to show)"),
       booking.rows[0]
         ? tab("documents", "Documents", `/api/bookings/${booking.rows[0].id}/customer-documents`)
         : notYetAvailable("documents", "Documents", "22 (no booking on this unit yet — nothing to show)"),

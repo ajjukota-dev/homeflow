@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import { Inbox, ChevronRight, FileClock } from "lucide-react";
+import { Inbox, ChevronRight, FileClock, Maximize2 } from "lucide-react";
 import { api, type Booking, type CustomerRow } from "../api";
 import { Card, CardBody, Button, EmptyState, Skeleton } from "@homeflow/ui";
 import { MoneyFigure } from "../ui/MoneyFigure";
 import { Customer360 } from "./Customer360";
+import { Booking360 } from "./booking/Booking360";
 import { salesHandoverApi, type HandoverQueueRow } from "./sales-handover/api";
 import { HandoverPacketDrawer } from "./sales-handover/HandoverPacketDrawer";
 
@@ -24,6 +25,7 @@ export function CrmQueue({ roles, projectId }: { roles: string[]; projectId: str
   const [returningId, setReturningId] = useState<string | null>(null);
   const [reason, setReason] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
+  const [viewing360BookingId, setViewing360BookingId] = useState<string | null>(null);
 
   // 17-sales-crm-handover.md Screens: additive to the "Acceptance queue" above (which still
   // drives the old bookings-crm.ts accept/return flow untouched) — a separate list sourced from
@@ -72,6 +74,7 @@ export function CrmQueue({ roles, projectId }: { roles: string[]; projectId: str
   }
 
   if (selected) return <Customer360 customerId={selected} onBack={() => setSelected(null)} roles={roles} />;
+  if (viewing360BookingId) return <Booking360 bookingId={viewing360BookingId} roles={roles} onBack={() => setViewing360BookingId(null)} />;
 
   return (
     <div>
@@ -129,6 +132,9 @@ export function CrmQueue({ roles, projectId }: { roles: string[]; projectId: str
                         disabled={busy === b.id}
                       >
                         Return
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setViewing360BookingId(b.id)}>
+                        <Maximize2 className="h-4 w-4" /> 360
                       </Button>
                     </div>
                   </div>

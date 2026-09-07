@@ -59,8 +59,12 @@ export function ScoreCard({ label, value, trend, drivers, confidence, actions, c
         ) : null}
       </div>
       <ul className="mt-3 flex flex-col gap-1.5">
-        {drivers.map((driver) => (
-          <li key={driver.label} className="flex items-center gap-2 text-ws-sm text-fg-muted">
+        {drivers.map((driver, i) => (
+          // Keyed by index, not label: a Score's drivers aren't guaranteed distinct text (e.g.
+          // several gate categories can share the exact same driver sentence) — found live-
+          // verifying 28-360-views.md's Unit Readiness card, the first real ScoreCard usage in
+          // this app, which threw a duplicate-key warning off seeded data.
+          <li key={i} className="flex items-center gap-2 text-ws-sm text-fg-muted">
             <span className={cn("size-1.5 rounded-full", DRIVER_DOT[driver.impact])} aria-hidden />
             {driver.label}
           </li>

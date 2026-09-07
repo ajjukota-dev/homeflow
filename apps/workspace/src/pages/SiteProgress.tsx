@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Maximize2 } from "lucide-react";
 import { api, type ProgressState, type Unit } from "../api";
 import { Card, CardBody, Segmented, Button, Tabs, TabsList, TabsTrigger } from "@homeflow/ui";
 import { GateChip } from "../ui/GateChip";
@@ -8,6 +8,7 @@ import { cn } from "../lib/utils";
 import { ProgressConsole } from "./site/ProgressConsole";
 import { ChangeabilityHeatmap } from "./site/ChangeabilityHeatmap";
 import { WRITE_ROLES } from "./site/labels";
+import { Unit360 } from "./unit/Unit360";
 
 const STATES: { value: ProgressState; label: string }[] = [
   { value: "not_started", label: "Not started" },
@@ -35,6 +36,7 @@ export function SiteProgress({ projectId, roles }: { projectId: string; roles: s
   const [uNumber, setUNumber] = useState("");
   const [uType, setUType] = useState("3BHK");
   const [uFacing, setUFacing] = useState("East");
+  const [viewing360UnitId, setViewing360UnitId] = useState<string | null>(null);
 
   const load = useCallback(() => {
     if (!projectId) return;
@@ -74,6 +76,10 @@ export function SiteProgress({ projectId, roles }: { projectId: string; roles: s
     } finally {
       setSaving(null);
     }
+  }
+
+  if (viewing360UnitId) {
+    return <Unit360 unitId={viewing360UnitId} onBack={() => setViewing360UnitId(null)} />;
   }
 
   return (
@@ -169,12 +175,17 @@ export function SiteProgress({ projectId, roles }: { projectId: string; roles: s
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
             <Card>
               <CardBody>
-                <h2 className="mb-4 text-title3 font-semibold">
-                  {unit.unit_number}
-                  <span className="ml-2 text-subhead font-normal text-fg-muted">
-                    {unit.unit_type} · {unit.facing} facing
-                  </span>
-                </h2>
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                  <h2 className="text-title3 font-semibold">
+                    {unit.unit_number}
+                    <span className="ml-2 text-subhead font-normal text-fg-muted">
+                      {unit.unit_type} · {unit.facing} facing
+                    </span>
+                  </h2>
+                  <Button size="sm" variant="secondary" onClick={() => setViewing360UnitId(unit.id)}>
+                    <Maximize2 className="h-4 w-4" /> View 360
+                  </Button>
+                </div>
                 <div className="flex flex-col gap-5">
                   {unit.components?.map((c) => (
                     <div key={c.code}>
