@@ -5,10 +5,14 @@ import { type ProgressState } from "./gates";
 // Customer-safe T4 / T5 / T6 projections (customer-transparency.md). Internal codes never cross.
 
 export async function t4Passport(unitId: string) {
-  // serial/warranty_until/vendor_contact are 30-post-handover.md's own additions to this
-  // pre-existing table (its Build note's own "table reuse, not new tables" section) — added here
-  // additively alongside the legacy warranty_months/paint_tile_code, never replacing them, so
-  // customer.ts's own t4Passport() caller is unaffected by columns it doesn't read.
+  // serial/warranty_until are 30-post-handover.md's own additions to this pre-existing table (its
+  // Build note's own "table reuse, not new tables" section) — added here additively alongside the
+  // legacy warranty_months/paint_tile_code, never replacing them, so customer.ts's own
+  // t4Passport() caller is unaffected by columns it doesn't read. vendor_contact is deliberately
+  // NOT projected here: a vendor's contact detail is FM/CRM-facing only (post-handover/core.ts's
+  // own passport route serves that side) — the customer contacts CRM/FM, never a vendor directly
+  // (found live 2026-09-07: the raw key leaked through even null-valued, tripping this file's own
+  // customer-safe-projection contract).
   const r = await db.query<{
     category: string;
     name: string;
@@ -17,10 +21,9 @@ export async function t4Passport(unitId: string) {
     warranty_months: number | null;
     serial: string | null;
     warranty_until: string | null;
-    vendor_contact: string | null;
   }>(
     `SELECT category, name, brand_model, paint_tile_code, warranty_months, serial,
-            warranty_until::text AS warranty_until, vendor_contact
+            warranty_until::text AS warranty_until
        FROM home_passport_item
       WHERE unit_id = $1 AND customer_facing = true AND approved = true
       ORDER BY category, name`,
@@ -34,7 +37,6 @@ export async function t4Passport(unitId: string) {
     warranty_months: row.warranty_months,
     serial: row.serial,
     warranty_until: row.warranty_until,
-    vendor_contact: row.vendor_contact,
   }));
 }
 

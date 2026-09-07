@@ -69,7 +69,8 @@ ALTER TABLE warranty_case
   ADD COLUMN before_file_keys text[] NOT NULL DEFAULT '{}',
   ADD COLUMN after_file_keys text[] NOT NULL DEFAULT '{}',
   ADD COLUMN rejected_reason text,
-  ADD COLUMN snag_id text; -- flagged unused, see post-handover/core.ts header comment
+  ADD COLUMN snag_id text, -- flagged unused, see post-handover/core.ts header comment
+  ADD COLUMN created_at timestamptz NOT NULL DEFAULT now(); -- portal/core.ts::getServiceRequests ordering
 
 -- passport_item (spec's name) is the same entity as home_passport_item — widened, not renamed
 -- (existing readers: transparency.ts::t4Passport, seed-lifecycle.ts, warranty_case.passport_item_id).

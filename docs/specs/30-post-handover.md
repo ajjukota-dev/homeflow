@@ -142,3 +142,104 @@ passing. Full suite: 723 passed / 5 failed (isolated re-run of all 4 affected fi
 `collections-sweep`, `authz/mask`, `documents`, `registration` — passed 26/26 with zero failures,
 confirming the pre-existing Windows vitest worker-pool contention flake, not a spec 30 regression)
 / 10 skipped, out of 738 total.
+
+## Build note (2026-09-07, UI)
+
+**Scope.** Built the FM/CRM Post-handover module deferred by the backend PR:
+`apps/workspace/src/pages/post-handover/{api.ts, PostHandoverCases.tsx, CaseDrawer.tsx,
+WarrantyPanel.tsx, PassportPanel.tsx, ServiceHistoryPanel.tsx, AdvocacyPanel.tsx}`, wired into
+`nav.ts`/`Workspace.tsx`, replacing and deleting the legacy `PostHandover.tsx`. Also built the
+customer-portal side (`apps/my-pranava-home/src/pages/{Passport,Requests}.tsx`,
+`portal-api.ts`, `services/api/src/portal/core.ts` — `getServiceRequests`,
+`raiseCustomerServiceRequest`, `verifyCustomerServiceRequest`, `acceptCustomerServiceRequestQuote`,
+`getAdvocacyInvites`, `respondCustomerAdvocacy`) — Screens' own "Portal (26): Requests → raise
+service/warranty request..., check-in prompts with a real 1–5 control, referral invite" line, not
+deferred after all. Deferred: both Studio tabs (`dlp_policy` already fully functional through the
+generic Policy Studio table editor — `registry.ts`'s `GENERIC_TABLES`/`TAB_TO_TABLE` already maps
+`"30.dlp_warranty_policy": "dlp_policy"` — and the check-in schedule tab, which has no backing
+config table yet, same "flagged, not faked" precedent as prior specs' deferred Studio tabs).
+
+**Rule 5's "fix hardcoded 5" was already fixed.** Traced before building anything: spec 26's portal
+`Home.tsx`'s `CheckInPrompt` already implements a real 1–5 star `submitCheckIn` capture flow
+customer-side. The legacy staff-side "Capture" button (`api.captureCheckin(id)`, backend-hardcoded
+to 5) was dropped entirely rather than reproduced — the case view now only displays the real
+captured scores, read-only. `apps/workspace/src/api-lifecycle.ts`'s now-dead
+`WarrantyView`/`ServiceEvent` interfaces and `warranty`/`serviceHistory`/`closeWarranty`/
+`captureCheckin` client methods were removed as part of this.
+
+**Five bugs found live (Playwright MCP) before any e2e was written, all fixed:**
+1. Seed bypassed the event: `seed-lifecycle.ts` inserted `handover_record` via raw SQL, so
+   `openPostHandoverCase`'s move-in-task/DLP-window/passport-prefill/check-in-scheduling side
+   effects never fired for the only seeded handed-over villa (V113). Fixed by calling the real
+   `openPostHandoverCase` directly in the seed after the raw insert — same class as spec 09's
+   `unit_specification` gap.
+2. Empty contractor picker: no seed data for `contractor`. Added 3 real rows (`con_sunrise_plumbing`,
+   `con_voltage_electricals`, `con_eastcrest_fm`).
+3. Warranty case count staleness: closing a case in `WarrantyPanel` left the outer cases-list's
+   "open warranty cases" count stale until the drawer was closed and reopened — two separate
+   fetches, no notification path between them. Fixed via an `onCaseCountChanged` callback threaded
+   `WarrantyPanel` → `CaseDrawer` → `PostHandoverCases`' own `load`.
+4. Raw-id leak: `service_history.actor` showed `"user_fm"` instead of a name.
+   `post-handover/core.ts::addServiceRecord` used `ctx.actor.user_id`; fixed to
+   `ctx.actor.display_name ?? "System"`. Mutation-tested (reverted to `user_id`, confirmed
+   `post-handover.spec.ts`'s `/^user_/` guard goes red, restored) — the guard is load-bearing.
+5. Advocacy tab 403 misreported as "Couldn't reach the API": `listAdvocacy`/`inviteAdvocacy`/
+   `respondAdvocacy` are gated server-side by `requireRole(ctx, CRM_UPDATE_ROLES)`, not the
+   `"handovers"` permission-matrix module the rest of the case view reads through — FM has
+   legitimate READ on `"handovers"` but is not in `CRM_UPDATE_ROLES`, so the fetch 403s for FM
+   specifically. Fixed by gating the client fetch itself on `canView` (role membership check),
+   with a plain "managed by CRM" message instead of an error state — same matrix-vs-direct-role-check
+   gap class as spec 08/18/29's own findings.
+
+**Two more bugs found once the customer-portal side was built, after the backend PR had already
+landed:**
+6. `portal/core.ts::getServiceRequests` (new, for the portal's own service-request list) selects
+   `created_at` from `warranty_case` and orders by it — but migration `0045_post_handover.sql`'s own
+   `ALTER TABLE warranty_case ADD COLUMN ...` list never added `created_at` (the pre-existing
+   `0000_init.sql` table never had one either). Deterministic `column "created_at" does not exist"`
+   failure in `portal.test.ts`, reproduced in isolation and under `--no-file-parallelism`. Fixed by
+   adding `created_at timestamptz NOT NULL DEFAULT now()` to the same ALTER statement in `0045`
+   (edited in place — that migration was only ever applied to this session's own throwaway/reset
+   dev DBs, never shipped elsewhere). **Because the migration runner (`db/migrate.ts`) tracks
+   applied files by filename only, with no checksum, this edit is invisible to any environment that
+   already has an on-disk `.data/pglite` from before this fix — such an environment will silently
+   skip re-running `0045` and keep missing the column. Anyone picking up this branch with an
+   existing local dev DB (or a synced copy of one) needs one `npm run db:reset` in `services/api`
+   before the portal's service-requests area will work.**
+7. `transparency.ts::t4Passport` (the customer-facing Home Passport projection, spec 16-era) started
+   returning the new `vendor_contact` column added by `0045`'s `home_passport_item` ALTER, because
+   it selects `*`-adjacent named columns and the new column was added to the same SELECT/map without
+   thinking about who reads it. `lifecycle.test.ts`'s own denylist regex
+   (`/EXCEPTION_ONLY|HARD_CLOSED|TRUE_RISK|vendor|.../`) caught it — the key `vendor_contact` matched
+   the substring `vendor` even with a null value. Fixed by dropping `vendor_contact` from
+   `t4Passport`'s SELECT and return shape entirely: a vendor's contact detail is FM/CRM-facing only
+   (already served customer-*side*-free via `post-handover/core.ts`'s own staff passport route) —
+   the customer contacts CRM/FM, never a vendor directly, so there was never a legitimate reason for
+   it to reach this projection. **Found while building, logged separately in TODO.md: the portal's
+   own `assertNoDenylistedKeys` walker (rule 2's "shared enforcement mechanism") does *exact* key
+   matching, not substring — it did NOT catch this leak; only `lifecycle.test.ts`'s unrelated regex
+   did. That's a real gap in the denylist's own coverage, not something to widen under this spec's
+   scope.**
+
+**e2e.** New `apps/workspace/e2e/post-handover.spec.ts` (5 tests): full flow (cases list → move-in
+checklist → DLP windows → warranty case lifecycle open→triaged→assigned→in_progress→resolved→closed
+→ service history → passport → advocacy invite→received→published), an FM-role Advocacy-tab
+role-limited check (fresh unauthenticated context, bug 5's regression guard), and a 3-breakpoint
+render check. Also fixed two pre-existing e2e files whose assertions still targeted the legacy
+screen's "month cover" copy this replaced: `visual.spec.ts`'s "After keys" smoke test and
+`journeys/sale-to-handover.spec.ts`'s read-only walk — both rewritten to real new-screen content
+(found by grepping every e2e file for legacy screen text before running any suite, per this
+session's own established discipline).
+
+**Verification.** `tsc --noEmit` clean in both `services/api` and `apps/workspace`. Full backend
+vitest, fresh `db:reset`, run twice (`--no-file-parallelism` once): **789/789 passing** both times
+— the pre-fix run's 9 failures (`lifecycle.test.ts` ×1, `portal.test.ts` ×2, `registration.test.ts`
+×6) traced to the two real bugs above (6 and 7); once fixed, zero failures, no residual flake.
+Full Playwright e2e suite, fresh `db:reset` + clean API restart, run **three times**: 182, 182, 183
+of 185 passed each time, 1 skipped every run, with a *different* 1–2 tests failing each run
+(`finance.spec.ts:26`, `visual.spec.ts:35`, `visual.spec.ts:138` each appeared and disappeared
+across the three runs) — a pre-existing order-sensitive flake pool in this large shared-DB suite
+(`visual.spec.ts:138`'s own in-file comment already documents it needs `commitments.spec.ts` to run
+first for a chip count), not a spec 30 regression; `post-handover.spec.ts`'s own 5 tests passed
+clean in every run. Mutation-tested the raw-id-leak guard (bug 4): confirmed red on the mutation,
+green on the fix.
