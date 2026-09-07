@@ -163,9 +163,9 @@ export function Booking360({
               <TabsContent key={t.key} value={t.key}>
                 {t.key === "activity" && <ActivityFeed entityType="booking" entityId={bookingId} />}
                 {t.key === "commitments" && <CommitmentsSection bookingId={bookingId} canWrite={canWriteCommitments} />}
-                {t.key === "communications" && view.customer && (
-                  <CommunicationsPanel customerId={view.customer.id} bookingId={bookingId} roles={roles} />
-                )}
+                {t.key === "communications" && (view.customer
+                  ? <CommunicationsPanel customerId={view.customer.id} bookingId={bookingId} roles={roles} />
+                  : <TabPanel entry={t} />)}
                 {t.key !== "activity" && t.key !== "commitments" && t.key !== "communications" && <TabPanel entry={t} />}
               </TabsContent>
             ))}

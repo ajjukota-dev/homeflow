@@ -103,6 +103,86 @@ isolation; failures were `Error: Worker exited unexpectedly` timeouts, the same 
 vitest worker-pool contention already diagnosed and documented earlier this session, not a
 regression from this spec.
 
+## Build note (2026-09-07, UI)
+
+**Scope.** The frontend deferred by the 2026-09-06 note: Customer 360 → Communications tab
+(log call/meeting, send email from template with live preview + guardrail check, send freeform,
+publish-to-portal with an exact-content confirmation dialog), a reusable Internal Notes panel
+(mounted on Customer 360 and Booking 360), and the two Policy Studio tabs — `frequency_guardrails`
+(already fully functional via the pre-existing generic table-editor envelope; verified, not
+rebuilt) and `communication_templates` (bespoke — DRAFT → LEGAL_REVIEW → APPROVED lifecycle, not a
+plain table). Booking 360 also gets the Communications panel and Notes tab, wired the same way as
+Customer 360's manifest-driven tab composition (28).
+
+**Minimal backend additions.** Two new routes, both thin wrappers over existing pure functions —
+judged additive, not schema/CI-affecting, so built without asking first: `GET
+/api/communications/guardrail-status` (a new non-throwing `getGuardrailStatus`, factored out of
+`checkFrequencyGuardrail` so the UI can show "blocked, last sent facts" before a send attempt
+rather than only after a rejected one) and `POST /api/communication-templates/:id/preview` (wraps
+the existing `renderTemplateBody`, resolving merge fields against a real booking when one is
+picked, or listing unresolved `{{codes}}` when none is).
+
+**Bugs found and fixed while building.**
+- Raw-id leak in `communications/notes.ts`: `listInternalNotes`/`createInternalNote` returned
+  `author_user_id` with no join to a display name — the Notes panel would have shown a raw UUID.
+  Joined to `"user".display_name AS author_name`.
+- Role-gating mismatch in `studio/registry.ts`: `29.communication_templates`'s `edit_roles` was
+  `MANAGEMENT`-only, but the real per-action logic is SALES/CRM/SUPER_ADMIN can create drafts and
+  submit for review, CRM/MANAGEMENT/SUPER_ADMIN approve GENERAL-purpose templates, and
+  LEGAL/SUPER_ADMIN approve the two legal-bearing purposes — the matrix-vs-direct-role-check gap
+  class already documented for spec 08's `change_gate_rule_studio`. Fixed to
+  `["MANAGEMENT","SUPER_ADMIN","SALES","CRM","LEGAL"]`; the server-side role checks (unchanged)
+  remain the actual enforcement — this only fixes what the Studio tab lets a role attempt.
+- Booking360's Communications tab rendered blank (no `TabPanel` fallback) for a booking with no
+  primary applicant, instead of the `notYetAvailable("communications", …)` empty-state reason
+  `booking-360.ts` already emits for that case — same defect class as 28's own handover-tab
+  degrade fix. Fixed to fall through to `TabPanel` when `view.customer` is null.
+
+**Known gap surfaced, not introduced.** `frequency_guardrail.quiet_hours_start/end` are real,
+editable columns and the new Studio tab displays them as live policy, but nothing in the send path
+reads them — `getGuardrailStatus` only ever checks `max_per_customer_per_window`/`window_days`.
+Quiet hours were already unenforced before this pass (the column existed since the 2026-09-06
+backend-only build); this pass just makes the gap visible in the UI for the first time. Not fixed
+here — enforcing a send-time clock check is a small but separate change or a documented UI note;
+logged in TODO.md.
+
+**e2e coverage.** `e2e/communications.spec.ts`, 5 tests: the main log/send/publish/note flow, a
+Policy Studio create→submit→approve→guardrail-block→override round trip, and a 3-breakpoint
+render check — all driving the seeded, already-ACCEPTED customer Rohan Desai (Villa V113) rather
+than a fresh booking, specifically to avoid the booking.created welcome-draft event that would
+otherwise pollute `customer-updates.spec.ts`'s "exactly one draft" assumption (found the hard way
+on a first draft that used `bookVilla()`). One assertion (`"Frequency guardrail blocked"` not
+visible after the first, non-blocked send) originally raced the async guardrail-status fetch and
+would have passed trivially before the fetch resolved; fixed with a sync point on the resolved
+preview text first. Two status-text assertions (`"Draft"`, `"Approved"`) were ambiguous substring
+matches against the tab's own rule-3 description paragraph, caught via a real Playwright run, not
+inspection; fixed with `{ exact: true }`. The load-bearing guardrail-blocks-a-second-send assertion
+was mutation-tested against a freshly reset DB (forced `blockedAndNoOverride` to always-false,
+confirmed the disabled-Send assertion fails, restored, confirmed the full suite passes clean
+again).
+
+**Side effects this spec's e2e tests leave on the shared on-disk DB** (per the file's own
+`workers:1` serial-execution model, 28/29's ordering notes): `frequency_guardrail.GENERAL` is left
+at `max_per_customer_per_window=1` (down from the seeded 10), an APPROVED `E2E_GENERAL_NOTE`
+template is left in place, and Rohan Desai ends the file with 3 real communications logged. The
+main flow test asserts he has *zero* communications at file entry — any future spec file that
+communicates with him and sorts alphabetically ahead of `communications.spec.ts` will break that
+assertion, the same class of risk the `bookVilla()`/`customer-updates.spec.ts` collision was.
+
+**Verification.** Booking 360's Communications/Notes embed was exercised only through the e2e
+suite (the responsive-render test opens Customer 360, not Booking 360) and through code reading —
+not separately opened live in a browser. Customer 360's full interactive surface (log, send
+template + freeform, guardrail block + override, publish-to-portal confirmation, notes, role
+differences CRM vs MANAGEMENT, empty states) was verified live via Playwright MCP at 1440px and
+375px before any e2e test was written. `npx tsc --noEmit` clean. Full suite, fresh DB, run twice
+after all fixes above: e2e `npx playwright test` — 180/180 (179 passed, 1 pre-existing unrelated
+skip), 0 failed, including all of this spec's new tests and zero regressions elsewhere. Backend
+`npx vitest run` — 104 files: first run 103/104 files (784/789 tests, 5 failed), second run
+103/104 files (783/789, 6 failed) — both failure sets entirely `registration/registration.test.ts`
+timeouts (`Error: Test timed out in 5000ms`), the same file/signature already documented as a
+full-suite-only worker-pool contention flake in the 2026-09-06 and 28 build notes (passes cleanly
+in isolation; `registration/` untouched by this build). Nothing was cut from this pass's scope.
+
 ## Depends on / Feeds
 Depends on 01, 03, 10, 12, 22 (merge fields), 26. Feeds 13 (source of commitments), 31 (summary/sentiment), 27 (experience KPIs).
 

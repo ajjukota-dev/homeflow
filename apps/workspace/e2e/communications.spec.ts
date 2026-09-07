@@ -65,10 +65,10 @@ test("Policy Studio: create, submit and approve a template; guardrail blocks a s
   await page.getByRole("textbox", { name: "Code" }).fill("E2E_GENERAL_NOTE");
   await page.getByRole("textbox", { name: "Body" }).fill("A plain note with no merge fields.");
   await page.getByRole("button", { name: "Create draft" }).click();
-  await expect(page.getByText("Draft")).toBeVisible();
+  await expect(page.getByText("Draft", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Submit for review" }).click();
   await page.getByRole("button", { name: "Approve", exact: true }).click();
-  await expect(page.getByText("Approved")).toBeVisible();
+  await expect(page.getByText("Approved", { exact: true })).toBeVisible();
 
   // Lower the GENERAL guardrail to 1/30 days as MANAGEMENT so the next templated send blocks.
   const mgmtCtx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
@@ -105,6 +105,9 @@ test("Policy Studio: create, submit and approve a template; guardrail blocks a s
   }
 
   await sendTemplated();
+  // Wait for the preview fetch to resolve (it and the guardrail-status fetch fire together) before
+  // asserting the guardrail panel's absence, so the assertion can't pass on a still-loading drawer.
+  await expect(crm.getByText("A plain note with no merge fields.").first()).toBeVisible();
   await expect(crm.getByText("Frequency guardrail blocked")).not.toBeVisible();
   await crm.getByRole("button", { name: "Send" }).click();
   await expect(crm.getByText("A plain note with no merge fields.").first()).toBeVisible();
