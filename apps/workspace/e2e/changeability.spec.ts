@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page, type Locator } from "@playwright/test";
 
 const shot = (name: string) => `e2e/__screenshots__/${name}.png`;
 
@@ -43,8 +43,12 @@ for (const s of sizes) {
     await page.setViewportSize({ width: s.width, height: s.height });
     await openHeatmap(page);
     const main = page.locator("main");
+    let unitButton: Locator | null = null;
+    let unitLabel = "";
     if (s.width < 768) {
-      await expect(main.getByRole("button", { name: /flexible/ }).first()).toBeVisible();
+      unitButton = main.getByRole("button", { name: /flexible/ }).first();
+      await expect(unitButton).toBeVisible();
+      unitLabel = await unitButton.locator("span").first().innerText();
     } else {
       await expect(main.locator("table tbody tr").first()).toBeVisible();
     }
@@ -54,6 +58,21 @@ for (const s of sizes) {
     }));
     expect(scrollWidth).toBeLessThanOrEqual(clientWidth);
     await page.screenshot({ path: shot(`changeability-heatmap-${s.name}`), fullPage: true });
+
+    if (unitButton) {
+      // Cut-justification check: the mobile drill-down is what stands in for the spec's unbuilt
+      // Unit 360 -> Changeability screen, so it must actually open a per-unit gate list, not just
+      // render the unit list.
+      await unitButton.click();
+      await expect(main.getByRole("button", { name: "← All units" })).toBeVisible();
+      const drilldownHeading = main.getByRole("heading", { name: unitLabel, exact: true });
+      await expect(drilldownHeading).toBeVisible();
+      // Scoped to the drill-down container, not `main` — the desktop grid (`hidden md:block`)
+      // stays in the DOM at this width, so an unscoped text match hits its off-screen chip first.
+      const drilldown = drilldownHeading.locator("xpath=..");
+      await expect(drilldown.getByText(/^(Open|Closing|Conditional|Exception only|Hard closed)$/).first()).toBeVisible();
+      await page.screenshot({ path: shot(`changeability-heatmap-${s.name}-drilldown`), fullPage: true });
+    }
   });
 }
 
@@ -118,24 +137,50 @@ test("Change Gate Rule Studio: loads the real published rule set and simulation 
   await expect(page.getByText("Currently PUBLISHED")).toBeVisible();
   await expect(page.getByRole("combobox", { name: "Category" }).first()).toBeVisible();
 
+  // Fixture unit is left at NOT_STARTED (never PUT to /progress) so its real, persisted structural
+  // gate stays OPEN. Only the simulation panel's own per-component override says "structure
+  // complete" — this is what makes the dry-run-purity assertion below discriminating: if
+  // /changeability/evaluate ever started persisting its overrides, the post-simulation GET would
+  // flip to HARD_CLOSED and fail it.
   const unit = await createFixtureUnit(page);
-  await page.request.put(`/api/units/${unit.id}/progress`, {
-    data: { component_code: "structure", state_code: "COMPLETE" },
-  });
 
   await page.getByRole("combobox", { name: "Project", exact: true }).click();
   await page.getByRole("option", { name: "East Crest" }).click();
   await page.getByRole("combobox", { name: "Unit" }).click();
   await page.getByRole("option", { name: unit.unit_number }).click();
+  await page.getByRole("combobox", { name: "Structure" }).click();
+  await page.getByRole("option", { name: "complete", exact: true }).click();
   await page.getByRole("button", { name: "Simulate" }).click();
 
-  // structure complete -> HARD_CLOSED is the real published rule; a dry run must show it without
-  // writing anything (unit.gates itself is untouched — this unit's real progress was set directly
-  // above via the API, the simulation panel only re-derives from it).
-  await expect(page.getByText("Structural")).toBeVisible();
-  await expect(page.getByText("Hard closed")).toBeVisible();
+  // Scope to the Simulation panel container (not the page) — row 7 of the rules table above also
+  // renders "Structural" as a Category value, so an unscoped getByText would be ambiguous.
+  const simulationPanel = page.getByRole("heading", { name: "Simulation" }).locator("xpath=..");
+  await expect(simulationPanel.getByText("Structural")).toBeVisible();
+  await expect(simulationPanel.getByText("Hard closed")).toBeVisible();
 
+  // The discriminating check: the unit's real, persisted gate must still be OPEN — the override
+  // was never written to progress, so the simulation is a true dry run.
   const matrixAfter = await (await page.request.get(`/api/units/${unit.id}/changeability`)).json();
   const structuralGate = matrixAfter.data.gates.find((g: { category_code: string }) => g.category_code === "structural");
-  expect(structuralGate.state).toBe("HARD_CLOSED");
+  expect(structuralGate.state).toBe("OPEN");
+});
+
+// registry.ts's 08.change_gate_rule_studio tab was found (this slice) to have edit_roles: ["SITE"]
+// while the engine's real RULE_EDIT_ROLES (changeability/core.ts) is ["SITE", "MANAGEMENT",
+// "SUPER_ADMIN"] — fixed to ["SITE", "MANAGEMENT"]. This proves MANAGEMENT actually sees the write
+// controls now, not just that canEdit is true somewhere in code.
+test("MANAGEMENT sees editable rule-set controls in the Rule Studio, not a read-only view", async ({ browser }) => {
+  const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+  const page = await ctx.newPage();
+  await page.goto("/");
+  await page.getByLabel("Email").fill("management@demo.pranava");
+  await page.getByLabel("Password").fill("Demo@2026");
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page.getByRole("heading", { name: "Control tower" })).toBeVisible();
+  await openRuleStudio(page);
+
+  await expect(page.getByRole("button", { name: "+ Add rule" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Save draft & publish…" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Remove" }).first()).toBeVisible();
+  await ctx.close();
 });
