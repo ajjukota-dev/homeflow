@@ -1,5 +1,6 @@
 import type { DbClient } from "./db/types";
 import { nextCode } from "./model/codes";
+import { openPostHandoverCase } from "./post-handover/core";
 
 const AOS_BODY = `AGREEMENT FOR SALE
 
@@ -184,4 +185,12 @@ async function seedHandedOverVilla(db: DbClient) {
       ('ci_v113_30','b_v113',30,'scheduled'),
       ('ci_v113_90','b_v113',90,'scheduled');
   `);
+
+  // 30-post-handover.md rule 1: this seed's own `handover_record` insert above is raw SQL, not a
+  // call through `qa.ts::completeHandover`/`handover/core.ts::completeCase` — the only two real
+  // callers of `openPostHandoverCase`. Without this, the one seeded handed-over villa would have
+  // no `post_handover_case` row at all, leaving the whole After-keys screen permanently empty on
+  // a fresh reset — same "seed bypassed the event, downstream table stays empty" gap 09's own
+  // build already found and fixed for `unit_specification`.
+  await openPostHandoverCase("b_v113", "u_v113", "p_eastcrest");
 }

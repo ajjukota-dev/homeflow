@@ -2,7 +2,7 @@ import type { Express } from "express";
 import type { AuthedRequest } from "./auth/middleware";
 import { failHttp } from "./authz/httpError";
 import { AppError } from "./authz/types";
-import { getPostHandoverCase, completeMoveInTask, getUnitPassport, putPassportItem, addServiceRecord } from "./post-handover/core";
+import { getPostHandoverCase, completeMoveInTask, getUnitPassport, putPassportItem, addServiceRecord, listPostHandoverCases, getDlpWindows, getBookingCheckIns } from "./post-handover/core";
 import {
   createWarrantyCase, listWarrantyCases, getWarrantyCase, triageWarrantyCase, assignWarrantyCase, quoteWarrantyCase,
   acceptQuote, waiveQuote, startWarrantyCase, resolveWarrantyCase, verifyWarrantyCase, closeWarrantyCase, rejectWarrantyCase,
@@ -15,6 +15,21 @@ export function registerPostHandoverRoutes(app: Express): void {
 
   app.get("/api/bookings/:id/post-handover", async (req: AuthedRequest, res) => {
     try { res.json({ data: await getPostHandoverCase(req.params.id, ctx(req)) }); } catch (e) { failHttp(res, e); }
+  });
+
+  app.get("/api/post-handover-cases", async (req: AuthedRequest, res) => {
+    try {
+      const { project_id, status } = req.query as { project_id?: string; status?: string };
+      res.json({ data: await listPostHandoverCases({ project_id, status }, ctx(req)) });
+    } catch (e) { failHttp(res, e); }
+  });
+
+  app.get("/api/bookings/:id/dlp-windows", async (req: AuthedRequest, res) => {
+    try { res.json({ data: await getDlpWindows(req.params.id, ctx(req)) }); } catch (e) { failHttp(res, e); }
+  });
+
+  app.get("/api/bookings/:id/check-ins", async (req: AuthedRequest, res) => {
+    try { res.json({ data: await getBookingCheckIns(req.params.id, ctx(req)) }); } catch (e) { failHttp(res, e); }
   });
 
   app.put("/api/post-handover/:id/move-in-tasks", async (req: AuthedRequest, res) => {

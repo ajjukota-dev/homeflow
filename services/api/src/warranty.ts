@@ -52,6 +52,8 @@ interface ServiceHistoryRow {
   id: string;
   unit_id: string;
   event_type: string;
+  kind: string | null;
+  cost_inr: string | null;
   description: string;
   actor: string;
   occurred_at: Date;
@@ -156,7 +158,7 @@ export async function projectWarranty(projectId: string, ctx?: Ctx) {
 export async function serviceHistory(unitId: string, ctx: Ctx) {
   await authorize(ctx, "handovers", "READ");
   const r = await db.query<ServiceHistoryRow>(
-    `SELECT id, unit_id, event_type, description, actor, occurred_at
+    `SELECT id, unit_id, event_type, kind, cost_inr::text AS cost_inr, description, actor, occurred_at
        FROM service_history WHERE unit_id = $1 ORDER BY occurred_at`,
     [unitId]
   );

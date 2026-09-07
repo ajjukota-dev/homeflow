@@ -29,6 +29,8 @@ import { confirmAvailability as regConfirmAvailability } from "../registration/c
 import { confirmAppointment as hoConfirmAppointment, rescheduleAppointment as hoRescheduleAppointment } from "../handover/core";
 import { raiseChangeRequest, type RaiseCrInput } from "../change-requests/capture";
 import { acceptQuotation } from "../change-requests/quotation";
+import { createWarrantyCase, verifyWarrantyCase, acceptQuote as acceptWarrantyQuote } from "../post-handover/warranty";
+import { respondAdvocacy } from "../post-handover/advocacy";
 import { toSpecRegStatus } from "../registration/store";
 import { toSpecHoStatus } from "../handover/store";
 import type { ProgressState } from "../gates";
@@ -300,6 +302,36 @@ const CR_STATUS_WORDING: Record<string, string> = {
   REJECTED: "Not approved", WITHDRAWN: "Withdrawn", CANCELLED: "Cancelled",
 };
 
+// 30-post-handover.md rule 2 — "coverage shown after triage" means an unset `in_coverage` reads
+// as "not yet known" to the customer, never silently as covered/not-covered before triage runs.
+const WARRANTY_STATUS_WORDING: Record<string, string> = {
+  open: "Received", triaged: "Being reviewed", assigned: "Assigned", in_progress: "In progress",
+  resolved: "Fix complete — please confirm", closed: "Closed", rejected: "Not approved",
+};
+
+async function getServiceRequests(bookingId: string) {
+  const rows = await db.query<{
+    id: string; category: string; trade: string; severity: string; description: string; status: string;
+    in_coverage: boolean | null; quote_inr: string | null; quote_accepted_at: string | null;
+    customer_verified_at: string | null; created_at: string;
+  }>(
+    `SELECT id, category, trade, severity, description, status, in_coverage, quote_inr::text AS quote_inr,
+            quote_accepted_at::text AS quote_accepted_at, customer_verified_at::text AS customer_verified_at,
+            created_at::text AS created_at
+       FROM warranty_case WHERE booking_id = $1 ORDER BY created_at DESC`,
+    [bookingId]
+  );
+  return rows.rows.map((r) => ({
+    id: r.id, category: r.category, trade: r.trade, severity: r.severity, description: r.description,
+    status: WARRANTY_STATUS_WORDING[r.status] ?? r.status,
+    coverage: r.status === "open" ? null : r.in_coverage,
+    quote_inr: r.quote_inr ? Number(r.quote_inr) : null,
+    quote_accepted: !!r.quote_accepted_at,
+    needs_verification: r.status === "resolved" && !r.customer_verified_at,
+    raised_at: r.created_at,
+  }));
+}
+
 export async function getRequests(ctx: Ctx) {
   const bookingId = await myBooking(ctx);
   await authorize(ctx, "customer_journey", "READ");
@@ -333,9 +365,61 @@ export async function getRequests(ctx: Ctx) {
     requests,
     raisable_categories: categories.rows.map((c) => ({ code: c.code, label: c.customer_label })),
     snags: snags.rows.map((s) => ({ location: s.location, trade: s.trade, severity: s.severity, status: s.status === "closed" || s.status === "verified" ? "Fixed" : "Open" })),
-    // 30 (post-handover service requests) isn't built — flagged, not faked.
-    service_requests: [],
+    service_requests: await getServiceRequests(bookingId),
   };
+}
+
+// 30-post-handover.md rule 2 — the DLP category vocabulary a customer picks from (dlp_policy's own
+// windows[].category, same set warranty_case.category/coverage derivation reads); a free-text
+// category would drift from what computeCoverage can actually resolve. UNCONFIRMED same as the
+// backend's own seeded windows.
+const SERVICE_REQUEST_CATEGORIES = ["STRUCTURAL", "WATERPROOFING", "ELECTRICAL", "PLUMBING", "FITTINGS"] as const;
+
+export async function raiseCustomerServiceRequest(
+  input: { category: string; trade: string; severity: "CRITICAL" | "MAJOR" | "MINOR"; description: string },
+  ctx: Ctx
+) {
+  const bookingId = await myBooking(ctx);
+  const b = await bookingHeader(bookingId);
+  if (!SERVICE_REQUEST_CATEGORIES.includes(input.category as (typeof SERVICE_REQUEST_CATEGORIES)[number])) {
+    throw new AppError("validation", `unknown category ${input.category}`, "category");
+  }
+  const c = await createWarrantyCase(
+    { unit_id: b.unit_id, booking_id: bookingId, category: input.category, trade: input.trade, severity: input.severity, description: input.description, raised_by_kind: "CUSTOMER_PORTAL" },
+    ctx
+  );
+  return { id: c.id, status: WARRANTY_STATUS_WORDING[c.status] ?? c.status };
+}
+
+/** Rule 3: "customer verification before CLOSED for a customer-raised case" — the portal's own
+ *  action on a resolved service request. `verifyWarrantyCase` already has the "own booking"
+ *  CUSTOMER branch; this only re-shapes the response to the same customer-safe wording. */
+export async function verifyCustomerServiceRequest(id: string, ctx: Ctx) {
+  const c = await verifyWarrantyCase(id, ctx);
+  return { id: c.id, status: WARRANTY_STATUS_WORDING[c.status] ?? c.status };
+}
+
+/** Rule 2: "out-of-coverage cases get a quote (customer accepts in portal) before work." */
+export async function acceptCustomerServiceRequestQuote(id: string, ctx: Ctx) {
+  const c = await acceptWarrantyQuote(id, ctx);
+  return { id: c.id, status: WARRANTY_STATUS_WORDING[c.status] ?? c.status };
+}
+
+// --- Advocacy (rule 6): "referral invite" (Screens) — a customer reads their own INVITED rows and
+// accepts/declines. `advocacy` has no project_id of its own; scoped by booking_id, same pattern as
+// every other portal read here. ---
+
+export interface AdvocacyInvite { id: string; kind: "REFERRAL" | "TESTIMONIAL" | "REVIEW"; status: string; content: string | null; at: string }
+
+export async function getAdvocacyInvites(ctx: Ctx): Promise<AdvocacyInvite[]> {
+  const bookingId = await myBooking(ctx);
+  const r = await db.query<AdvocacyInvite>(`SELECT id, kind, status, content, at::text AS at FROM advocacy WHERE booking_id = $1 ORDER BY at DESC`, [bookingId]);
+  return r.rows;
+}
+
+export async function respondCustomerAdvocacy(id: string, input: { status: "RECEIVED" | "DECLINED"; content?: string | null; referred_prospect_name?: string | null }, ctx: Ctx) {
+  const a = await respondAdvocacy(id, input, ctx);
+  return { id: a.id, status: a.status };
 }
 
 // Bug found live-verifying the portal UI (2026-09-07): this used to require the CALLER to supply

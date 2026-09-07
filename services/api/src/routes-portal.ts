@@ -13,6 +13,11 @@ import {
   getRequests,
   raiseCustomerRequest,
   acceptCustomerQuotation,
+  raiseCustomerServiceRequest,
+  verifyCustomerServiceRequest,
+  acceptCustomerServiceRequestQuote,
+  getAdvocacyInvites,
+  respondCustomerAdvocacy,
   getCommitments,
   getPassport,
   getMyHome,
@@ -88,6 +93,28 @@ export function registerPortalRoutes(app: Express) {
 
   app.post("/api/portal/requests/quotations/:id/accept", async (req: AuthedRequest, res) => {
     try { res.json({ data: await acceptCustomerQuotation(req.params.id, ctx(req)) }); } catch (e) { failHttp(res, e); }
+  });
+
+  // 30-post-handover.md rule 2/3 — service/warranty requests, raised via the same Requests screen.
+  app.post("/api/portal/requests/service", async (req: AuthedRequest, res) => {
+    try { res.json({ data: await raiseCustomerServiceRequest(req.body ?? {}, ctx(req)) }); } catch (e) { failHttp(res, e); }
+  });
+
+  app.post("/api/portal/requests/service/:id/verify", async (req: AuthedRequest, res) => {
+    try { res.json({ data: await verifyCustomerServiceRequest(req.params.id, ctx(req)) }); } catch (e) { failHttp(res, e); }
+  });
+
+  app.post("/api/portal/requests/service/:id/accept-quote", async (req: AuthedRequest, res) => {
+    try { res.json({ data: await acceptCustomerServiceRequestQuote(req.params.id, ctx(req)) }); } catch (e) { failHttp(res, e); }
+  });
+
+  // 30-post-handover.md rule 6 — referral/testimonial invite (Screens: "referral invite").
+  app.get("/api/portal/advocacy", async (req: AuthedRequest, res) => {
+    try { res.json({ data: await getAdvocacyInvites(ctx(req)) }); } catch (e) { failHttp(res, e); }
+  });
+
+  app.post("/api/portal/advocacy/:id/respond", async (req: AuthedRequest, res) => {
+    try { res.json({ data: await respondCustomerAdvocacy(req.params.id, req.body ?? {}, ctx(req)) }); } catch (e) { failHttp(res, e); }
   });
 
   app.get("/api/portal/commitments", async (req: AuthedRequest, res) => {

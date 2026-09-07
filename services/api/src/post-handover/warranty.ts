@@ -73,8 +73,19 @@ export interface CreateWarrantyCaseInput {
   raised_by_kind?: "CUSTOMER_PORTAL" | "FM" | "CRM"; passport_item_id?: string | null;
 }
 
+/** Rule 2/3's own portal entry point ("Requests -> raise service/warranty request") needs a
+ *  CUSTOMER path — `authorize(ctx, "handovers", "WRITE")` alone only ever grants staff (SITE/FM
+ *  per the seeded matrix), so a customer actor was rejected outright with no way to raise a case
+ *  at all. Same "own booking, or staff" branch this file already uses twice (`acceptQuote`,
+ *  `verifyWarrantyCase`) — added here rather than widening the matrix, since a customer must only
+ *  ever raise against their own booking, never any booking. Found while building spec 30's UI. */
 export async function createWarrantyCase(input: CreateWarrantyCaseInput, ctx: Ctx): Promise<WarrantyCaseRow> {
-  await authorize(ctx, "handovers", "WRITE");
+  if (ctx.actor.kind === "CUSTOMER") {
+    const owns = await db.query<{ id: string }>(`SELECT b.id FROM booking b JOIN customer_login cl ON cl.booking_id = b.id WHERE b.id = $1 AND cl.user_id = $2`, [input.booking_id, ctx.actor.user_id]);
+    if (!owns.rows[0]) throw new AppError("forbidden", "not your booking");
+  } else {
+    await authorize(ctx, "handovers", "WRITE");
+  }
   const severity = input.severity.toUpperCase();
   if (!SEVERITIES.includes(severity)) throw new AppError("validation", `invalid severity ${input.severity}`, "severity");
   const unit = await db.query<{ project_id: string }>(`SELECT project_id FROM unit WHERE id = $1`, [input.unit_id]);

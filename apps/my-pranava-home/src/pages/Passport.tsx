@@ -25,8 +25,14 @@ export function Passport({ onBack }: { onBack: () => void }) {
                   <div key={i} className="border-b border-line px-3 py-3 last:border-b-0">
                     <p className="text-body font-semibold">{item.name}</p>
                     <p className="text-footnote text-fg-muted">
-                      {[item.brand_model, item.paint_tile_code, item.warranty_months ? `${item.warranty_months}-month warranty` : null].filter(Boolean).join(" · ")}
+                      {[
+                        item.brand_model,
+                        item.paint_tile_code,
+                        item.serial ? `Serial ${item.serial}` : null,
+                        item.warranty_until ? `Warranty until ${formatDate(item.warranty_until)}` : item.warranty_months ? `${item.warranty_months}-month warranty` : null,
+                      ].filter(Boolean).join(" · ")}
                     </p>
+                    {item.vendor_contact && <p className="text-caption text-fg-subtle">{item.vendor_contact}</p>}
                   </div>
                 ))}
               </div>

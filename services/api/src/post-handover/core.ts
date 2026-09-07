@@ -109,6 +109,75 @@ export async function getPostHandoverCase(bookingId: string, ctx: Ctx): Promise<
   return loadCase(r.rows[0].id);
 }
 
+export interface PostHandoverCaseListRow extends PostHandoverCaseRow {
+  unit_number: string; customer_name: string | null; booking_number: string;
+  open_warranty_cases: number;
+}
+
+/** Screens: "Post-handover (FM/CRM): cases list" — no list route existed, only the per-booking
+ *  `getPostHandoverCase` (the same "write with no matching read" gap class 18's own build already
+ *  found and filled with additive GET routes). Joins labels at the route boundary rather than
+ *  leaving the UI to show a raw id, same discipline this build has applied to every other spec. */
+export async function listPostHandoverCases(filters: { project_id?: string; status?: string }, ctx: Ctx): Promise<PostHandoverCaseListRow[]> {
+  await authorize(ctx, "handovers", "READ");
+  const clauses: string[] = [];
+  const params: unknown[] = [];
+  if (filters.project_id) { params.push(filters.project_id); clauses.push(`phc.project_id = $${params.length}`); }
+  if (filters.status) { params.push(filters.status.toUpperCase()); clauses.push(`phc.status = $${params.length}`); }
+  const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
+  const rows = (await db.query<PostHandoverCaseRow & { unit_number: string; customer_name: string | null; booking_number: string }>(
+    `SELECT phc.id, phc.booking_id, phc.unit_id, phc.project_id, phc.handover_completed_at::text AS handover_completed_at,
+            phc.move_in_tasks, phc.status, phc.fm_owner_user_id, u.unit_number, b.booking_number, a.display_name AS customer_name
+       FROM post_handover_case phc
+       JOIN unit u ON u.id = phc.unit_id
+       JOIN booking b ON b.id = phc.booking_id
+       LEFT JOIN booking_applicant a ON a.booking_id = phc.booking_id AND a.role = 'primary'
+       ${where}
+       ORDER BY phc.status, u.unit_number`,
+    params
+  )).rows;
+  if (rows.length === 0) return [];
+  const counts = await db.query<{ unit_id: string; n: string }>(
+    `SELECT unit_id, count(*)::text AS n FROM warranty_case WHERE unit_id = ANY($1::text[]) AND status NOT IN ('closed', 'rejected') GROUP BY unit_id`,
+    [rows.map((r) => r.unit_id)]
+  );
+  const openByUnit = new Map(counts.rows.map((c) => [c.unit_id, Number(c.n)]));
+  return rows.map((r) => ({ ...r, open_warranty_cases: openByUnit.get(r.unit_id) ?? 0 }));
+}
+
+export interface CheckInRow { id: string; kind: string; sent_at: string; responded_at: string | null; score: number | null; comment: string | null }
+
+/** Case view's "check-in scores" (Screens) — no staff-facing read of `customer_check_in` existed;
+ *  the table and its real capture flow are 26's (`sendCheckIn`/`submitCheckIn`, customer-only).
+ *  Read-only here, gated the same as the rest of the case view. */
+export async function getBookingCheckIns(bookingId: string, ctx: Ctx): Promise<CheckInRow[]> {
+  await authorize(ctx, "handovers", "READ");
+  return (await db.query<CheckInRow>(
+    `SELECT id, kind, sent_at::text AS sent_at, responded_at::text AS responded_at, score, comment
+       FROM customer_check_in WHERE booking_id = $1 ORDER BY sent_at`,
+    [bookingId]
+  )).rows;
+}
+
+export interface DlpWindowStatus { category: string; months: number; ends_on: string; expired: boolean }
+
+/** DLP windows bar (Screens) — resolves the applicable policy the same way `sweepDlpClosure`/
+ *  `computeCoverage` already do, then projects each category's own end date from
+ *  `handover_completed_at` so the UI never has to duplicate the resolution logic. */
+export async function getDlpWindows(bookingId: string, ctx: Ctx): Promise<DlpWindowStatus[]> {
+  await authorize(ctx, "handovers", "READ");
+  const c = await getPostHandoverCase(bookingId, ctx);
+  const unit = (await db.query<{ product_type: string }>(`SELECT product_type FROM unit WHERE id = $1`, [c.unit_id])).rows[0];
+  const policy = await resolveDlpPolicy(c.project_id, unit?.product_type ?? "DEFAULT", db);
+  if (!policy) return [];
+  const now = new Date();
+  return policy.windows.map((w) => {
+    const end = new Date(c.handover_completed_at);
+    end.setUTCMonth(end.getUTCMonth() + w.months);
+    return { category: w.category, months: w.months, ends_on: end.toISOString(), expired: now > end };
+  });
+}
+
 /** Rule 1 — mark one move-in task done, closing its own tracking action. FM-owned, matches the
  *  "handovers" module's WRITE grant (SITE/FM). */
 export async function completeMoveInTask(caseId: string, taskKey: MoveInTaskKey, ctx: Ctx): Promise<PostHandoverCaseRow> {

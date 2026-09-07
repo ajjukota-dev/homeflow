@@ -47,47 +47,6 @@ export interface ReadinessRow {
   snags: SnagRow[];
 }
 
-export interface WarrantyView {
-  windows: {
-    id: string;
-    unit_id: string;
-    booking_id: string;
-    unit_number: string;
-    customer_name: string;
-    dlp_start: string;
-    dlp_end: string;
-    status: string;
-    policy_months: number;
-  }[];
-  cases: {
-    id: string;
-    unit_id: string;
-    unit_number: string;
-    customer_name: string;
-    description: string;
-    coverage: string;
-    status: string;
-    severity: string;
-  }[];
-  checkins: {
-    id: string;
-    booking_id: string;
-    unit_number: string;
-    customer_name: string;
-    day: number;
-    status: string;
-    satisfaction_score: number | null;
-  }[];
-}
-
-export interface ServiceEvent {
-  id: string;
-  event_type: string;
-  description: string;
-  actor: string;
-  occurred_at: string;
-}
-
 export interface Intervention {
   id: string;
   category: string;
@@ -143,10 +102,6 @@ export const lifecycleApi = {
     mutate(`/api/units/${unitId}/qa/${component}/verify`, { evidence_note: "Checklist and photo signed off" }),
   closeSnag: (id: string) =>
     mutate(`/api/snags/${id}/close`, { before_note: "Defect photographed before work", after_note: "Rectified and re-photographed" }),
-  warranty: (projectId: string) => fetch(`/api/projects/${projectId}/warranty`).then((r) => json<WarrantyView>(r)),
-  serviceHistory: (unitId: string) => fetch(`/api/units/${unitId}/service-history`).then((r) => json<ServiceEvent[]>(r)),
-  closeWarranty: (id: string) => mutate(`/api/warranty-cases/${id}/close`),
-  captureCheckin: (id: string) => mutate(`/api/checkins/${id}/capture`, { satisfaction_score: 5 }),
   controlTower: (projectId: string) =>
     fetch(`/api/projects/${projectId}/control-tower`).then((r) => json<{ interventions: Intervention[] }>(r)),
   actIntervention: (id: string) => mutate(`/api/interventions/${id}/act`),

@@ -48,7 +48,7 @@ export const NAV: { id: View; label: string; role: string; short: string; Icon: 
   { id: "accounts", label: "Accounts", role: "True-risk collections", short: "Cash", Icon: Banknote, roles: ["ACCOUNTS", "BANKING", "MANAGEMENT", "SUPER_ADMIN"] },
   { id: "legal", label: "Legal", role: "Documents & registration", short: "Legal", Icon: Scale, roles: ["LEGAL", "REGISTRATION", "MANAGEMENT", "SUPER_ADMIN"] },
   { id: "qa", label: "QA / Handover", role: "Evidence, then keys", short: "QA", Icon: ClipboardCheck, roles: ["QA", "SITE", "MANAGEMENT", "SUPER_ADMIN"] },
-  { id: "after", label: "After keys", role: "Warranty & DLP", short: "After", Icon: HeartHandshake, roles: ["FM", "MANAGEMENT", "SUPER_ADMIN"] },
+  { id: "after", label: "After keys", role: "Warranty & DLP", short: "After", Icon: HeartHandshake, roles: ["FM", "CRM", "MANAGEMENT", "SUPER_ADMIN"] },
   { id: "tower", label: "Management", role: "Five interventions", short: "Tower", Icon: Landmark, roles: ["MANAGEMENT", "SUPER_ADMIN"] },
   // Spec 27: "ships in R1, before anything else here" — the honest not-yet-merged-specs
   // list, removed once every spec is merged.

@@ -21,6 +21,11 @@ function post<T>(url: string, body?: unknown): Promise<T> {
   );
 }
 
+export const SERVICE_REQUEST_CATEGORIES = ["STRUCTURAL", "WATERPROOFING", "ELECTRICAL", "PLUMBING", "FITTINGS"] as const;
+export type ServiceRequestCategory = (typeof SERVICE_REQUEST_CATEGORIES)[number];
+export const SERVICE_REQUEST_SEVERITIES = ["CRITICAL", "MAJOR", "MINOR"] as const;
+export type ServiceRequestSeverity = (typeof SERVICE_REQUEST_SEVERITIES)[number];
+
 export interface JourneyStage {
   label: string;
   status: string;
@@ -122,11 +127,25 @@ export interface CustomerRequest {
   raised_at: string;
   quotation: { id: string; total_inr: number; status: string; valid_until: string | null } | null;
 }
+export interface ServiceRequest {
+  id: string;
+  category: string;
+  trade: string;
+  severity: string;
+  description: string;
+  status: string;
+  // null = not triaged yet ("coverage shown after triage" — rule 2); true/false once known.
+  coverage: boolean | null;
+  quote_inr: number | null;
+  quote_accepted: boolean;
+  needs_verification: boolean;
+  raised_at: string;
+}
 export interface RequestsArea {
   requests: CustomerRequest[];
   raisable_categories: { code: string; label: string }[];
   snags: { location: string; trade: string; severity: string; status: string }[];
-  service_requests: never[];
+  service_requests: ServiceRequest[];
 }
 
 export interface Commitment {
@@ -141,6 +160,9 @@ export interface PassportEquipmentItem {
   brand_model: string | null;
   paint_tile_code: string | null;
   warranty_months: number | null;
+  serial: string | null;
+  warranty_until: string | null;
+  vendor_contact: string | null;
 }
 export interface Passport {
   equipment: PassportEquipmentItem[];
@@ -155,6 +177,14 @@ export interface NotificationRow {
   body: string | null;
   entity_ref: { entity_type: string; entity_id: string } | null;
   read_at: string | null;
+}
+
+export interface AdvocacyInvite {
+  id: string;
+  kind: "REFERRAL" | "TESTIMONIAL" | "REVIEW";
+  status: string;
+  content: string | null;
+  at: string;
 }
 
 export interface CustomerUpdate {
@@ -192,6 +222,15 @@ export const portalApi = {
   raiseRequest: (input: { primary_category_code: string; title: string; summary?: string }) =>
     post<{ id: string; code: string; status: string }>("/api/portal/requests", input),
   acceptQuotation: (id: string) => post<{ id: string; status: string }>(`/api/portal/requests/quotations/${id}/accept`),
+  // 30-post-handover.md rule 2/3 — service/warranty requests, raised from the same Requests screen.
+  raiseServiceRequest: (input: { category: ServiceRequestCategory; trade: string; severity: ServiceRequestSeverity; description: string }) =>
+    post<{ id: string; status: string }>("/api/portal/requests/service", input),
+  verifyServiceRequest: (id: string) => post<{ id: string; status: string }>(`/api/portal/requests/service/${id}/verify`),
+  acceptServiceRequestQuote: (id: string) => post<{ id: string; status: string }>(`/api/portal/requests/service/${id}/accept-quote`),
+  // rule 6 — referral/testimonial invite.
+  advocacyInvites: () => get<AdvocacyInvite[]>("/api/portal/advocacy"),
+  respondAdvocacy: (id: string, input: { status: "RECEIVED" | "DECLINED"; content?: string | null; referred_prospect_name?: string | null }) =>
+    post<{ id: string; status: string }>(`/api/portal/advocacy/${id}/respond`, input),
   commitments: () => get<Commitment[]>("/api/portal/commitments"),
   passport: () => get<Passport>("/api/portal/passport"),
   updates: () => get<CustomerUpdate[]>("/api/portal/updates"),

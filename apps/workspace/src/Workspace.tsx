@@ -9,7 +9,7 @@ import { BookingWizard } from "./pages/BookingWizard";
 import { Collections } from "./pages/Collections";
 import { LegalWorkspace } from "./pages/LegalWorkspace";
 import { QaHandover } from "./pages/QaHandover";
-import { PostHandover } from "./pages/PostHandover";
+import { PostHandoverCases } from "./pages/post-handover/PostHandoverCases";
 import { ControlTower } from "./pages/ControlTower";
 import { Roadmap } from "./pages/management/Roadmap";
 import { Studio } from "./pages/studio/Shell";
@@ -109,7 +109,7 @@ export function Workspace({ me, onLogout }: { me: NonNullable<ReturnType<typeof 
     accounts: <Collections projectId={projectId} />,
     legal: <LegalWorkspace projectId={projectId} roles={roles} />,
     qa: <QaHandover projectId={projectId} roles={roles} />,
-    after: <PostHandover projectId={projectId} />,
+    after: <PostHandoverCases projectId={projectId} roles={roles} />,
     tower: <ControlTower projectId={projectId} roles={roles} onOpenProject={setProjectId} />,
     roadmap: <Roadmap />,
     studio: <Studio />,

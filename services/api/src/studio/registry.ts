@@ -172,8 +172,16 @@ export const TAB_REGISTRY: TabDef[] = [
   { key: "29.communication_templates", label: "Communication templates", owner_spec: 29, built: true, edit_roles: ["MANAGEMENT", "SUPER_ADMIN", "SALES", "CRM", "LEGAL"] },
   { key: "29.frequency_guardrails", label: "Frequency guardrails", owner_spec: 29, built: true, edit_roles: MGMT },
 
-  // 30 — post-handover (not built)
-  { key: "30.dlp_warranty_policy", label: "DLP/warranty policy", owner_spec: 30, built: true, edit_roles: ["FM"] },
+  // 30 — post-handover. edit_roles was ["FM"] — didn't match studio/core.ts's real
+  // TABLE_REGISTRY.dlp_policy.editRoles (POLICY_STUDIO_ROLES, i.e. MGMT), which is what
+  // draftStudioRow/publishStudioRow actually gate on. FM would have seen edit controls enabled
+  // in the tab list (this file drives can_edit) but had every save/publish call 403 — same
+  // gap class as 08/09's own found-and-fixed registry mismatches. DLP windows and warranty
+  // response SLAs read as business/coverage policy (same class as escalation_rule/
+  // materiality_threshold, both MGMT-only), not an FM day-to-day edit, so corrected to match
+  // the backend rather than widening the backend to match this file. Found while building
+  // spec 30's UI.
+  { key: "30.dlp_warranty_policy", label: "DLP/warranty policy", owner_spec: 30, built: true, edit_roles: MGMT },
   // Check-in schedule stays built:false — the day markers (DAY_7/30/90/DLP_CLOSE) are a fixed
   // enum on 26's own `customer_check_in.kind` CHECK, not configurable data; making them
   // configurable would mean widening 26's schema, out of scope here.

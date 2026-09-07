@@ -41,10 +41,25 @@ export async function inviteAdvocacy(bookingId: string, kind: "REFERRAL" | "TEST
  *  from a case the seeded matrix doesn't actually address. It also opens its own `withTx`, which
  *  would deadlock nested inside this one (the 17/18/26 lesson) — flagged, not silently worked
  *  around either way. */
+// Portal Screens line names "referral invite" as a customer-facing screen (rule 6), but the
+// original gate here was CRM-only with no CUSTOMER branch at all — the customer who was actually
+// invited had no way to respond. Added the same "own booking" branch used elsewhere in this file
+// (createWarrantyCase, acceptQuote), restricted to RECEIVED/DECLINED only — PUBLISHED stays
+// CRM/MANAGEMENT's own call (that's "featuring" the testimonial publicly, a staff decision, not
+// something a customer's own submission should be able to set directly). Found while building
+// spec 30's UI.
+const CUSTOMER_ALLOWED_STATUSES = new Set(["RECEIVED", "DECLINED"]);
+
 export async function respondAdvocacy(id: string, input: { status: "RECEIVED" | "PUBLISHED" | "DECLINED"; content?: string | null; referred_prospect_name?: string | null }, ctx: Ctx): Promise<AdvocacyRow> {
-  requireRole(ctx, CRM_UPDATE_ROLES);
   const row = (await db.query<AdvocacyRow & { project_id?: string }>(`${SELECT} WHERE id = $1`, [id])).rows[0];
   if (!row) throw new AppError("not_found", "not_found");
+  if (ctx.actor.kind === "CUSTOMER") {
+    if (!CUSTOMER_ALLOWED_STATUSES.has(input.status)) throw new AppError("forbidden", "customers can only accept or decline an invite");
+    const owns = await db.query<{ id: string }>(`SELECT b.id FROM booking b JOIN customer_login cl ON cl.booking_id = b.id WHERE b.id = $1 AND cl.user_id = $2`, [row.booking_id, ctx.actor.user_id]);
+    if (!owns.rows[0]) throw new AppError("forbidden", "not your booking");
+  } else {
+    requireRole(ctx, CRM_UPDATE_ROLES);
+  }
   let referredProspectId: string | null = row.referred_prospect_id;
 
   await withTx(undefined, async (tx) => {

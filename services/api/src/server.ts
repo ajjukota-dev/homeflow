@@ -305,6 +305,16 @@ app.get("/api/audit", async (req: AuthedRequest, res) => {
 // reuses the legacy legal-docs.ts paths verbatim) — the doc-factory handlers call next() to fall
 // through to the legacy ones when the request doesn't look like theirs (see routes-documents.ts).
 registerDocumentRoutes(app);
+// registerPostHandoverRoutes before registerLifecycleRoutes: both register POST
+// /api/warranty-cases/:id/close — unlike the documents pair above, neither handler here calls
+// next() to fall through (both always try to fully handle the request), so whichever registers
+// first wins unconditionally. Registering spec 30's richer closeWarrantyCase (customer-verification
+// gate, in_coverage-based chargeable_amount) first means the legacy warranty.ts::closeWarranty
+// (routes-lifecycle.ts) is now permanently unreachable via HTTP on this path — it stays exported
+// and covered by lifecycle.test.ts's own direct function-level tests, just no longer reachable as
+// a route. Found while building spec 30's UI: without this reorder, every "Close case" click from
+// the new Post-handover screen would silently hit the legacy handler and skip customer verification.
+registerPostHandoverRoutes(app);
 registerLifecycleRoutes(app);
 registerModelRoutes(app);
 registerJourneyRoutes(app);
@@ -332,7 +342,6 @@ registerPortalRoutes(app);
 registerManagementRoutes(app);
 registerViewRoutes(app);
 registerCommunicationsRoutes(app);
-registerPostHandoverRoutes(app);
 registerIntelligenceRoutes(app);
 
 // files port: local-disk adapter serves its own presigned-URL routes; the
