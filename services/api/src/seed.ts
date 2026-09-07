@@ -110,6 +110,39 @@ export async function seed(db: DbClient) {
     );
   }
 
+  // 09 rule 1: an APPROVED specification_baseline for East Crest's own VILLA units, plus the
+  // unit_specification + revision-0 (BASELINE, RELEASED) row each unit needs to point at it.
+  // ensureUnitSpecification's own subscriber (specification/subscribers.ts) only fires on the
+  // real `booking.status_changed`/`booking.created` EVENTS — this seed file inserts bookings via
+  // raw SQL below (never through the event-emitting handlers), so no subscriber ever ran for any
+  // seeded booking. Without this, `unit_specification` stays empty for every East Crest unit and
+  // 18's `releaseChangeRequest` can never succeed against seeded demo data (found while building
+  // 18's own UI — see docs/specs/09-specification-revisions.md's 2026-09-07 Build note). Seeded
+  // directly at the terminal state, same "no live subscriber runs against seed data" precedent as
+  // this file's own bulk `unit_progress` cross-join below.
+  await db.query(
+    `INSERT INTO specification_baseline (id, project_id, product_type, unit_type, name, version, items, status, approved_by, approved_at, created_by)
+     VALUES ('sb_eastcrest_villa','p_eastcrest','VILLA',NULL,'East Crest Villa — Standard Specification',1,$1::jsonb,'APPROVED','user_site',now(),'user_site')`,
+    [JSON.stringify({
+      structure: { spec: "RCC framed structure, M25 grade concrete" },
+      flooring: { spec: "800x800mm vitrified tiles", brand_model: "Kajaria Eternity" },
+      kitchen: { spec: "Modular kitchen with granite countertop" },
+      wardrobes: { spec: "Factory-finished modular wardrobes in all bedrooms" },
+    })]
+  );
+  for (const [id] of villaUnits) {
+    await db.query(
+      `INSERT INTO spec_revision (id, unit_id, project_id, revision_no, kind, items_delta, status, released_at, released_by, created_by)
+       VALUES ($1,$2,'p_eastcrest',0,'BASELINE','{}'::jsonb,'RELEASED',now(),'user_site','user_site')`,
+      [`rev_${id}_0`, id]
+    );
+    await db.query(
+      `INSERT INTO unit_specification (unit_id, baseline_id, current_revision_id) VALUES ($1,'sb_eastcrest_villa',$2)`,
+      [id, `rev_${id}_0`]
+    );
+    await db.query(`UPDATE unit SET specification_baseline_id = 'sb_eastcrest_villa' WHERE id = $1`, [id]);
+  }
+
   // Second demo project (villa + plot units) — inserted before the bulk unit_progress
   // statement below so its units are covered by the same cross-join, same as East Crest's.
   await seedCanonicalDemo(db);

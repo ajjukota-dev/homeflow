@@ -71,9 +71,12 @@ export const TAB_REGISTRY: TabDef[] = [
   // those same columns there covers this tab too — not a second screen to build.
   { key: "08.gate_expiry_sources", label: "Gate-expiry sources", owner_spec: 8, built: false, edit_roles: ["SITE"] },
 
-  // 09 — spec revisions (backend built; PUT routes are the real edit path, Studio UI deferred like every other spec's)
-  { key: "09.specification_baselines", label: "Specification baselines", owner_spec: 9, built: true, edit_roles: ["SITE"] },
-  { key: "09.variation_catalogue", label: "Variation catalogue", owner_spec: 9, built: true, edit_roles: ["SITE"] },
+  // 09 — spec revisions. edit_roles matches specification/{baselines,catalogue}.ts's real
+  // SITE_SETUP_ROLES (SITE + MANAGEMENT, SUPER_ADMIN implicit) — was ["SITE"] only, same class of
+  // gap 08's own registry row had (hid working save controls from MANAGEMENT). Found while
+  // building these tabs' UI.
+  { key: "09.specification_baselines", label: "Specification baselines", owner_spec: 9, built: true, edit_roles: ["SITE", "MANAGEMENT"] },
+  { key: "09.variation_catalogue", label: "Variation catalogue", owner_spec: 9, built: true, edit_roles: ["SITE", "MANAGEMENT"] },
 
   // 10 — universal action (merged)
   { key: "10.action_types", label: "Action types", owner_spec: 10, built: true, edit_roles: MGMT },
