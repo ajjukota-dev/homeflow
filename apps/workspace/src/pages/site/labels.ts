@@ -1,4 +1,4 @@
-import { CheckCircle2, CircleDashed, Wrench, ShieldCheck, RotateCcw, type LucideIcon } from "lucide-react";
+import { CheckCircle2, CircleDashed, Wrench, ShieldCheck, RotateCcw, Clock, AlertTriangle, type LucideIcon } from "lucide-react";
 import type { Freshness, SpecProgressState } from "./api";
 
 // 07-unit-progress-control.md — state/freshness chip meta. Colour is never the sole signal
@@ -11,10 +11,13 @@ export const STATE_META: Record<SpecProgressState, { label: string; Icon: Lucide
   REWORK: { label: "Rework", Icon: RotateCcw, className: "text-overdue bg-overdue/10" },
 };
 
-export const FRESHNESS_META: Record<Freshness, { label: string; className: string }> = {
-  FRESH: { label: "Fresh", className: "bg-ontrack" },
-  STALE: { label: "Stale — needs a fresh reading", className: "bg-due" },
-  VERIFICATION_REQUIRED: { label: "Verification required — a gate depends on this", className: "bg-overdue" },
+// FRESH never renders a marker (it's the unmarked default); STALE/VERIFICATION_REQUIRED each pair
+// a distinct icon with their colour so the two aren't told apart by hue alone (CLAUDE.md WCAG bar) —
+// the tooltip carries the full label on hover, but the marker itself must already read as different.
+export const FRESHNESS_META: Record<Freshness, { label: string; className: string; Icon: LucideIcon | null }> = {
+  FRESH: { label: "Fresh", className: "text-ontrack", Icon: null },
+  STALE: { label: "Stale — needs a fresh reading", className: "text-due", Icon: Clock },
+  VERIFICATION_REQUIRED: { label: "Verification required — a gate depends on this", className: "text-overdue", Icon: AlertTriangle },
 };
 
 // Real matrix (seed/permissions.ts unit_readiness row): SITE=W, FM=W, QA mirrors the SITE column,

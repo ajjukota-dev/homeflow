@@ -218,7 +218,7 @@ function Cell({ cell, onClick }: { cell: ProgressCell; onClick?: () => void }) {
     >
       <state.Icon className="h-3.5 w-3.5" aria-hidden />
       {state.label}
-      {cell.freshness !== "FRESH" && <span className={cn("h-1.5 w-1.5 rounded-full", fresh.className)} aria-hidden />}
+      {fresh.Icon && <fresh.Icon className={cn("h-3.5 w-3.5", fresh.className)} aria-hidden />}
     </span>
   );
   const trigger = onClick ? (
