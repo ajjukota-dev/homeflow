@@ -148,10 +148,13 @@ note (j) — the UI has nothing new to add on top of that).
    saving an SRO office (or a checklist item) could have silently failed to persist the delete.
 
 **`registration.test.ts` full-suite-timeout — root-caused, not fixed (pre-existing, no file this
-slice touched is in its chain):** ran the full backend suite 4 times this segment (2 in the prior
-segment, 2 this one) with no overlapping process launches — every time, only this file's own 6
-tests are affected (0-6 of them, varying run to run), each failing with `Test timed out in
-5000ms`, while the other ~783 tests across ~103 other files pass. Isolated in-file run: 6/6 pass
+slice touched is in its chain):** ran the full backend suite 5 times across this build (3 clean
+runs in the prior segment, plus 2 here — one run concurrently with the Playwright suite below
+under real CPU contention, one clean afterward once it finished) — every time, only this file's
+own 6 tests are affected, 1-6 of them varying run to run, each failing with `Test timed out in
+5000ms`, while the other ~783-788 tests across ~103 other files consistently pass, including the
+clean solo run (1 failure) taken after all overlapping processes had exited — confirming this
+isn't purely a symptom of this segment's own overlapping runs. Isolated in-file run: 6/6 pass
 reliably in ~4.6s. No `testTimeout`/`vitest.config.ts` override exists anywhere in `services/api`
 (confirmed by grep), and other DB-heavy tests with real query latency well over 5000ms (e.g.
 `change-requests.test.ts`) never time out despite the same nominal default — this is a genuine
@@ -163,10 +166,12 @@ both delayed under contention, sometimes letting a slow test lose the race and s
 instead as a pre-existing environmental characteristic (§9 already tracks the same class of gap).
 
 **Full regression evidence, real output in front of me:**
-- Backend vitest, synchronous foreground run (2026-09-07, no overlapping processes but run
-  concurrently with the Playwright suite below, so under real CPU contention): **785/789 passing,
-  103/104 files** — the 4 failures are `registration.test.ts`'s own environmental flake described
-  above (isolated pass rate 6/6 already established across 3 prior clean runs this build).
+- Backend vitest, synchronous foreground run, clean (2026-09-07, after the Playwright suite below
+  had fully exited — no overlapping processes): **788/789 passing, 103/104 files** — the 1 failure
+  is `registration.test.ts`'s own environmental flake described above (isolated pass rate 6/6
+  already established, and a separate run taken *while* the Playwright suite was still running
+  concurrently landed at 785/789 — 4 failures under that added contention, consistent with the
+  same flake, not a new one).
 - `apps/workspace/e2e/registration.spec.ts` (new, 6 tests) run standalone after the race-condition
   fix: **5 passed, 1 skipped** (the lazy-case-creation test skips gracefully — every booking in
   this project already has a registration case on this non-fresh-reset dev DB, its own documented,
@@ -178,4 +183,14 @@ instead as a pre-existing environmental characteristic (§9 already tracks the s
   reset, found one and exercised the real bootstrap path end to end. The 1 failure
   (`sales-desk.spec.ts:73`, a prospect-row visibility timeout) and the 1 skip
   (`commitments.spec.ts:50`) both belong to specs 24/13 — no file this slice touched is in either
-  chain.
+  chain. `registration.spec.ts`'s Studio-tabs test now covers all 3 breakpoints (desktop/tablet/
+  mobile), matching `specification-studio.spec.ts`'s own sibling-tab pattern — the first pass had
+  left it desktop-only (`advisor()` review caught it).
+- `npm run typecheck` (all 3 packages) clean. `apps/workspace` unit suite: 23/23 files, 170/170
+  tests passing.
+- Confirmed (per `advisor()`'s own follow-up question): `Shell.tsx` renders exactly one
+  `BESPOKE_TABS` entry at a time via a plain ternary keyed on the active tab — the two Studio
+  screens can never be mounted simultaneously, so finding (4)'s clobber shape has no live second
+  path through simultaneous mounts; the project-wide grep TODO.md's Record section calls for stays
+  a hypothesis about *other* Studio screens sharing the same `save → load()` pattern, not a second
+  live bug here.

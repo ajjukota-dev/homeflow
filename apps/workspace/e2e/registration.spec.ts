@@ -75,28 +75,30 @@ test("opening a not-started booking lazily creates its case and shows the readin
   await expect(main.getByRole("button", { name: label, exact: true })).toHaveCount(0);
 });
 
-test("Policy Studio: Registration checklists and SRO offices tabs render real seeded scope data", async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.goto("/");
-  await page.getByRole("button", { name: /Policy Studio|^Studio$/ }).first().click();
-  await expect(page.locator("main").getByRole("heading", { name: "Policy Studio" })).toBeVisible();
-  const nav = page.getByRole("navigation", { name: "Policy Studio tabs" });
+for (const s of sizes) {
+  test(`Policy Studio: Registration checklists and SRO offices tabs render real seeded scope data @ ${s.name}`, async ({ page }) => {
+    await page.setViewportSize({ width: s.width, height: s.height });
+    await page.goto("/");
+    await page.getByRole("button", { name: /Policy Studio|^Studio$/ }).first().click();
+    await expect(page.locator("main").getByRole("heading", { name: "Policy Studio" })).toBeVisible();
+    const nav = page.getByRole("navigation", { name: "Policy Studio tabs" });
 
-  await nav.getByRole("button", { name: "Registration checklists" }).click();
-  const checklistMain = page.locator("main");
-  await expect(checklistMain.getByRole("heading", { name: "Registration checklists" })).toBeVisible();
-  // Global default scope ships with real seeded day-of items (23's own Build note) — proves the
-  // Select's onValueChange-only load bug (found live) stays fixed: the form populates on first paint.
-  await expect(checklistMain.locator('input[value="originals_to_carry"]')).toBeVisible();
-  await assertNoHorizontalOverflow(page);
-  await page.screenshot({ path: shot("registration-checklist-studio-desktop"), fullPage: true });
+    await nav.getByRole("button", { name: "Registration checklists" }).click();
+    const checklistMain = page.locator("main");
+    await expect(checklistMain.getByRole("heading", { name: "Registration checklists" })).toBeVisible();
+    // Global default scope ships with real seeded day-of items (23's own Build note) — proves the
+    // Select's onValueChange-only load bug (found live) stays fixed: the form populates on first paint.
+    await expect(checklistMain.locator('input[value="originals_to_carry"]')).toBeVisible();
+    await assertNoHorizontalOverflow(page);
+    await page.screenshot({ path: shot(`registration-checklist-studio-${s.name}`), fullPage: true });
 
-  await nav.getByRole("button", { name: "SRO offices" }).click();
-  await expect(checklistMain.getByRole("heading", { name: "SRO offices", exact: true })).toBeVisible();
-  await expect(checklistMain.getByLabel("Jurisdiction lead days (added to the forecast date)")).toHaveValue("15");
-  await assertNoHorizontalOverflow(page);
-  await page.screenshot({ path: shot("sro-offices-studio-desktop"), fullPage: true });
-});
+    await nav.getByRole("button", { name: "SRO offices" }).click();
+    await expect(checklistMain.getByRole("heading", { name: "SRO offices", exact: true })).toBeVisible();
+    await expect(checklistMain.getByLabel("Jurisdiction lead days (added to the forecast date)")).toHaveValue("15");
+    await assertNoHorizontalOverflow(page);
+    await page.screenshot({ path: shot(`sro-offices-studio-${s.name}`), fullPage: true });
+  });
+}
 
 // Non-destructive: adds then removes its own office so the shared dev DB's global scope is left
 // as this test found it (same discipline as sla-policies.spec.ts / specification-studio.spec.ts).
