@@ -3,6 +3,7 @@ import { db } from "../db";
 import { appendEvent, withTx, actorFields, type DbLike, type EventInput } from "../events";
 import { authorize } from "../authz/authorize";
 import { AppError, type Ctx } from "../authz/types";
+import { requiredApprovers } from "../approvals/matrix";
 import { nextCode } from "../model/codes";
 import { deriveStatus } from "../journey/engine";
 import { createClock } from "../ports/clock";
@@ -14,14 +15,9 @@ import { computeConfidence, type ConfidenceResult, type DependencyFact, type Dep
 // (action, real — rule 3's pre-breach action), 06 (deriveStatus, reused not re-derived), 04/19
 // (demand, for depends_on's DEMAND type), 01, 25 (approvals matrix — named as the real upgrade
 // path below, not hard-wired). Genuinely scoped forward dependencies, flagged not faked:
-//  - Rule 2's "who may approve" (MANAGEMENT for financial_impact_inr ≥ threshold or category ∈
-//    {COMMERCIAL, TIMELINE}, CRM lead otherwise) is implemented directly in `defaultApproverRole`
-//    below rather than via `approvals/matrix.ts`'s `requiredApprovers("COMMITMENT", ...)` — that
-//    lookup ships with zero seeded rows (25's own header) and fails CLOSED with no band
-//    configured, which would block every single commitment approval until Amarsh populates
-//    Policy Studio. `defaultApproverRole` is the real, usable default the spec's own text
-//    describes; swapping in `requiredApprovers` is a one-line upgrade once a COMMITMENT/INR band
-//    exists — named here, not silently skipped.
+//  - Rule 2's "who may approve" is `requiredApprovers("COMMITMENT", "INR", value, projectId)`
+//    against seeded `approval_authority_rule` bands (seed/approval-matrix.ts). Empty matrix
+//    still fail-closed. There is no in-code ₹ fallback.
 //  - Rule 6 (sales-handover-packet commitments auto-created as DRAFT/SALES_HANDOVER) is now wired
 //    from 17's `submitHandover` via `createCommitmentFromSource` below — Sales only holds READ on
 //    this module (seed/permissions.ts), so the packet's commitments can't go through the normal
@@ -50,9 +46,6 @@ export type CommitmentSource = "SALES_HANDOVER" | "CRM" | "MANAGEMENT" | "COMMUN
 export type CommitmentStatus = "DRAFT" | "APPROVED" | "ACTIVE" | "AT_RISK" | "FULFILLED" | "BREACHED" | "WAIVED_CANCELLED";
 export type BreachRootCause = "DEPENDENCY" | "RESOURCE" | "VENDOR" | "SCOPE_MISUNDERSTOOD" | "OVERPROMISED" | "CUSTOMER" | "FORCE_MAJEURE";
 
-// UNCONFIRMED — ASK_CLIENT, same class of placeholder as 12's ladder hours/materiality values;
-// p16 gives no real number for "how large a promise needs MANAGEMENT sign-off."
-const COMMITMENT_MANAGEMENT_THRESHOLD_INR = 200000;
 const PRE_BREACH_LEAD_DAYS = 7; // UNCONFIRMED — the spec's own default; the 3d/1d steps need the scheduler gap closed first (see header)
 
 export interface CommitmentRow {
@@ -125,13 +118,6 @@ async function requireCommitment(handle: DbLike, id: string): Promise<Commitment
   return r.rows[0];
 }
 
-/** Rule 2, implemented directly — see header for why this doesn't call `requiredApprovers`. */
-function defaultApproverRole(financialImpactInr: number | null, category: CommitmentCategory): "MANAGEMENT" | "CRM" {
-  if ((financialImpactInr ?? 0) >= COMMITMENT_MANAGEMENT_THRESHOLD_INR) return "MANAGEMENT";
-  if (category === "COMMERCIAL" || category === "TIMELINE") return "MANAGEMENT";
-  return "CRM";
-}
-
 /** Rule 7's WRITE gate + the per-instance owner self-guard documented in the header. */
 async function assertCanAct(row: CommitmentRow, ctx: Ctx): Promise<void> {
   const level = await authorize(ctx, "commitments", "READ");
@@ -140,7 +126,7 @@ async function assertCanAct(row: CommitmentRow, ctx: Ctx): Promise<void> {
   throw new AppError("forbidden", "commitments requires WRITE, or being this commitment's owner");
 }
 
-async function assertCanApprove(row: CommitmentRow, approverRole: "MANAGEMENT" | "CRM", ctx: Ctx): Promise<void> {
+async function assertCanApprove(row: CommitmentRow, approverRole: string, ctx: Ctx): Promise<void> {
   if (ctx.actor.user_id === row.committed_by_user_id) {
     throw new AppError("forbidden", "cannot approve your own commitment");
   }
@@ -252,8 +238,8 @@ export async function approveCommitment(id: string, ctx: Ctx): Promise<Commitmen
   if (row.status !== "DRAFT" || !row.approval_required) {
     throw new AppError("conflict", "commitment is not awaiting approval");
   }
-  const approverRole = defaultApproverRole(row.financial_impact_inr, row.category);
-  await assertCanApprove(row, approverRole, ctx);
+  const { approver_role } = await requiredApprovers("COMMITMENT", "INR", row.financial_impact_inr ?? 0, row.project_id);
+  await assertCanApprove(row, approver_role, ctx);
   return withTx(undefined, async (tx) => {
     await tx.query(`UPDATE commitment SET status = 'APPROVED', approved_by = $2, approved_at = now() WHERE id = $1`, [id, ctx.actor.user_id]);
     await recordTransition(tx, id, "DRAFT", "APPROVED", ctx);

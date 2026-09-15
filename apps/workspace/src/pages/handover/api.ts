@@ -77,6 +77,8 @@ export const handoverApi = {
     fetch(`/api/handover/${bookingId}/appointment/reschedule`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then((r) => unwrap<HandoverView>(r)),
   updateChecklist: (bookingId: string, patch: Partial<ChecklistRow>) =>
     fetch(`/api/handover/${bookingId}/checklist`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) }).then((r) => unwrap<HandoverView>(r)),
+  presignSignature: (bookingId: string, kind: "customer" | "company" | "photo") =>
+    fetch(`/api/handover/${bookingId}/signature`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind, content_type: "image/png" }) }).then((r) => unwrap<{ key: string; upload: { url: string; method: "PUT"; headers?: Record<string, string> } }>(r)),
   complete: (bookingId: string) => fetch(`/api/handover/${bookingId}/complete`, { method: "POST" }).then((r) => unwrap<HandoverView>(r)),
   close: (bookingId: string) => fetch(`/api/handover/${bookingId}/close`, { method: "POST" }).then((r) => unwrap<HandoverView>(r)),
   pipeline: (projectId: string) => fetch(`/api/projects/${projectId}/handover-pipeline`).then((r) => unwrap<HandoverView[]>(r)),

@@ -4,7 +4,7 @@ import { requireRole } from "../authz/requireRole";
 import { AppError, type Ctx } from "../authz/types";
 import { DEMAND_SELECT, mapDemands } from "../demands";
 import { requestWaiver } from "../waivers";
-import { loadCr, type CrRow } from "./store";
+import { loadCr, assertCrScope, type CrRow } from "./store";
 
 // 18 rule 9's post-release half: withdraw (pre-release, customer-initiated) lives in capture.ts;
 // this is cancellation after RELEASED — MANAGEMENT only, abortive cost recorded, execution
@@ -20,6 +20,7 @@ const POST_RELEASE: string[] = ["IN_PROGRESS", "READY_FOR_QA", "QA_VERIFIED", "C
 
 export async function cancelChangeRequest(crId: string, input: { reason: string; abortive_cost_inr: number }, ctx: Ctx): Promise<CrRow & { refund_raised: boolean }> {
   requireRole(ctx, CANCEL_ROLES);
+  await assertCrScope(ctx, crId, "write");
   const cr = await loadCr(crId);
   if (!POST_RELEASE.includes(cr.status)) throw new AppError("conflict", `${cr.status} is not a released, in-flight state — use withdraw before release`);
   if (!input.reason?.trim()) throw new AppError("validation", "reason is required", "reason");

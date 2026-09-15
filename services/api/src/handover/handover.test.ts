@@ -14,6 +14,8 @@ import {
   getHandoverCase, proposeAppointment, confirmAppointment, rescheduleAppointment,
   updateChecklist, overrideGate, completeCase, closeCase, evaluateAndLog,
 } from "./core";
+import { presignHandoverSignature } from "./files";
+import { files } from "../ports/files";
 import { putGateConfig } from "./policy";
 
 // 16-handover-gates.md — integration over real PGlite. `handover_record` predates this spec
@@ -223,7 +225,7 @@ describe("rule 5 — completion requires eligible gates AND checklist keys.all_h
     await updateChecklist(bookingId, { groups: { keys: { all_handed_over: { done: true } } } }, qa());
     await expect(completeCase(bookingId, qa())).rejects.toThrow(/signatures/);
 
-    await updateChecklist(bookingId, { customer_signature_file_id: "file_cust_sig", company_signature_file_id: "file_co_sig" }, qa());
+    await updateChecklist(bookingId, { customer_signature_file_id: `project/${PROJECT_ID}/handover/cust.png`, company_signature_file_id: `project/${PROJECT_ID}/handover/co.png` }, qa());
     const completed = await completeCase(bookingId, qa());
     expect(completed.case.status).toBe("COMPLETED");
     expect(await eventTypesFor(bookingId)).toContain("handover.completed");
@@ -245,7 +247,7 @@ describe("rule 6 — CLOSED requires COMPLETED and a post-handover (DLP) window"
   it("closes once completed and emits handover.closed", async () => {
     const { bookingId } = await readyForHandoverExceptRegistration();
     await clearRemainingHardGatesByOverride(bookingId);
-    await updateChecklist(bookingId, { groups: { keys: { all_handed_over: { done: true } } }, customer_signature_file_id: "file_cust_sig", company_signature_file_id: "file_co_sig" }, qa());
+    await updateChecklist(bookingId, { groups: { keys: { all_handed_over: { done: true } } }, customer_signature_file_id: `project/${PROJECT_ID}/handover/cust.png`, company_signature_file_id: `project/${PROJECT_ID}/handover/co.png` }, qa());
     await completeCase(bookingId, qa());
 
     const closed = await closeCase(bookingId, qa());
@@ -281,5 +283,23 @@ describe("Policy Studio — handover gate configuration (25's Tabs line)", () =>
     const customerGate = after.gates.find((g) => g.type === "customer")!;
     expect(customerGate.classification).toBe("hard");
     expect(customerGate.state).toBe("passed"); // handover.ts's own customer input is always true (26 portal flip isn't wired) — only its classification moved
+  });
+});
+
+describe("4.7 signatures through the files port", () => {
+  it("updateChecklist rejects a data-URL and stores a project/ key", async () => {
+    const { bookingId } = await readyForHandoverExceptRegistration();
+    await expect(
+      updateChecklist(bookingId, { customer_signature_file_id: "data:image/png;base64,aaaa" }, qa())
+    ).rejects.toThrow(/data URL/);
+
+    const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
+    const signed = await presignHandoverSignature(bookingId, { kind: "customer", content_type: "image/png" }, qa());
+    expect(signed.key).toMatch(/^project\//);
+    expect(signed.upload.url).toMatch(/\/api\/files\//);
+    await files.putBuffer(signed.key, png, "image/png");
+    const view = await updateChecklist(bookingId, { customer_signature_file_id: signed.key }, qa());
+    expect(view.checklist.customer_signature_file_id).toBe(signed.key);
+    expect(view.checklist.customer_signature_file_id).not.toMatch(/^data:/);
   });
 });

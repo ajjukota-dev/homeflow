@@ -9,6 +9,8 @@ import { gateRunStateLabel, gateTypeLabel, snagSeverityLabel } from "../lib/labe
 import { handoverApi, type HandoverView } from "./handover/api";
 import { HandoverCaseDrawer } from "./handover/HandoverCaseDrawer";
 import { suggestionsApi } from "./suggestions/api";
+import { SiteVsQa } from "./qa/SiteVsQa";
+import { QaExceptionQueue } from "./qa/ExceptionQueue";
 
 // 31-intelligence.md rule 5's 4th bullet — QA is this suggestion's own reviewing role.
 const ROOT_CAUSE_ROLES = ["QA", "MANAGEMENT", "SUPER_ADMIN"];
@@ -83,6 +85,10 @@ export function QaHandover({ projectId, roles }: { projectId: string; roles: str
             <p className="text-subhead text-fg-muted">No booked villas to inspect yet.</p>
           </CardBody>
         </Card>
+      )}
+
+      {!loading && !error && (
+        <SiteVsQa units={units} roles={roles} onChanged={load} />
       )}
 
       <h2 className="mb-3 text-title3 font-semibold">Unit readiness</h2>
@@ -198,6 +204,8 @@ export function QaHandover({ projectId, roles }: { projectId: string; roles: str
           );
         })}
       </div>
+
+      {!error && <QaExceptionQueue projectId={projectId} />}
 
       <HandoverCaseDrawer
         bookingId={openBookingId}

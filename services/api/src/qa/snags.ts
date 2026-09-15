@@ -4,6 +4,7 @@ import { appendEvent, withTx, actorFields, type DbLike } from "../events";
 import { authorize } from "../authz/authorize";
 import { requireRole } from "../authz/requireRole";
 import { AppError, type Ctx } from "../authz/types";
+import { assertEntityScope } from "../authz/entity-scope";
 import { nextCode } from "../model/codes";
 import { createAction } from "../actions/core";
 import { startClock, stopClock } from "../journey/sla";
@@ -81,6 +82,7 @@ async function loadSnag(id: string, tx: DbLike = db): Promise<SnagView> {
 
 export async function getSnag(id: string, ctx: Ctx): Promise<SnagView> {
   await authorize(ctx, "snagging", "READ");
+  await assertEntityScope(ctx, "snag", id, "read");
   return loadSnag(id);
 }
 
@@ -191,6 +193,7 @@ export async function insertSnag(input: CreateSnagInput, actor: { user_id: strin
 
 export async function createSnag(input: CreateSnagInput, ctx: Ctx, seedId?: string): Promise<SnagView> {
   await authorize(ctx, "snagging", "WRITE");
+  await assertEntityScope(ctx, "unit", input.unit_id, "write");
   const roleKind = ctx.actor.roles.includes("QA") ? "QA" : ctx.actor.roles.includes("SITE") ? "SITE" : ctx.actor.roles.includes("FM") ? "FM" : null;
   return withTx(undefined, (tx) => insertSnag({ ...input, raised_by_kind: input.raised_by_kind ?? roleKind }, { user_id: ctx.actor.user_id, kind: "USER" }, tx, seedId));
 }
@@ -222,6 +225,7 @@ async function transition(
 
 export async function assignSnag(id: string, input: { contractor_id?: string | null; assigned_to_user_id?: string | null }, ctx: Ctx): Promise<SnagView> {
   await authorize(ctx, "snagging", "WRITE");
+  await assertEntityScope(ctx, "snag", id, "write");
   if (!input.contractor_id && !input.assigned_to_user_id) throw new AppError("validation", "contractor_id or assigned_to_user_id is required");
   if (input.contractor_id) {
     const c = await db.query<{ id: string }>(`SELECT id FROM contractor WHERE id = $1 AND active`, [input.contractor_id]);
@@ -240,6 +244,7 @@ export async function assignSnag(id: string, input: { contractor_id?: string | n
 
 export async function startSnag(id: string, ctx: Ctx): Promise<SnagView> {
   await authorize(ctx, "snagging", "WRITE");
+  await assertEntityScope(ctx, "snag", id, "write");
   const snag = await loadSnag(id);
   assertFrom(snag, ["ASSIGNED"], "IN_PROGRESS");
   return transition(snag, "IN_PROGRESS", "", [], null, {}, ctx);
@@ -248,6 +253,7 @@ export async function startSnag(id: string, ctx: Ctx): Promise<SnagView> {
 /** Rule 5: READY needs ≥ 1 after-photo [E]. The actor becomes the "fixer" the verifier must differ from. */
 export async function readySnag(id: string, input: { after_file_keys?: string[] }, ctx: Ctx): Promise<SnagView> {
   await authorize(ctx, "snagging", "WRITE");
+  await assertEntityScope(ctx, "snag", id, "write");
   const snag = await loadSnag(id);
   assertFrom(snag, ["IN_PROGRESS"], "READY_FOR_VERIFICATION");
   const after = [...snag.after_file_keys, ...(input.after_file_keys ?? [])];
@@ -258,6 +264,7 @@ export async function readySnag(id: string, input: { after_file_keys?: string[] 
 
 export async function verifySnag(id: string, ctx: Ctx): Promise<SnagView> {
   await authorize(ctx, "snagging", "WRITE");
+  await assertEntityScope(ctx, "snag", id, "write");
   requireRole(ctx, VERIFIER_ROLES);
   const snag = await loadSnag(id);
   assertFrom(snag, ["READY_FOR_VERIFICATION"], "VERIFIED");
@@ -268,6 +275,7 @@ export async function verifySnag(id: string, ctx: Ctx): Promise<SnagView> {
 }
 
 export async function customerVerifySnag(id: string, ctx: Ctx): Promise<SnagView> {
+  await assertEntityScope(ctx, "snag", id, "write");
   const snag = await loadSnag(id);
   if (ctx.actor.kind !== "CUSTOMER") { await authorize(ctx, "snagging", "WRITE"); requireRole(ctx, VERIFIER_ROLES); }
   assertFrom(snag, ["VERIFIED", "READY_FOR_VERIFICATION"], snag.status);
@@ -277,6 +285,7 @@ export async function customerVerifySnag(id: string, ctx: Ctx): Promise<SnagView
 
 export async function closeSnagLifecycle(id: string, ctx: Ctx): Promise<SnagView> {
   await authorize(ctx, "snagging", "WRITE");
+  await assertEntityScope(ctx, "snag", id, "write");
   const snag = await loadSnag(id);
   assertFrom(snag, ["VERIFIED"], "CLOSED");
   if (snag.raised_by_kind === "CUSTOMER" && !snag.customer_verified_at) {
@@ -298,6 +307,7 @@ export async function closeSnagLifecycle(id: string, ctx: Ctx): Promise<SnagView
 }
 
 export async function reopenSnag(id: string, reason: string, ctx: Ctx): Promise<SnagView> {
+  await assertEntityScope(ctx, "snag", id, "write");
   const snag = await loadSnag(id);
   if (ctx.actor.kind === "CUSTOMER") {
     if (snag.raised_by_kind !== "CUSTOMER") throw new AppError("forbidden", "customers may reopen only snags they raised");
@@ -330,6 +340,7 @@ export async function patchSnag(
   ctx: Ctx
 ): Promise<SnagView> {
   await authorize(ctx, "snagging", "WRITE");
+  await assertEntityScope(ctx, "snag", id, "write");
   await loadSnag(id);
   const rootCause = input.root_cause ? String(input.root_cause).toUpperCase() : null;
   if (rootCause && !ROOT_CAUSES.includes(rootCause)) throw new AppError("validation", `invalid root_cause ${input.root_cause}`, "root_cause");
@@ -345,6 +356,7 @@ export async function patchSnag(
 /** Rule 8. Groupings for 27's quality KPIs; mean time to close from closed_at - created_at. */
 export async function snagAnalytics(projectId: string, ctx: Ctx) {
   await authorize(ctx, "snagging", "READ");
+  await assertEntityScope(ctx, "project", projectId, "read");
   const [byContractor, byCategory, byRootCause, totals, mttc] = await Promise.all([
     db.query<{ contractor_id: string | null; contractor_name: string | null; total: number; open: number }>(
       `SELECT s.contractor_id, c.name AS contractor_name, COUNT(*)::int AS total,

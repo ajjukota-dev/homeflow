@@ -1,7 +1,7 @@
 import { db } from "../db";
 import { requireRole } from "../authz/requireRole";
 import type { Ctx } from "../authz/types";
-import { loadCr, listCrItems } from "./store";
+import { loadCr, listCrItems, assertCrScope } from "./store";
 import { CUSTOMISATION_DESK_ROLES } from "./capture";
 
 // 18 rule 10: profitability per CR = price - vendor cost - tax - waivers = contribution.
@@ -15,6 +15,7 @@ export interface CrEconomics {
 
 export async function getCrEconomics(crId: string, ctx: Ctx): Promise<CrEconomics> {
   requireRole(ctx, [...CUSTOMISATION_DESK_ROLES, "MANAGEMENT", "SUPER_ADMIN"]);
+  await assertCrScope(ctx, crId, "read");
   const cr = await loadCr(crId);
   const items = await listCrItems(crId);
   const price = items.reduce((s, it) => s + it.qty * it.unit_price_inr, 0);

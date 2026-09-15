@@ -84,3 +84,16 @@ describe("handover readiness (rule 3) — min-gated composite, commitment penalt
     expect(score.drivers[0]!.fact).toBeTruthy();
   });
 });
+
+describe("4.10 scorers read score_weight", () => {
+  it("changing a Studio score_weight row moves booking readiness", async () => {
+    const { bookingId } = await freshBooking();
+    const before = await computeBookingReadiness(bookingId);
+    await db.query(
+      `INSERT INTO score_weight (id, score_type, component, weight, effective_from, version)
+       VALUES ('sw_test_tds_hi', 'BOOKING_READINESS', 'tds', 0.9, '2020-01-01', 99)`
+    );
+    const after = await computeBookingReadiness(bookingId);
+    expect(after.value).not.toBe(before.value);
+  });
+});

@@ -8,12 +8,12 @@ Shareable copy of the client-readiness canvas (2026-09-15).
 |---|---|
 | Ready to hand over | **No** |
 | Seeded families | Leftover + Day 2 + Phase 1 occupants (see click-path roster) |
-| RLS on the live request path | On (PGlite). pg Pool SET ROLE is not sticky — fix before RDS. |
+| RLS on the live request path | On (PGlite + pg Pool pin 4.1b) |
 | Customer portal logins | Phase 1 four + nisha@ suresh@ kavya@ deepak@ ishaan@ leela@ farhanq@ anjali@ vivek@ |
 
 Source: PDF §§24–27, §31.5, §32.11, §33.6, §34.7, Appendix A · main as of 2026-09-15.
 
-**Not ready to hand over.** Occupant desks are mostly seeded (2.12 still open). RLS is on the PGlite request path (4.1–4.3). Remaining: Phase 4.4–4.10, Phase 5 proof, leftover UI walk after `db:reset`, pg-Pool client pin before hosted Postgres. Do not schedule a handover until that work is true — earliest honest date is after exams, suite green, 4.4–4.10 closed.
+**Not ready to hand over.** Occupant desks are seeded including 2.12 plan≠baseline. Phase 4 product holes closed. Remaining: Phase 5 proof (fresh `db:reset`, Playwright sale-to-handover, operator pack, invite a staff user). Do not schedule a handover until that work is true — after exams.
 
 ---
 
@@ -52,7 +52,7 @@ Cut seed off raw `INSERT INTO booking` / demand / handover / AOS. Recreate the f
 
 One named occupant per PDF §34.2 state (and the extras). Same story on staff 360 and that customer’s portal. Go down the list; do not start a new occupant at end of Day 2. Standing rule **2.14:** every accepted booking added here gets a portal login, not only the Day 1 four.
 
-**Day 2 (2.1–2.5 + 2.14) closed 2026-09-15.** Leftover 2.6–2.11 + 2.13–2.16 closed (API). **2.12 still open.** Workspace shows leftover people only after stop API → `db:reset` → restart.
+**Day 2 (2.1–2.5 + 2.14) closed 2026-09-15.** Leftover 2.6–2.16 closed (2.12 plan≠baseline; forecast still equals baseline). Workspace shows leftover people only after stop API → `db:reset` → restart.
 
 | Stage | Who / unit today | What is wrong today | Build this | Phase |
 |---|---|---|---|---|
@@ -73,7 +73,7 @@ One named occupant per PDF §34.2 state (and the extras). Same story on staff 36
 | CR in flight | Nisha Verma BK-MT201 Kitchen island AWAITING_CUSTOMER | Meadows Customisation Desk (`superadmin@`) | Keep | 2.3 |
 | Cancel / transfer | Gita Reddy V117 cancelled; unit remains | Done | Keep | 2.11 |
 | Meadows apt + plot | Nisha MT1-201 · Suresh MP-01 · Kavya MT1-502 · Deepak MP-02 | Done | Keep | 2.5 |
-| Plan vs forecast vs actual | Thin / often zero | Still skipped — no seeded delay_reason; do not invent SOP | Non-zero variance on ≥2 occupants | 2.12 |
+| Plan vs forecast vs actual | Karthik BK-V110 · Nisha BK-MT201 | Done: plan ≠ baseline via catalog delay_reason. Forecast still equals baseline (no forecast-revision handler). | Keep | 2.12 |
 | Portal on every accepted Phase 2 booking | kavya@ deepak@ ishaan@ leela@ farhanq@ anjali@ vivek@ + nisha@ suresh@ | Gita/V117 closed, no login (allowed) | Standing if more accepted bookings are added | 2.14 |
 
 ### 3. Exam week — You (Phase 3 only) — **code closed 2026-09-15**
@@ -88,20 +88,20 @@ Interruptible work. **Not RLS.** Daily 15–30 min PR review (`docs/handover/pha
 
 ### 4. Product holes + hardening — Team, exam week (Phase 4)
 
-**4.1–4.3 closed 2026-09-15** (PGlite). Remaining 4.4–4.10. Occupant leftover closed except 2.12. Do not hand over until 4.4–4.10 and Phase 5 are true. pg Pool `SET ROLE` is not the same client as `pool.query` — pin before RDS.
+**Phase 4 closed 2026-09-15.** Do not hand over until Phase 5 proof is true. Live demo needs stop API → `db:reset` → restart to see 2.12 / Ishaan file signatures.
 
 | Do this | Why handover fails without it | Phase |
 |---|---|---|
-| RLS on every request (P1b) + policies on tables after 0025 | Done on PGlite (`wrapWithRls` + `0047`). pg Pool still needs a pinned client before RDS. | 4.1 |
-| assertProjectScope: out-of-scope read 404, write 403 (Meadows vs East Crest) | Done on 360/collections/registration/handover/customer; remaining id handlers still RLS-only. | 4.2 |
-| Field masking on financials / PII; UI tolerates nulls | Done (`mask()` + `formatINR(null)` → —). Browser walk not done. | 4.3 |
-| Queues.tsx: claim, Management reassign, empty/error states | PDF §20. My Day is not a substitute for departmental queues. | 4.4 |
-| Action Types Studio tab actually edits action_type | Config-over-code is a slide until this writes. | 4.5 |
-| Seed approval_authority_rule bands; commitments call requiredApprovers() — drop in-code ₹200k fallback | Empty matrix is unusable; silent code fallback is not Policy Studio. | 4.6 |
-| Photos, signatures, deeds through the files port (file id, not data-URL) | A handed-over product cannot store evidence in the database as strings. | 4.7 |
-| QA: site declaration vs independent verification + exception queue | PDF §8.8. Two snag rows is not evidence-based quality. | 4.8 |
-| Document factory: draft v1/v2 + sale families (AOS, Sale Deed, addendum, demand, receipt, handover letter, variation, cancellation) | PDF §32.1. AOS-only is not the factory. Lease templates unassigned unless they lease. | 4.9 |
-| Scorers read score_weight from Studio | Weights unwired means readiness numbers are not configurable. | 4.10 |
+| RLS on every request (P1b) + policies on tables after 0025 | Done (`wrapWithRls` + `0047` + 4.1b pg Pool pin) | 4.1 |
+| assertProjectScope: out-of-scope read 404, write 403 (Meadows vs East Crest) | Done including CR/action/holds/QA (4.2b) | 4.2 |
+| Field masking on financials / PII; UI tolerates nulls | Done (`mask()` + `formatINR(null)` → —) | 4.3 |
+| Queues.tsx: claim, Management reassign, empty/error states | Done (Playwright on `main`). Raw `user_*` owner ids still show. | 4.4 |
+| Action Types Studio tab actually edits action_type | Done (generic Studio persist) | 4.5 |
+| Seed approval_authority_rule bands; commitments call requiredApprovers() — drop in-code ₹200k fallback | Done | 4.6 |
+| Photos, signatures, deeds through the files port (file id, not data-URL) | Done (`putPresigned`; Ishaan file id) | 4.7 |
+| QA: site declaration vs independent verification + exception queue | Done (staff screen + Playwright) | 4.8 |
+| Document factory: draft v1/v2 + sale families (AOS, Sale Deed, addendum, demand, receipt, handover letter, variation, cancellation) | Done; LEASE unassigned | 4.9 |
+| Scorers read score_weight from Studio | Done | 4.10 |
 
 ### 5. Prove and hand over — You after exams (Phase 5)
 

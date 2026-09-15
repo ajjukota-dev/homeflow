@@ -1,5 +1,6 @@
 import { db } from "../db";
 import { seedKavyaAosDraft, seedDeepakRegistrationSlot, seedIshaanHandoverInProgress, seedKarthikOverdueReasons } from "./occupants-leftover-must";
+import { seedPlanVsForecast } from "./occupants-leftover-plan";
 import {
   seedLeelaNriLoan,
   seedFarhanDefaultLegal,
@@ -29,4 +30,5 @@ export async function seedOccupantsLeftover(): Promise<void> {
   await seedClosedV117();
   await seedAnjaliPreRegBlocked();
   await seedVivekCriticalSnag();
+  await seedPlanVsForecast();
 }

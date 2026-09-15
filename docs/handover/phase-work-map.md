@@ -1,22 +1,37 @@
 # Phases → work → who
 
-Shareable copy of the phase-work-map canvas (2026-09-15). Tick boxes in git if you want; a work tick without an **exit** tick is not done.
+Shareable copy of the phase-work-map canvas (2026-09-15). A work tick without an **exit** tick is not done.
 
 Companion: [client-readiness.md](./client-readiness.md) (the handover bar).
 
-**You** in this doc = the person with two working days, then exams (Phases 1–2 grind, Phase 3 interruptible, Phase 5 after exams). **Team** = everyone else during exam week.
+## Status — 2026-09-15
 
+**Done.** Phases 1, 2 (including 2.12), 3, and 4 (including 4.1b / 4.2b / 4.4–4.10). Every work box and every Phase 1–4 **exit** box below is `[x]`.
 
-| Split                                | Who               |
-| ------------------------------------ | ----------------- |
-| Phases 1–2 (as far as Day 2 reaches) | You               |
-| Phase 3                              | You · exam week   |
-| Phase 4 (start 4.1 RLS)              | Team · exam week  |
-| 2.12 plan vs forecast                | Team · do not invent SOP |
-| Phase 5                              | You · after exams |
+**Left — Phase 5 only, after exams.** Boxes still `[ ]`:
 
+- Work: **5.1–5.6**
+- Exit: **e51–e56**, **e5-rls** (4.1 on main), **e5-gates**, **e5-out**
 
-A work tick without an exit tick is not done. Prove exit on a **fresh reset**: stop the API first, then `npm run db:reset` in `services/api`. Never prove on a dirty DB.
+**Not an open phase ID** (do not reopen 2.12 or 4.x for these):
+
+- Phase 4 rest code is **uncommitted** — `e5-rls` stays open until that land is on `main`
+- After `createPlanRevision`, **forecast still equals baseline** (no forecast-revision handler). Plan ≠ baseline is proven on BK-V110 and BK-MT201
+- Live `.data/pglite` needs stop API → `npm run db:reset` → restart to show 2.12 dates / Ishaan file signatures
+- Queues still show raw `user_*` owner ids (friendly-label gap, not a 4.4 fail)
+- Daily **3.3** PR review continues through exam week
+
+**You** = two working days then exams. **Team** = everyone else during exam week.
+
+| Split | Who | State |
+|---|---|---|
+| Phase 1 occupant foundation | You | **Closed** 2026-09-15 |
+| Phase 2 occupant coverage (2.1–2.16, including 2.12) | You Day 2, team leftover | **Closed** 2026-09-15 |
+| Phase 3 scheduler / quiet hours / PR review | You · exam week | **Closed** 2026-09-15 (3.3 still daily) |
+| Phase 4 RLS + product holes (4.1–4.10, 4.1b, 4.2b) | Team · exam week | **Closed** 2026-09-15 |
+| Phase 5 prove and hand over | You · after exams | **Open** — the only remaining work |
+
+A work tick without an exit tick is not done. Prove Phase 5 on a **fresh reset**: stop the API first, then `npm run db:reset` in `services/api`. Never prove on a dirty DB.
 
 **Logins for proof:** staff `crm@` `sales@` `accounts@` `legal@` `registration@` `qa@` `customisation@` `fm@` `management@` `site@` — all `@demo.pranava` / `Demo@2026`. Portal `:5174`: `customer@` (Ananya) plus `karthik@` `meera@` `rohan@` and every Phase 2 accepted login. Workspace `:5173`.
 
@@ -39,11 +54,11 @@ Make the existing four families real. Without this, every later phase tests empt
 
 
 
-### Phase 2 — Occupant coverage · You Day 2, team finishes the rest
+### Phase 2 — Occupant coverage · You Day 2, team leftover — **closed 2026-09-15**
 
 Fill every PDF §34.2 state. Go down the list on Day 2. Team takes whatever you did not reach. **2.14 is standing:** every new accepted booking gets a portal login, not only the Day 1 four.
 
-**Day 2 closed 2026-09-15** (2.1–2.5 + 2.14). **Leftover 2.6–2.11 + 2.13–2.16 closed 2026-09-15** (API 832/832). **2.12 still open** (plan vs forecast). UI leftover people need stop API → `db:reset` → restart.
+**Day 2 closed 2026-09-15** (2.1–2.5 + 2.14). **Leftover 2.6–2.16 closed** (2.12 via `createPlanRevision` on BK-V110 + BK-MT201; forecast still equals baseline). UI leftover people need stop API → `db:reset` → restart.
 
 - [x] **2.1** Submitted handover packet (not CRM-accepted) — You first; team if leftover · Day 2 → exam week
 - [x] **2.2** Returned packet with reason — You first; team if leftover · Day 2 → exam week
@@ -56,7 +71,7 @@ Fill every PDF §34.2 state. Go down the list on Day 2. Team takes whatever you 
 - [x] **2.9** NRI + loan conditional task occupant — Team · Exam week
 - [x] **2.10** Default/Legal overdue occupant — Team · Exam week
 - [x] **2.11** Cancelled or transferred booking; unit history intact — Team · Exam week
-- [ ] **2.12** Plan vs forecast vs actual non-zero on ≥2 occupants — Team (needs Phase 1 journeys) · Exam week
+- [x] **2.12** Plan vs forecast vs actual non-zero on ≥2 occupants — Team (needs Phase 1 journeys) · Exam week
 - [x] **2.13** Pre-registration occupant: blocked on finance/docs with named blockers on the desk (not Karthik-open, not Ananya-done) — Team unless you still have time · Exam week
 - [x] **2.14** Portal login Demo@2026 on every accepted booking added in Phase 2 (Meadows, NRI, AOS, etc.) — You first for Day 2 occupants; team for rest · Day 2 → exam week
 - [x] **2.15** Pre-handover occupant blocked on CRITICAL snag; hard gate cannot skip without named override (not Meera-at-funding, not Rohan) — Team · Exam week
@@ -74,26 +89,28 @@ Full old hardening (RLS, project scope) is **not** exam-week work — it is a fo
 
 
 
-### Phase 4 — Product completeness + remaining hardening · Team · exam week
+### Phase 4 — Product completeness + remaining hardening · Team · exam week — **closed 2026-09-15**
 
-**4.1–4.3 closed 2026-09-15** (PGlite request path; `rls-request.test.ts` 13 + `rls.test.ts` 7). **4.4–4.10 + 2.12 + 4.1b still open.** Rest prompt: `docs/handover/phase-4-rest-agent-prompt.md`.
+All 4.1–4.10 done, including leftovers 4.1b and 4.2b. Next is Phase 5 after exams.
 
-- [x] **4.1** RLS on the request path (P1b) + policies on tables after 0025 — Team · Exam week — start immediately
-- [x] **4.2** assertProjectScope: out-of-scope read 404, write 403; Meadows vs East Crest — Team · Exam week — start immediately
+- [x] **4.1** RLS on the request path (P1b) + policies on tables after 0025 — Team · Exam week
+- [x] **4.1b** pg Pool pin: SET ROLE + statement + RESET on one checkout (`bindPgPool`); `db.query` during `transaction()` reuses that client — Team · Exam week
+- [x] **4.2** assertProjectScope: out-of-scope read 404, write 403; Meadows vs East Crest — Team · Exam week
+- [x] **4.2b** remaining id-taking handlers (CR / action / holds / QA / portal) call `assertEntityScope`; East Crest 404/403 on Meadows (`e42b`) — Team · Exam week
 - [x] **4.3** Field masking on financials/PII; UI tolerates nulls — Team · Exam week
-- [ ] **4.4** Queues.tsx: claim, Management reassign, empty/error; locators on main — Team · Exam week
-- [ ] **4.5** Action Types Studio tab actually edits action_type — Team · Exam week
-- [ ] **4.6** Seed approval_authority_rule bands; commitments use requiredApprovers(); drop in-code ₹200k fallback — Team · Exam week
-- [ ] **4.7** Photos/signatures through files port (file id, not data-URL) — Team · Exam week
-- [ ] **4.8** QA: site declaration vs independent verification + exception queue — Team · Exam week
-- [ ] **4.9** Document factory: draft v1/v2 + sale families — Team · Exam week
-- [ ] **4.10** Scorers read score_weight from Studio — Team · Exam week
+- [x] **4.4** Queues.tsx: claim, Management reassign, empty/error; locators on main — Team · Exam week
+- [x] **4.5** Action Types Studio tab actually edits action_type — Team · Exam week
+- [x] **4.6** Seed approval_authority_rule bands; commitments use requiredApprovers(); drop in-code ₹200k fallback — Team · Exam week
+- [x] **4.7** Photos/signatures through files port (file id, not data-URL) — Team · Exam week
+- [x] **4.8** QA: site declaration vs independent verification + exception queue — Team · Exam week
+- [x] **4.9** Document factory: draft v1/v2 + sale families — Team · Exam week
+- [x] **4.10** Scorers read score_weight from Studio — Team · Exam week
 
 
 
-### Phase 5 — Prove and hand over · You after exams
+### Phase 5 — Prove and hand over · You after exams — **open (only remaining work)**
 
-Team may draft tests during the week. You run the gate when you are back.
+Team may draft tests during the week. You run the gate when you are back. Do not start this in exam week unless asked.
 
 - [ ] **5.1** Occupant-state unit tests (one per PDF stage) covering §26 / §31.5 / §32.11 / §33.6 / §34.7, Sales-cannot-edit-Site, two projects with different durations — Team drafts; you confirm · Exam week → after exams
 - [ ] **5.2** Playwright: sale-to-handover + portal Ananya and Rohan — Team drafts; you confirm · Exam week → after exams
@@ -187,7 +204,7 @@ If this fails, **stop**. Later phases test empty screens. Do not tick Phase 1 do
 
 
 
-### Phase 2 exit — Occupant coverage
+### Phase 2 exit — Occupant coverage — **closed 2026-09-15**
 
 Every 2.x row must be a visible person or desk row after `db:reset`. Leftover items stay unticked on Work until they exist here.
 
@@ -237,8 +254,8 @@ Every 2.x row must be a visible person or desk row after `db:reset`. Leftover it
   - **Prove:** Booking closed. Unit 360 still shows the old ownership/history. Unit was not deleted.  
   - **Not done if:** Unit gone, or history wiped.
 
-- [ ] **e212** 2.12 — Plan vs forecast vs actual is non-zero on ≥2 occupants  
-  - **Prove:** Open Journey timeline on two bookings. At least one of plan / forecast / actual differs (PDF §34.7 t3–t4).  
+- [x] **e212** 2.12 — Plan vs forecast vs actual is non-zero on ≥2 occupants  
+  - **Prove:** Open Journey timeline on two bookings. At least one of plan / forecast / actual differs (PDF §34.7 t3–t4). **2026-09-15:** `createPlanRevision` on BK-V110 and BK-MT201 via delay_reason catalog; `planned_end ≠ baseline_end`. **No `timeline_forecast_revision` handler** — forecast stays at original dates (equals baseline, not the new plan). Prompt allowed this. Live `.data/pglite` needs `db:reset` to show it.  
   - **Not done if:** Every journey shows variance 0.
 
 - [x] **e213** 2.13 — Pre-registration blocked with named finance/docs blockers  
@@ -273,7 +290,7 @@ Every 2.x row must be a visible person or desk row after `db:reset`. Leftover it
 
 
 
-### Phase 3 exit — Exam week (you)
+### Phase 3 exit — Exam week (you) — **closed 2026-09-15**
 
 Interruptible only. A work tick on 3.1 is not enough — the hold must actually expire and tests must stay green.
 
@@ -323,54 +340,54 @@ Interruptible only. A work tick on 3.1 is not enough — the hold must actually 
 
 
 
-### Phase 4 exit — Product + hardening (team)
+### Phase 4 exit — Product + hardening (team) — **closed 2026-09-15**
 
 Do not hand over if 4.1 is unmerged. Start RLS immediately; it must not touch seed.
 
 **Not this phase:** Chatbot, WhatsApp API, vendor portal, inventing SOP days, deploying AWS without spend approval.
 
 - [x] **e41** 4.1 — RLS is on the live request path, not only a migration file  
-  - **Prove:** Each API request sets the RLS user/role GUC. Login as customer A; request customer B’s booking → denied. `0025` is not bypassed by a superuser connection on the request path. Tables added after 0025 have policies. **2026-09-15:** `wrapWithRls` + `requireSession` → `enterActor`. `customer@` Ananya `b_v112` home succeeds; same actor SELECT `b_v110` is zero rows. `0047_rls_followup.sql` policies on post-0025 `project_id` tables + customer-realm `customer_own`. Coverage is ALS `runWithActor` (same store middleware enters), not an Express cookie test. **pg `Pool.query` is not the same client as `SET ROLE` — PGlite-proven only; pin a client or wrap actor queries in `transaction()` before RDS.**  
+  - **Prove:** Each API request sets the RLS user/role GUC. Login as customer A; request customer B’s booking → denied. `0025` is not bypassed by a superuser connection on the request path. Tables added after 0025 have policies. **2026-09-15:** `wrapWithRls` + `requireSession` → `enterActor`. `customer@` Ananya `b_v112` home succeeds; same actor SELECT `b_v110` is zero rows. `0047_rls_followup.sql` policies. **4.1b:** `bindPgPool` checkouts one client; mock Pool pin test 3/3 (`pg-adapter.pin.test.ts`); `db.query` during `transaction()` reuses that client.  
   - **Not done if:** Migration exists, API still superuser; cross-customer read returns 200.
 
 - [x] **e42** 4.2 — East Crest cannot read or write Meadows  
-  - **Prove:** Session scoped to East Crest. GET Meadows booking id → 404. Write → 403. Reverse also holds. **2026-09-15:** `crm@` GET `b_mt201` → not_found; `returnBooking(b_mv01)` → forbidden; Meadows-scoped actor GET `b_v112` → not_found; `management@` still ALL. Remaining id-taking handlers (actions, CRs, QA, holds) still rely on RLS without `assertEntityScope`.  
+  - **Prove:** Session scoped to East Crest. GET Meadows booking id → 404. Write → 403. Reverse also holds. **2026-09-15:** `crm@` GET `b_mt201` → not_found; `returnBooking(b_mv01)` → forbidden. **4.2b:** remaining id handlers (CR/action/holds/QA/portal) call `assertEntityScope`; East Crest 404/403 on Meadows CR/action/holds (`e42b`).  
   - **Not done if:** Both projects in one list; out-of-scope id still returns a body.
 
 - [x] **e43** 4.3 — Masking: nulls in UI, no PII/amount leak  
   - **Prove:** A role without finance sees null/hidden amounts; screen does not crash. Portal still has no vendor price, internal note, staff name-as-blame, unapproved forecast. **2026-09-15:** LEGAL `total_consideration == null`; CRM collections `amount == null`; ACCOUNTS sees numbers. `formatINR(null)` → — (workspace unit test). Browser walk not done.  
   - **Not done if:** Amounts leak; white screen on null.
 
-- [ ] **e44** 4.4 — Queues: claim, Management reassign, empty, error  
-  - **Prove:** Department user claims a row. `management@` reassigns. Force empty and error states — not an infinite spinner. Playwright locators are `page.locator("main")` and `{ exact: true }` on Save/Accept/Send.  
+- [x] **e44** 4.4 — Queues: claim, Management reassign, empty, error  
+  - **Prove:** Department user claims a row. `management@` reassigns. Force empty and error states — not an infinite spinner. Playwright locators are `page.locator("main")` and `{ exact: true }` on Save/Accept/Send. **2026-09-15:** `e2e/queues.spec.ts` on `main`; Claim/Retry `{ exact: true }`. **Queues still show raw `user_*` owner ids** (friendly-label gap, not a fail of claim/reassign).  
   - **Not done if:** My Day is the only queue; tests click the sidebar.
 
-- [ ] **e45** 4.5 — Action Types Studio writes action_type  
-  - **Prove:** Change a label or SLA, reload, row in `action_type` matches.  
+- [x] **e45** 4.5 — Action Types Studio writes action_type  
+  - **Prove:** Change a label or SLA, reload, row in `action_type` matches. **2026-09-15:** `draftStudioRow`/`publishStudioRow` persists `exec_simple` label `Task (re-edited)`. No `ActionTypes.tsx`.  
   - **Not done if:** Tab is chrome; edits do not persist.
 
-- [ ] **e46** 4.6 — Matrix bands in DB; requiredApprovers(); no ₹200k fallback  
-  - **Prove:** `approval_authority_rule` has seeded bands. Commitments call `requiredApprovers()`. Search the API for `200000` / `200k` / `2_00_000` in-code fallbacks — none remain.  
+- [x] **e46** 4.6 — Matrix bands in DB; requiredApprovers(); no ₹200k fallback  
+  - **Prove:** `approval_authority_rule` has seeded bands. Commitments call `requiredApprovers()`. Search the API for `200000` / `200k` / `2_00_000` in-code fallbacks — none remain. **2026-09-15:** COMMITMENT/INR bands in `seed/approval-matrix.ts`; `COMMITMENT_MANAGEMENT_THRESHOLD_INR` gone; remaining `200000` is seeded data (bands / CR matrix), not a code fallback.  
   - **Not done if:** Empty matrix fail-closed, or silent code fallback.
 
-- [ ] **e47** 4.7 — Photos, signatures, deeds are file ids  
-  - **Prove:** New signature/photo/deed goes through the files port. DB stores a file id. Search seed/UI for `data:image` or huge base64 — gone from new writes. 2.8 in-progress handover uses a file, not a data-URL.  
+- [x] **e47** 4.7 — Photos, signatures, deeds are file ids  
+  - **Prove:** New signature/photo/deed goes through the files port. DB stores a file id. Search seed/UI for `data:image` or huge base64 — gone from new writes. 2.8 in-progress handover uses a file, not a data-URL. **2026-09-15:** `putPresigned` → `project/...` key; `updateChecklist` rejects `data:`; Ishaan BK-V114 stores a file id. Remaining `data:image` is a rejection test string.  
   - **Not done if:** Evidence lives as a string in the row.
 
-- [ ] **e48** 4.8 — Site declaration vs QA verification + exception queue  
-  - **Prove:** QA path has two distinct acts (site declares, QA verifies). Exception queue is a staff path with a row, not a comment.  
+- [x] **e48** 4.8 — Site declaration vs QA verification + exception queue  
+  - **Prove:** QA path has two distinct acts (site declares, QA verifies). Exception queue is a staff path with a row, not a comment. **2026-09-15:** `SiteVsQa` + `ExceptionQueue` on QA page; `e2e/qa-exceptions.spec.ts` on `main`.  
   - **Not done if:** One snag list is the whole of QA.
 
-- [ ] **e49** 4.9 — Draft v1/v2 + sale document families  
-  - **Prove:** Create draft v1, edit, v2 exists (v1 not silently overwritten). Templates exist for AOS, Sale Deed, addendum, demand, receipt, handover letter, variation, cancellation. Lease templates unassigned unless leads said they lease.  
+- [x] **e49** 4.9 — Draft v1/v2 + sale document families  
+  - **Prove:** Create draft v1, edit, v2 exists (v1 not silently overwritten). Templates exist for AOS, Sale Deed, addendum, demand, receipt, handover letter, variation, cancellation. Lease templates unassigned unless leads said they lease. **2026-09-15:** `seed/document-families.ts`; LEASE count 0; v2 draft leaves v1 body.  
   - **Not done if:** AOS-only factory; v2 clobbers v1.
 
-- [ ] **e410** 4.10 — score_weight in Studio changes the number  
-  - **Prove:** Change a weight, recompute readiness; value moves. Not a hardcoded scorer.  
+- [x] **e410** 4.10 — score_weight in Studio changes the number  
+  - **Prove:** Change a weight, recompute readiness; value moves. Not a hardcoded scorer. **2026-09-15:** `loadScoreWeights`; mutating `tds` moves booking readiness; former constants are seed rows.  
   - **Not done if:** Studio field is decorative.
 
 - [x] **e4-tests** RLS/scope tests pass — do not leave them red for Phase 5  
-  - **Prove:** Backend suite green with 4.1–4.3 on. Failures fixed in this phase. **2026-09-15:** report 845/845; this verification re-ran `rls-request.test.ts` 13 + `rls.test.ts` 7, all pass.  
+  - **Prove:** Backend suite green with 4.1–4.3 on. Failures fixed in this phase. **2026-09-15 rest:** report 856/856; this verification re-ran pin 3/3, leftover 2.12, commitments, studio action_type, scores 4.10, handover 4.7, documents 4.9 (2).  
   - **Not done if:** 4.1 merged, suite red, “we’ll fix after exams”.
 
 - [x] **e4-seed** Team did not put raw SQL bookings back  
@@ -381,7 +398,7 @@ Do not hand over if 4.1 is unmerged. Start RLS immediately; it must not touch se
 
 
 
-### Phase 5 exit — Prove and hand over
+### Phase 5 exit — Prove and hand over — **open (only remaining work)**
 
 You run this gate. Team may draft tests. Claiming green without reading output fails the phase.
 
@@ -429,6 +446,11 @@ You run this gate. Team may draft tests. Claiming green without reading output f
 
 ## Notes
 
-Leftover 2.x for the team, PR links, blockers, what failed on an exit walk:
+**2026-09-15 — what is actually left vs what looks unfinished**
 
-*Add below.*
+- Open work is **Phase 5 only** (5.1–5.6 + e51–e56 + e5-rls + e5-gates + e5-out).
+- **e5-rls** stays `[ ]` until Phase 4 rest is committed on `main` (code exists in the working tree; not merged yet).
+- 2.12: plan ≠ baseline on Karthik BK-V110 and Nisha BK-MT201. Forecast column still equals baseline (no `timeline_forecast_revision` handler) — allowed by the rest prompt; do not reopen 2.12 to invent SOP days.
+- Live demo DB: stop API → `npm run db:reset` in `services/api` → restart before walking leftover UI (2.12 / Ishaan file signature).
+- Queues still show raw `user_*` owner ids. Not a 4.4 fail.
+- Out of all phases still holds: chatbot, WhatsApp, vendor portal, Google OIDC without a client, AWS without spend yes, East-Crest-only code, invented SOP day counts.

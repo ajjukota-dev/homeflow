@@ -6,7 +6,7 @@ import { createAction } from "../actions/core";
 import { createDraftRevision, releaseRevision } from "../specification/revisions";
 import { useException } from "../changeability/core";
 import { DEMAND_SELECT, mapDemands } from "../demands";
-import { loadCr, listCrItems, type CrRow } from "./store";
+import { loadCr, listCrItems, assertCrScope, type CrRow } from "./store";
 import { CUSTOMISATION_DESK_ROLES } from "./capture";
 
 // 18 rules 6, 7, 11, 12: payment gate, release (spec revision + execution actions), exception
@@ -31,6 +31,7 @@ async function assertPaymentCleared(cr: CrRow): Promise<void> {
  *  explicit transition (no scheduler exists — same gap already documented for 06/12/19/21). */
 export async function confirmPaymentGate(crId: string, ctx: Ctx): Promise<CrRow> {
   requireRole(ctx, CUSTOMISATION_DESK_ROLES);
+  await assertCrScope(ctx, crId, "write");
   const cr = await loadCr(crId);
   if (cr.status !== "AWAITING_PAYMENT") throw new AppError("conflict", `change request is ${cr.status}, not AWAITING_PAYMENT`);
   await assertPaymentCleared(cr);
@@ -44,6 +45,7 @@ export async function confirmPaymentGate(crId: string, ctx: Ctx): Promise<CrRow>
 /** Rule 6's "authorised exception" — an explicit waiver instead of a payment. */
 export async function waivePayment(crId: string, reason: string, ctx: Ctx): Promise<CrRow> {
   requireRole(ctx, WAIVER_AUTHORITY_ROLES);
+  await assertCrScope(ctx, crId, "write");
   const cr = await loadCr(crId);
   if (cr.status !== "AWAITING_PAYMENT") throw new AppError("conflict", `change request is ${cr.status}, not AWAITING_PAYMENT`);
   if (!reason?.trim()) throw new AppError("validation", "reason is required", "reason");
@@ -59,6 +61,7 @@ export async function waivePayment(crId: string, reason: string, ctx: Ctx): Prom
  *  exception (rule 11), emits `drawing.released` (via 09's own releaseRevision). */
 export async function releaseChangeRequest(crId: string, ctx: Ctx): Promise<CrRow> {
   requireRole(ctx, CUSTOMISATION_DESK_ROLES);
+  await assertCrScope(ctx, crId, "write");
   const cr = await loadCr(crId);
   if (cr.status !== "APPROVED") throw new AppError("conflict", `change request is ${cr.status}, not APPROVED`);
   const items = await listCrItems(crId);

@@ -77,7 +77,7 @@ Same handler pattern. Password `Demo@2026`. Do not book V101 / V104 / V108.
 | Registration — blocked (docs/clearance/AOS) | Anjali Bhat | V118 | BK-V118 | `anjali@demo.pranava` | yes |
 | Handover — CRITICAL snag hard-gate | Vivek Sharma | V119 | BK-V119 | `vivek@demo.pranava` | yes |
 | Overdue reason + next action on every overdue (incl. Karthik) | — | — | — | — | yes |
-| Plan vs forecast vs actual date drift | — | — | — | — | no (no seeded delay_reason; skipped) |
+| Plan vs forecast vs actual date drift | Karthik Iyer / Nisha Verma | V110 / MT1-201 | BK-V110 / BK-MT201 | `karthik@` / `nisha@` | yes (plan ≠ baseline via `createPlanRevision` + delay_reason catalog; forecast column still original/baseline — no forecast-revision handler) |
 
 Staff proof: `legal@` Kavya BK-MT502 AOS draft; `registration@` Deepak BK-MP02 slot booked (Ananya still completed); `qa@` Ishaan BK-V114 scheduled appointment, Vivek BK-V119 blocked by critical snag; `banking@` Leela BK-V115 DOCS_PENDING; `accounts@` Farhan BK-V116 cheque_bounce plus Karthik overdue reasons. Portal `:5174` kavya@ / deepak@ / ishaan@ / leela@ / farhanq@ / anjali@ / vivek@ / `Demo@2026`.
 
@@ -88,6 +88,13 @@ The API process (`:3001`) runs overdue, loan-validity, hold-expiry, and forecast
 ## Access (Phase 4.1–4.3)
 
 Row-level security is on the live request path (`homeflow_app` + `app.realm` / `app.project_ids` GUCs from the session). An East Crest–assigned login (`crm@demo.pranava`) cannot open a Meadows booking (BK-MT201 / BK-MV01) — GET is 404, write is 403. Portal `customer@` (Ananya, BK-V112) cannot load Karthik’s BK-V110 (or any other customer’s home). Roles without finance see masked `null` amounts, not rupees; screens render "—".
+
+## Phase 4 rest (queues, signatures, QA exceptions, delay catalog)
+
+- **Queues** (`crm@` / `management@`): sidebar Queues. Claim an unassigned CRM row as `crm@`. Bulk reassign as `management@` (CRM / RM tab, checkbox, Reassign). Empty and error are messages + Retry, not a spinner.
+- **Exception queue:** QA / Handover → “QA exception queue” is a row list (site declarations are not in it). “Site declaration vs QA verify” are two distinct buttons per component.
+- **File signatures:** handover case drawer Save signature PUTs PNG to `/api/files/...` and stores `project/...` (Ishaan BK-V114 already has a file id, not a data-URL).
+- **Delay catalog:** Policy Studio delay_reason rows exist; Karthik/Nisha journeys have a plan revision so planned_end ≠ baseline_end.
 
 ## Walkthrough
 _Nothing on the URL yet._

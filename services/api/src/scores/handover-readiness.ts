@@ -4,6 +4,7 @@ import { openCommitmentsForBooking } from "../commitments/core";
 import { explainBookingReadiness } from "./booking-readiness";
 import { trendFrom, topDrivers, type Score, type ScoreDriver, type ScoreAction } from "./contract";
 import { previousValue, persistSnapshot } from "./store";
+import { loadScoreWeights } from "./load-weights";
 
 // Rule 3: min-gated composite. Reuses `handoverForBooking` (qa.ts, already real — includes 13's
 // commitments gate as of this spec) rather than re-deriving gate inputs. FM/community readiness
@@ -12,11 +13,21 @@ import { previousValue, persistSnapshot } from "./store";
 // `openCommitmentsForBooking`.
 const COMMITMENT_PENALTY_PER_OPEN = 5; // UNCONFIRMED — spec names "−N per open, config", no real N given
 const FM_UNAVAILABLE_REASON = "FM/community readiness (16) is not yet available — held neutral rather than guessed";
-const WEIGHTS = { unit: 0.4, snags: 0.2, fm: 0.15, customer: 0.25 };
+
+async function weights() {
+  const w = await loadScoreWeights("HANDOVER_READINESS");
+  return {
+    unit: w.unit ?? 0,
+    snags: w.snags ?? 0,
+    fm: w.fm ?? 0,
+    customer: w.customer ?? 0,
+  };
+}
 
 interface Built { value: number; allDrivers: ScoreDriver[]; actions: ScoreAction[]; capped: boolean; trend: Score["trend"] }
 
 async function build(bookingId: string): Promise<Built & { projectId: string | null }> {
+  const WEIGHTS = await weights();
   const ho = await handoverForBooking(bookingId);
   const hardOpen = ho.gates.find((g) => g.classification === "hard" && g.state !== "passed");
   const b = await db.query<{ project_id: string }>(`SELECT project_id FROM booking WHERE id = $1`, [bookingId]);

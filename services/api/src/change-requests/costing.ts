@@ -3,7 +3,7 @@ import { db } from "../db";
 import { appendEvent, withTx, actorFields, type DbLike } from "../events";
 import { requireRole } from "../authz/requireRole";
 import { AppError, type Ctx } from "../authz/types";
-import { loadCr, listCrItems, loadPolicy, type CrItemRow } from "./store";
+import { loadCr, listCrItems, loadPolicy, assertCrScope, type CrItemRow } from "./store";
 import { CUSTOMISATION_DESK_ROLES } from "./capture";
 
 // 18 rule 3: costing — line items priced from the variation catalogue (09) or bespoke with
@@ -11,7 +11,8 @@ import { CUSTOMISATION_DESK_ROLES } from "./capture";
 
 export interface ItemInput { room?: string | null; trade?: string | null; category_code: string; catalogue_item_id?: string | null; description?: string; qty?: number; unit_price_inr?: number; vendor_cost_inr?: number; tax_pct?: number; lead_days?: number }
 
-async function assertCosting(crId: string): Promise<Awaited<ReturnType<typeof loadCr>>> {
+async function assertCosting(crId: string, ctx: Ctx): Promise<Awaited<ReturnType<typeof loadCr>>> {
+  await assertCrScope(ctx, crId, "write");
   const cr = await loadCr(crId);
   if (cr.status !== "COSTING") throw new AppError("conflict", `change request is ${cr.status}, not COSTING`);
   return cr;
@@ -20,7 +21,7 @@ async function assertCosting(crId: string): Promise<Awaited<ReturnType<typeof lo
 /** PUT: the complete desired item list for this CR (replace, like 25's studio envelopes). */
 export async function putCrItems(crId: string, items: ItemInput[], ctx: Ctx): Promise<CrItemRow[]> {
   requireRole(ctx, CUSTOMISATION_DESK_ROLES);
-  const cr = await assertCosting(crId);
+  const cr = await assertCosting(crId, ctx);
   const policy = await loadPolicy(cr.project_id);
   if (!Array.isArray(items) || items.length === 0) throw new AppError("validation", "items must be a non-empty list", "items");
 
@@ -57,7 +58,7 @@ export interface ImpactInput { cost_inr: number; schedule_days: number; technica
 /** Rule 3: mandatory impact assessment, all four dimensions. */
 export async function setImpact(crId: string, input: ImpactInput, ctx: Ctx): Promise<void> {
   requireRole(ctx, CUSTOMISATION_DESK_ROLES);
-  const cr = await assertCosting(crId);
+  const cr = await assertCosting(crId, ctx);
   if (input.cost_inr === undefined || input.schedule_days === undefined || !input.technical_risk || !input.handover_impact) {
     throw new AppError("validation", "impact requires cost_inr, schedule_days, technical_risk and handover_impact (all four dimensions)", "impact");
   }
@@ -77,7 +78,7 @@ export function lineTotal(item: Pick<CrItemRow, "qty" | "unit_price_inr" | "tax_
  *  this is the missing link a staff member calls after granting one via 08's own grantException. */
 export async function linkGateException(crId: string, exceptionId: string, ctx: Ctx): Promise<void> {
   requireRole(ctx, CUSTOMISATION_DESK_ROLES);
-  const cr = await assertCosting(crId);
+  const cr = await assertCosting(crId, ctx);
   const ex = (await db.query<{ unit_id: string; category_code: string; status: string }>(`SELECT unit_id, category_code, status FROM unit_gate_exception WHERE id = $1`, [exceptionId])).rows[0];
   if (!ex) throw new AppError("not_found", "exception not found");
   if (ex.unit_id !== cr.unit_id) throw new AppError("validation", "that exception is for a different unit", "exception_id");

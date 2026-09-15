@@ -16,6 +16,10 @@ import { seedHandoverChecklist } from "../seed/handover-checklist";
 import { seedSnagSlaPolicies, seedQaTemplates } from "../seed/qa-templates";
 import { seedDocumentChecklistRules } from "../seed/documents";
 import { seedCrApprovalRules } from "../seed/change-requests";
+import { seedCommitmentApprovalBands } from "../seed/approval-matrix";
+import { seedDelayReasons } from "../seed/delay-reasons";
+import { seedScoreWeights } from "../seed/score-weights";
+import { seedDocumentFactoryFamilies } from "../seed/document-families";
 import { seedRegistrationConfig } from "../seed/registration";
 import { seedHandoverGateConfig } from "../seed/handover-gates";
 import { seedProbabilityRules } from "../seed/probability-rules";
@@ -116,6 +120,10 @@ export function initDb(): Promise<void> {
       await seedDocumentChecklistRules(db);
       // 18 config: variation approval matrix (value/margin/schedule/freeze thresholds, UNCONFIRMED) + the default customisation policy.
       await seedCrApprovalRules(db);
+      await seedCommitmentApprovalBands(db);
+      await seedDelayReasons(db);
+      await seedScoreWeights(db);
+      await seedDocumentFactoryFamilies(db);
       // 23 config: a global fallback registration checklist template (pre_items/day_of_items),
       // same "every environment needs a default before Studio configures a real one" treatment.
       await seedRegistrationConfig(db);

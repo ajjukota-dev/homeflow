@@ -5,7 +5,7 @@ import { AppError, type Ctx } from "../authz/types";
 import { closeAction } from "../actions/core";
 import { recordAsBuilt } from "../specification/revisions";
 import type { SpecItems } from "../specification/baselines";
-import { loadCr, assertCrActor, type CrRow } from "./store";
+import { loadCr, assertCrActor, assertCrScope, type CrRow } from "./store";
 import { CUSTOMISATION_DESK_ROLES } from "./capture";
 
 // 18 rule 8: execution -> ready for QA -> QA verified -> customer accepted -> as-built closed.
@@ -37,6 +37,7 @@ export async function closeExecutionAction(actionId: string, note: string | unde
   requireRole(ctx, STAFF_ROLES);
   const link = (await db.query<{ cr_id: string }>(`SELECT cr_id FROM cr_execution_action WHERE action_id = $1`, [actionId])).rows[0];
   if (!link) throw new AppError("not_found", "execution action not linked to a change request");
+  await assertCrScope(ctx, link.cr_id, "write");
   await assertExecuting(link.cr_id);
   await closeAction(actionId, note, ctx); // own tx
   await withTx(undefined, (tx) => maybeAdvanceToReadyForQa(link.cr_id, ctx, tx));
@@ -46,6 +47,7 @@ export async function closeExecutionAction(actionId: string, note: string | unde
 /** Manual QA link — see file header for why this isn't auto-selected. */
 export async function linkQaInspection(crId: string, qaInspectionId: string, ctx: Ctx): Promise<CrRow> {
   requireRole(ctx, [...CUSTOMISATION_DESK_ROLES, "QA"]);
+  await assertCrScope(ctx, crId, "write");
   const cr = await loadCr(crId);
   if (cr.status !== "READY_FOR_QA") throw new AppError("conflict", `change request is ${cr.status}, not READY_FOR_QA`);
   const insp = (await db.query<{ unit_id: string }>(`SELECT unit_id FROM qa_inspection WHERE id = $1`, [qaInspectionId])).rows[0];
@@ -62,6 +64,7 @@ export async function linkQaInspection(crId: string, qaInspectionId: string, ctx
  *  part before it can reach that status). */
 export async function markQaVerified(crId: string, ctx: Ctx): Promise<CrRow> {
   requireRole(ctx, ["QA", "MANAGEMENT", "SUPER_ADMIN"]);
+  await assertCrScope(ctx, crId, "write");
   const cr = await loadCr(crId);
   if (cr.status !== "READY_FOR_QA") throw new AppError("conflict", `change request is ${cr.status}, not READY_FOR_QA`);
   if (!cr.qa_inspection_id) throw new AppError("validation", "link a QA inspection (15) before marking verified", "qa_inspection_id");
@@ -76,6 +79,7 @@ export async function markQaVerified(crId: string, ctx: Ctx): Promise<CrRow> {
 
 /** Rule 8: customer acceptance (portal, or CRM recording it on the customer's behalf). */
 export async function customerAcceptCr(crId: string, ctx: Ctx): Promise<CrRow> {
+  await assertCrScope(ctx, crId, "write");
   const cr = await loadCr(crId);
   await assertCrActor(cr, ctx, ["CRM", "MANAGEMENT", "SUPER_ADMIN"]);
   if (cr.status !== "QA_VERIFIED") throw new AppError("conflict", `change request is ${cr.status}, not QA_VERIFIED`);
@@ -89,6 +93,7 @@ export async function customerAcceptCr(crId: string, ctx: Ctx): Promise<CrRow> {
 /** Rule 8: as-built record (09) closes the loop — updates the permanent Unit Digital Twin. */
 export async function asBuiltClose(crId: string, input: { as_built_items: SpecItems; drawing_file_keys?: string[]; note?: string | null }, ctx: Ctx): Promise<CrRow> {
   requireRole(ctx, CUSTOMISATION_DESK_ROLES);
+  await assertCrScope(ctx, crId, "write");
   const cr = await loadCr(crId);
   if (cr.status !== "CUSTOMER_ACCEPTED") throw new AppError("conflict", `change request is ${cr.status}, not CUSTOMER_ACCEPTED`);
   await withTx(undefined, async (tx) => {

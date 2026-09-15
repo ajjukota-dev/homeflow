@@ -67,6 +67,8 @@ describe("studio/core: draft -> publish -> history (rule 1)", () => {
     const draftId = await draftStudioRow("action_type", "exec_simple", { label: "Task (re-edited)" }, undefined, mgmtCtx);
     await publishStudioRow("action_type", draftId, "2026-01-01", undefined, mgmtCtx);
     await expect(publishStudioRow("action_type", draftId, "2026-01-01", undefined, mgmtCtx)).rejects.toThrow(/already published/);
+    const row = await db.query<{ label: string }>(`SELECT label FROM action_type WHERE code = 'exec_simple'`);
+    expect(row.rows[0]!.label).toBe("Task (re-edited)");
   });
 
   it("product_types[] round-trips through draft -> publish (rule 5's mechanism, no PLOT content invented)", async () => {

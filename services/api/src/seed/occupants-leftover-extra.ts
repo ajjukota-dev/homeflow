@@ -12,8 +12,7 @@ import {
 } from "./occupants-leftover-ctx";
 import { openRegistrationCase } from "./occupants-leftover-must";
 
-// 2.9–2.15 leftover people. 2.12 skipped: delay_reason is empty in demo seed; inventing a code
-// would be SOP. createPlanRevision exists but cannot run without a real reason row.
+// 2.9–2.15 leftover people. 2.12 plan revision is seed/occupants-leftover-plan.ts.
 
 export async function seedLeelaNriLoan(): Promise<void> {
   await ensureVillaInventory(LEELA.unit_number);

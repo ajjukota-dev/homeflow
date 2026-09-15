@@ -8,7 +8,7 @@ import { pdf } from "../pdf";
 import { files } from "../ports/files";
 import { createAction } from "../actions/core";
 import { moneyToIndianFigures } from "../documents/source";
-import { loadCr, loadPolicy, listCrItems, loadQuotation, assertCrActor, type QuotationRow } from "./store";
+import { loadCr, loadPolicy, listCrItems, loadQuotation, assertCrActor, assertCrScope, type QuotationRow } from "./store";
 import { lineTotal } from "./costing";
 import { CUSTOMISATION_DESK_ROLES } from "./capture";
 
@@ -37,6 +37,7 @@ function quotationHtml(cr: { code: string; title: string }, lines: QuotationRow[
 /** Rule 5: issue a quotation from the CR's costed items (re-issue supersedes any ISSUED one). */
 export async function issueQuotation(crId: string, ctx: Ctx): Promise<QuotationRow> {
   requireRole(ctx, CUSTOMISATION_DESK_ROLES);
+  await assertCrScope(ctx, crId, "write");
   const cr = await loadCr(crId);
   if (cr.status !== "AWAITING_CUSTOMER") throw new AppError("conflict", `change request is ${cr.status}, not AWAITING_CUSTOMER`);
   const items = await listCrItems(crId);

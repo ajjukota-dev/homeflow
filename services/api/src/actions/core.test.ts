@@ -176,6 +176,13 @@ describe("actions/core: rule 5 — owner queue, claim, reassign", () => {
     await submitForApproval(approvalId, legalA());
     await expect(reassignAction(approvalId, LEGAL_B, legalA())).rejects.toThrow(/Ready for Approval/);
   });
+
+  it("MANAGEMENT can reassign an unassigned departmental action", async () => {
+    const id = await makeAction("exec_simple", { owner_role: "CRM" });
+    await reassignAction(id, CRM_B, ctxAs("act_mgmt", ["MANAGEMENT"]));
+    const row = await db.query<{ owner_user_id: string }>(`SELECT owner_user_id FROM action WHERE id = $1`, [id]);
+    expect(row.rows[0].owner_user_id).toBe(CRM_B);
+  });
 });
 
 describe("actions/core: rule 4 — evidence gate on close", () => {
@@ -299,7 +306,7 @@ describe("actions/core: reads", () => {
   });
 
   it("getAction throws not_found for an unknown id", async () => {
-    await expect(getAction("nope", crmA())).rejects.toThrow(/not found/);
+    await expect(getAction("nope", crmA())).rejects.toThrow(/not_found/);
   });
 });
 

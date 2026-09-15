@@ -3,6 +3,7 @@ import { db } from "../db";
 import { appendEvent, withTx, actorFields, type DbLike } from "../events";
 import { requireRole, STAFF_ROLES } from "../authz/requireRole";
 import { AppError, type Ctx } from "../authz/types";
+import { assertActionScope, assertEntityScope } from "../authz/entity-scope";
 import { nextCode } from "../model/codes";
 import { stopClock } from "../journey/sla";
 import { deriveStatus, type ClockStatus } from "../journey/engine";
@@ -116,6 +117,9 @@ export async function createAction(input: CreateActionInput, tx: DbLike): Promis
 /** Manual creation (POST /actions) — the only path that needs a ctx. */
 export async function createManualAction(input: Omit<CreateActionInput, "origin" | "created_by">, ctx: Ctx): Promise<string> {
   requireRole(ctx, STAFF_ROLES);
+  if (input.project_id) await assertEntityScope(ctx, "project", input.project_id, "write");
+  else if (input.booking_id) await assertEntityScope(ctx, "booking", input.booking_id, "write");
+  else if (input.unit_id) await assertEntityScope(ctx, "unit", input.unit_id, "write");
   return withTx(undefined, (tx) => createAction({ ...input, origin: "MANUAL", created_by: ctx.actor.user_id }, tx));
 }
 
@@ -211,6 +215,7 @@ async function emitStatusChanged(action: ActionRow, to: ActionStatus, ctx: Ctx, 
 /** Rule 5: unowned action sits in the role queue; first claimer becomes owner. */
 export async function claimAction(actionId: string, ctx: Ctx): Promise<void> {
   requireRole(ctx, STAFF_ROLES);
+  await assertActionScope(ctx, actionId, "write");
   await withTx(undefined, async (tx) => {
     const a = await requireAction(actionId, tx);
     if (a.owner_user_id) throw new AppError("conflict", "action already has an owner");
@@ -226,9 +231,11 @@ export async function claimAction(actionId: string, ctx: Ctx): Promise<void> {
  *  reassign-then-approve defeating the self-approve check). */
 export async function reassignAction(actionId: string, newOwnerUserId: string, ctx: Ctx): Promise<void> {
   requireRole(ctx, STAFF_ROLES);
+  await assertActionScope(ctx, actionId, "write");
+  const canBulk = ctx.actor.roles.includes("MANAGEMENT") || ctx.actor.roles.includes("SUPER_ADMIN");
   await withTx(undefined, async (tx) => {
     const a = await requireAction(actionId, tx);
-    assertMayAct(a, ctx);
+    if (!canBulk) assertMayAct(a, ctx);
     if (a.status === "Ready for Approval") throw new AppError("conflict", "cannot reassign while Ready for Approval");
     await tx.query(`UPDATE action SET owner_user_id = $2 WHERE id = $1`, [actionId, newOwnerUserId]);
     await recordTransition(actionId, a.status, a.status, ctx.actor.user_id, `reassigned to ${newOwnerUserId}`, tx);
@@ -239,6 +246,7 @@ export async function reassignAction(actionId: string, newOwnerUserId: string, c
 /** Rule 3: New -> In Progress, owner acts (auto-claims if unassigned and caller's role matches). */
 export async function startAction(actionId: string, ctx: Ctx): Promise<void> {
   requireRole(ctx, STAFF_ROLES);
+  await assertActionScope(ctx, actionId, "write");
   await withTx(undefined, async (tx) => {
     const a = await requireAction(actionId, tx);
     assertMayAct(a, ctx);
@@ -253,6 +261,7 @@ export async function startAction(actionId: string, ctx: Ctx): Promise<void> {
 /** Rule 3: In Progress <-> Waiting Internal|Waiting Customer, reason required. */
 export async function waitAction(actionId: string, target: "Waiting Internal" | "Waiting Customer", reason: string, ctx: Ctx): Promise<void> {
   requireRole(ctx, STAFF_ROLES);
+  await assertActionScope(ctx, actionId, "write");
   if (!reason?.trim()) throw new AppError("validation", "reason is required", "reason");
   await withTx(undefined, async (tx) => {
     const a = await requireAction(actionId, tx);
@@ -269,6 +278,7 @@ export async function waitAction(actionId: string, target: "Waiting Internal" | 
 /** Rule 3: -> Blocked, reason + (depends_on_action_id or a free-text blocking entity note). */
 export async function blockAction(actionId: string, reason: string, dependsOnActionId: string | null, ctx: Ctx): Promise<void> {
   requireRole(ctx, STAFF_ROLES);
+  await assertActionScope(ctx, actionId, "write");
   if (!reason?.trim()) throw new AppError("validation", "reason is required", "reason");
   await withTx(undefined, async (tx) => {
     const a = await requireAction(actionId, tx);
@@ -282,6 +292,7 @@ export async function blockAction(actionId: string, reason: string, dependsOnAct
 
 export async function unblockAction(actionId: string, ctx: Ctx): Promise<void> {
   requireRole(ctx, STAFF_ROLES);
+  await assertActionScope(ctx, actionId, "write");
   await withTx(undefined, async (tx) => {
     const a = await requireAction(actionId, tx);
     assertMayAct(a, ctx);
@@ -296,6 +307,7 @@ export async function unblockAction(actionId: string, ctx: Ctx): Promise<void> {
  *  self-approve guard keys on this, not on owner_user_id (see migration file header). */
 export async function submitForApproval(actionId: string, ctx: Ctx): Promise<void> {
   requireRole(ctx, STAFF_ROLES);
+  await assertActionScope(ctx, actionId, "write");
   await withTx(undefined, async (tx) => {
     const a = await requireAction(actionId, tx);
     assertMayAct(a, ctx);
@@ -313,6 +325,7 @@ export async function submitForApproval(actionId: string, ctx: Ctx): Promise<voi
  *  Emergent's /approve: "Approved -> Completed"). */
 export async function approveAction(actionId: string, note: string | undefined, ctx: Ctx, maybeTx?: DbLike): Promise<void> {
   requireRole(ctx, STAFF_ROLES);
+  await assertActionScope(ctx, actionId, "write");
   await withTx(maybeTx, async (tx) => {
     const a = await requireAction(actionId, tx);
     if (a.status !== "Ready for Approval") throw new AppError("conflict", "action is not Ready for Approval");
@@ -332,6 +345,7 @@ export async function approveAction(actionId: string, note: string | undefined, 
 
 export async function rejectAction(actionId: string, reason: string, ctx: Ctx): Promise<void> {
   requireRole(ctx, STAFF_ROLES);
+  await assertActionScope(ctx, actionId, "write");
   if (!reason?.trim()) throw new AppError("validation", "reason is required", "reason");
   await withTx(undefined, async (tx) => {
     const a = await requireAction(actionId, tx);
@@ -400,6 +414,7 @@ async function closeActionCore(a: ActionRow, note: string | null, closedBy: stri
  *  down" pattern events/append.ts documents for acceptBooking -> setupFunding. */
 export async function closeAction(actionId: string, note: string | undefined, ctx: Ctx, maybeTx?: DbLike): Promise<void> {
   requireRole(ctx, STAFF_ROLES);
+  await assertActionScope(ctx, actionId, "write");
   await withTx(maybeTx, async (tx) => {
     const a = await requireAction(actionId, tx);
     if (a.status === "Closed" || a.status === "Cancelled") throw new AppError("conflict", `action already ${a.status}`);
@@ -430,6 +445,7 @@ export async function closeAction(actionId: string, note: string | undefined, ct
  *  cancel their own MANUAL action while still New. */
 export async function cancelAction(actionId: string, reason: string, ctx: Ctx): Promise<void> {
   requireRole(ctx, STAFF_ROLES);
+  await assertActionScope(ctx, actionId, "write");
   if (!reason?.trim()) throw new AppError("validation", "reason is required", "reason");
   await withTx(undefined, async (tx) => {
     const a = await requireAction(actionId, tx);
@@ -455,6 +471,7 @@ export async function cancelAction(actionId: string, reason: string, ctx: Ctx): 
  *  mirroring Emergent's /attach-evidence. */
 export async function addEvidence(actionId: string, fileKey: string, kind: string | undefined, ctx: Ctx): Promise<string> {
   requireRole(ctx, STAFF_ROLES);
+  await assertActionScope(ctx, actionId, "write");
   return withTx(undefined, async (tx) => {
     const a = await requireAction(actionId, tx);
     assertMayAct(a, ctx);
@@ -472,6 +489,9 @@ export async function addEvidence(actionId: string, fileKey: string, kind: strin
 /** Rule 4 self-verify guard: verifier_role holder who did NOT upload this evidence. */
 export async function verifyEvidence(evidenceId: string, decision: "VERIFIED" | "REJECTED", note: string | undefined, ctx: Ctx): Promise<void> {
   requireRole(ctx, STAFF_ROLES);
+  const evPeek = await db.query<{ action_id: string }>(`SELECT action_id FROM action_evidence WHERE id = $1`, [evidenceId]);
+  if (!evPeek.rows[0]) throw new AppError("not_found", "evidence not found");
+  await assertActionScope(ctx, evPeek.rows[0].action_id, "write");
   await withTx(undefined, async (tx) => {
     const ev = await tx.query<{ action_id: string; uploaded_by: string; verification_status: string }>(`SELECT action_id, uploaded_by, verification_status FROM action_evidence WHERE id = $1`, [evidenceId]);
     if (!ev.rows[0]) throw new AppError("not_found", "evidence not found");
@@ -495,6 +515,7 @@ export async function verifyEvidence(evidenceId: string, decision: "VERIFIED" | 
  *  "small setter, owner/SA gated" shape as setChecklistItem below. */
 export async function setExternalReference(actionId: string, reference: string, ctx: Ctx): Promise<void> {
   requireRole(ctx, STAFF_ROLES);
+  await assertActionScope(ctx, actionId, "write");
   await withTx(undefined, async (tx) => {
     const a = await requireAction(actionId, tx);
     assertMayAct(a, ctx);
@@ -504,6 +525,7 @@ export async function setExternalReference(actionId: string, reference: string, 
 
 export async function setChecklistItem(actionId: string, itemId: string, checked: boolean, ctx: Ctx): Promise<void> {
   requireRole(ctx, STAFF_ROLES);
+  await assertActionScope(ctx, actionId, "write");
   await withTx(undefined, async (tx) => {
     const a = await requireAction(actionId, tx);
     assertMayAct(a, ctx);
@@ -547,6 +569,7 @@ export interface ActionListItem {
 
 export async function listActions(filter: { owner_user_id?: string; owner_role?: string; status?: ActionStatus; project_id?: string }, ctx: Ctx): Promise<ActionListItem[]> {
   requireRole(ctx, STAFF_ROLES);
+  if (filter.project_id) await assertEntityScope(ctx, "project", filter.project_id, "read");
   const clauses: string[] = [];
   const params: unknown[] = [];
   if (filter.owner_user_id) { params.push(filter.owner_user_id); clauses.push(`owner_user_id = $${params.length}`); }
@@ -609,6 +632,7 @@ export interface ActionDetail {
  *  demand for a single action, not in a list's hot path (unlike listActions/getQueue). */
 export async function getAction(actionId: string, ctx: Ctx): Promise<ActionDetail> {
   requireRole(ctx, STAFF_ROLES);
+  await assertActionScope(ctx, actionId, "read");
   const r = await db.query<Omit<ActionDetail, "family" | "sla_state" | "checklist" | "evidence" | "transitions"> & { sla_clock_id: string | null }>(
     `SELECT id, code, type, title, description, project_id, source_module, source_entity_type, source_entity_id,
             booking_id, unit_id, customer_id, owner_user_id, owner_role, backup_owner_user_id,

@@ -4,7 +4,7 @@ import { appendEvent, withTx, actorFields, type DbLike } from "../events";
 import { requireRole, POLICY_STUDIO_ROLES } from "../authz/requireRole";
 import { AppError, type Ctx } from "../authz/types";
 import { createAction, approveAction, rejectAction } from "../actions/core";
-import { loadCr, listCrItems, type CrRow } from "./store";
+import { loadCr, listCrItems, assertCrScope, type CrRow } from "./store";
 import { lineTotal } from "./costing";
 import { CUSTOMISATION_DESK_ROLES } from "./capture";
 
@@ -103,6 +103,7 @@ export async function evaluateRequiredApprovers(cr: CrRow, tx: DbLike): Promise<
  *  is enforced here, at the point costing work is actually submitted onward. */
 export async function submitCrForApproval(crId: string, ctx: Ctx): Promise<CrRow> {
   requireRole(ctx, CUSTOMISATION_DESK_ROLES);
+  await assertCrScope(ctx, crId, "write");
   const cr = await loadCr(crId);
   if (cr.status !== "COSTING") throw new AppError("conflict", `change request is ${cr.status}, not COSTING`);
   if (!cr.impact) throw new AppError("validation", "impact assessment (all four dimensions) is required before submitting for approval");

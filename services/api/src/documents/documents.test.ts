@@ -5,7 +5,7 @@ import type { Ctx } from "../authz/types";
 import { createProject, createUnit } from "../projects";
 import { createBooking } from "../bookings";
 import { submitHandover, acceptHandover } from "../sales-handover/core";
-import { createTemplate, submitTemplateForReview, approveTemplate, listMergeFields, putMergeFields } from "./templates";
+import { createTemplate, submitTemplateForReview, approveTemplate, listMergeFields, putMergeFields, type TransactionType } from "./templates";
 import { createClause, approveClause, putSelectionRules } from "./clauses";
 import { computeReadiness } from "./readiness";
 import { generateDocument } from "./generate";
@@ -13,6 +13,7 @@ import { submitForReview, decideStage, sendForCustomerReview, approveForExecutio
 import { raiseDeviation, approveDeviation } from "./deviations";
 import { listChecklist, requestDocument, uploadDocument, acceptDocument, rejectDocument, allRequiredAccepted } from "./checklist";
 import { moneyToIndianWords, moneyToIndianFigures, resolvePath } from "./source";
+import { FACTORY_FAMILIES } from "../seed/document-families";
 
 // 22-document-factory.md — integration over real PGlite (`document_template`/`generated_document`
 // and legal-docs.ts's AOS flow are untouched; this factory's own tables are doc_factory_*). One
@@ -304,4 +305,37 @@ describe("rule 10 — templates and clauses are versioned with approval; editing
     const v2Doc = await generateDocument(bookingId, "ALLOTMENT_LETTER", {}, legal());
     expect(v2Doc.template_id).toBe(templateV2.id);
   }, 25_000);
+});
+
+describe("4.9 seeded sale families + draft v2 does not clobber v1", () => {
+  it("APPROVED templates exist for AOS, Sale Deed, addendum, demand, receipt, handover letter, variation, cancellation — not LEASE", async () => {
+    for (const f of FACTORY_FAMILIES) {
+      const r = await db.query<{ n: number }>(
+        `SELECT count(*)::int AS n FROM doc_factory_template WHERE family_code = $1 AND status = 'APPROVED'`,
+        [f.code]
+      );
+      expect(r.rows[0]!.n, f.code).toBeGreaterThan(0);
+    }
+    const lease = await db.query<{ n: number }>(`SELECT count(*)::int AS n FROM doc_factory_template WHERE family_code = 'LEASE'`);
+    expect(lease.rows[0]!.n).toBe(0);
+  });
+
+  it("createTemplate draft v2 leaves existing v1 body intact for each family", async () => {
+    for (const f of FACTORY_FAMILIES) {
+      const v1 = await db.query<{ id: string; version: number; body_html: string }>(
+        `SELECT id, version, body_html FROM doc_factory_template WHERE family_code = $1 ORDER BY version ASC LIMIT 1`,
+        [f.code]
+      );
+      expect(v1.rows[0], f.code).toBeTruthy();
+      const body = v1.rows[0]!.body_html;
+      const draft = await createTemplate(
+        { family_code: f.code, name: `${f.name} v2`, transaction_type: f.transaction_type as TransactionType, body_html: `<p>{{unit_code}} revised ${f.code}</p>` },
+        legal()
+      );
+      expect(draft.version).toBeGreaterThan(v1.rows[0]!.version);
+      expect(draft.status).toBe("DRAFT");
+      const still = await db.query<{ body_html: string }>(`SELECT body_html FROM doc_factory_template WHERE id = $1`, [v1.rows[0]!.id]);
+      expect(still.rows[0]!.body_html).toBe(body);
+    }
+  });
 });

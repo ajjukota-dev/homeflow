@@ -7,6 +7,7 @@ import { todayIst } from "../authz/clock";
 import { nextCode } from "../model/codes";
 import { evaluateUnit } from "../changeability/core";
 import { loadPolicy, loadCr, assertCrActor, CR_SELECT, type CrRow } from "./store";
+import { assertEntityScope } from "../authz/entity-scope";
 
 // 18 rules 1-2: capture never blocked; feasibility review.
 //
@@ -41,8 +42,10 @@ export async function raiseChangeRequest(input: RaiseCrInput, ctx: Ctx): Promise
   if (ctx.actor.kind === "CUSTOMER") {
     const own = (await db.query<{ booking_id: string }>(`SELECT booking_id FROM customer_login WHERE user_id = $1`, [ctx.actor.user_id])).rows[0]?.booking_id;
     if (own !== input.booking_id) throw new AppError("forbidden", "customers may raise a request only on their own booking");
+    await assertEntityScope(ctx, "booking", input.booking_id, "write");
   } else {
     requireRole(ctx, STAFF_ROLES);
+    await assertEntityScope(ctx, "booking", input.booking_id, "write");
   }
   if (!input.title?.trim()) throw new AppError("validation", "title is required", "title");
 
@@ -110,6 +113,7 @@ async function recordFeasibilityCore(crId: string, input: FeasibilityInput, ctx:
  *  customer-facing reason CRM edits before publish (29, not built — text is stored, never sent). */
 export async function recordFeasibility(crId: string, input: Omit<FeasibilityInput, "reviewer">, ctx: Ctx): Promise<CrRow> {
   requireRole(ctx, FEASIBILITY_ROLES);
+  await assertEntityScope(ctx, "change_request", crId, "write");
   const cr = await loadCr(crId);
   if (cr.status !== "FEASIBILITY_REVIEW") throw new AppError("conflict", `change request is ${cr.status}, not FEASIBILITY_REVIEW`);
   if (!input.technical_notes?.trim()) throw new AppError("validation", "technical_notes is required", "technical_notes");
@@ -118,6 +122,7 @@ export async function recordFeasibility(crId: string, input: Omit<FeasibilityInp
 }
 
 export async function getChangeRequest(id: string, ctx: Ctx): Promise<CrRow> {
+  await assertEntityScope(ctx, "change_request", id, "read");
   const cr = await loadCr(id);
   await assertCrActor(cr, ctx, STAFF_ROLES);
   return cr;
@@ -125,6 +130,8 @@ export async function getChangeRequest(id: string, ctx: Ctx): Promise<CrRow> {
 
 export async function listChangeRequests(filter: { status?: string; project_id?: string; owner_user_id?: string; booking_id?: string }, ctx: Ctx): Promise<CrRow[]> {
   requireRole(ctx, STAFF_ROLES);
+  if (filter.project_id) await assertEntityScope(ctx, "project", filter.project_id, "read");
+  if (filter.booking_id) await assertEntityScope(ctx, "booking", filter.booking_id, "read");
   const conds: string[] = [];
   const params: unknown[] = [];
   for (const [col, val] of [["status", filter.status], ["project_id", filter.project_id], ["owner_user_id", filter.owner_user_id], ["booking_id", filter.booking_id]] as const) {
@@ -135,6 +142,7 @@ export async function listChangeRequests(filter: { status?: string; project_id?:
 }
 
 export async function withdrawChangeRequest(crId: string, ctx: Ctx): Promise<CrRow> {
+  await assertEntityScope(ctx, "change_request", crId, "write");
   const cr = await loadCr(crId);
   await assertCrActor(cr, ctx, CUSTOMISATION_DESK_ROLES);
   const withdrawable: string[] = ["REQUESTED", "FEASIBILITY_REVIEW", "COSTING", "AWAITING_APPROVAL", "AWAITING_CUSTOMER", "AWAITING_PAYMENT", "APPROVED"];

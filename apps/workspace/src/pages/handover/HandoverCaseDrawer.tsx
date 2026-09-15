@@ -228,10 +228,18 @@ function ChecklistPanel({ view, bookingId, canWrite, onChanged }: { view: Handov
     }
   }
 
-  async function sign(field: "customer_signature_file_id" | "company_signature_file_id", dataUrl: string | null) {
+  async function sign(field: "customer_signature_file_id" | "company_signature_file_id", blob: Blob | null) {
     setError(null);
     try {
-      await handoverApi.updateChecklist(bookingId, { [field]: dataUrl });
+      if (!blob) {
+        await handoverApi.updateChecklist(bookingId, { [field]: null });
+        onChanged();
+        return;
+      }
+      const kind = field === "customer_signature_file_id" ? "customer" : "company";
+      const { key, upload } = await handoverApi.presignSignature(bookingId, kind);
+      await fetch(upload.url, { method: upload.method, headers: upload.headers, body: blob });
+      await handoverApi.updateChecklist(bookingId, { [field]: key });
       onChanged();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "That didn't work.");

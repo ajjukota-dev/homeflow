@@ -2,6 +2,7 @@ import { db } from "../db";
 import { bookingFinance } from "../finance";
 import { trendFrom, topDrivers, type Score, type ScoreDriver } from "./contract";
 import { previousValue, persistSnapshot } from "./store";
+import { loadScoreWeights } from "./load-weights";
 
 // Rule 2. Real components: payments (19's `bookingFinance().cleared`), TDS (24's tds_record),
 // loan state (21's loan_case, only when one exists), agreement executed, registration done,
@@ -10,10 +11,22 @@ import { previousValue, persistSnapshot } from "./store";
 // that component is excluded from the weighted average (not scored 0, which would misreport a
 // real deficiency as a modeled one) and surfaced as its own LOW-confidence driver instead.
 
-const WEIGHTS = { payments: 0.35, tds: 0.15, loan: 0.15, agreement: 0.15, registration: 0.1, customerActions: 0.1 };
 const DOCUMENTS_UNAVAILABLE_REASON = "documents component (17/22) is not yet available — excluded from the weighted value, surfaced as a separate driver instead of guessed";
 
+async function weights() {
+  const w = await loadScoreWeights("BOOKING_READINESS");
+  return {
+    payments: w.payments ?? 0,
+    tds: w.tds ?? 0,
+    loan: w.loan ?? 0,
+    agreement: w.agreement ?? 0,
+    registration: w.registration ?? 0,
+    customerActions: w.customerActions ?? 0,
+  };
+}
+
 async function build(bookingId: string): Promise<{ value: number; allDrivers: ScoreDriver[]; actions: { action_type: string; title: string; target: string }[]; projectId: string | null }> {
+  const WEIGHTS = await weights();
   const finance = await bookingFinance(bookingId);
   const paymentsScore = finance.cleared ? 1 : finance.paid_pct > 0 ? 0.6 : 0;
 

@@ -5,6 +5,7 @@ import {
   getHandoverCase, listHandoverPipeline, proposeAppointment, confirmAppointment, rescheduleAppointment,
   updateChecklist, overrideGate, completeCase, closeCase, evaluateAndLog,
 } from "./handover/core";
+import { presignHandoverSignature } from "./handover/files";
 import { listGateConfig, putGateConfig } from "./handover/policy";
 
 // 16-handover-gates.md §API. Case identity keyed by booking_id throughout, same convention 23's
@@ -32,6 +33,9 @@ export function registerHandoverRoutes(app: Express): void {
   });
   app.put("/api/handover/:id/checklist", async (req: AuthedRequest, res) => {
     try { res.json({ data: await updateChecklist(req.params.id, req.body ?? {}, ctx(req)) }); } catch (e) { failHttp(res, e); }
+  });
+  app.post("/api/handover/:id/signature", async (req: AuthedRequest, res) => {
+    try { res.json({ data: await presignHandoverSignature(req.params.id, req.body ?? {}, ctx(req)) }); } catch (e) { failHttp(res, e); }
   });
   app.post("/api/handover/:id/complete", async (req: AuthedRequest, res) => {
     try { res.json({ data: await completeCase(req.params.id, ctx(req)) }); } catch (e) { failHttp(res, e); }

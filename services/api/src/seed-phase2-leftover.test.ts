@@ -19,6 +19,7 @@ const LEFTOVER_SEED_FILES = [
   "seed/occupants-leftover-ready.ts",
   "seed/occupants-leftover-must.ts",
   "seed/occupants-leftover-extra.ts",
+  "seed/occupants-leftover-plan.ts",
   "seed/users.ts",
 ];
 
@@ -124,6 +125,12 @@ describe("Phase 2 leftover occupants via handlers (seed)", () => {
       `SELECT u.email FROM customer_login cl JOIN "user" u ON u.id = cl.user_id WHERE cl.booking_id = 'b_v114'`
     );
     expect(login.rows[0]?.email).toBe("ishaan@demo.pranava");
+    const sig = await db.query<{ customer_signature_file_id: string | null }>(
+      `SELECT customer_signature_file_id FROM handover_checklist WHERE case_id = $1`,
+      [ho.rows[0].id]
+    );
+    expect(sig.rows[0]?.customer_signature_file_id).toMatch(/^project\//);
+    expect(sig.rows[0]?.customer_signature_file_id).not.toMatch(/^data:/);
   });
 
   it("2.16 every overdue demand has overdue_reason_code and next_action, including Karthik", async () => {
@@ -249,6 +256,26 @@ describe("Phase 2 leftover occupants via handlers (seed)", () => {
       [emails]
     );
     expect(logins.rows.map((r) => r.email).sort()).toEqual([...emails].sort());
+  });
+
+  it("2.12 plan ≠ baseline on Karthik BK-V110 and Nisha BK-MT201 via delay_reason catalog", async () => {
+    const reasons = await db.query<{ n: number }>(`SELECT count(*)::int AS n FROM delay_reason`);
+    expect(reasons.rows[0]!.n).toBeGreaterThan(0);
+    for (const bookingId of ["b_v110", "b_mt201"]) {
+      const stages = await db.query<{ planned_end: string | Date; baseline_end: string | Date; forecast_end: string | Date }>(
+        `SELECT si.planned_end, si.baseline_end, si.forecast_end
+           FROM stage_instance si JOIN journey_instance j ON j.id = si.journey_id
+          WHERE j.booking_id = $1 AND si.planned_end <> si.baseline_end`,
+        [bookingId]
+      );
+      expect(stages.rows.length, bookingId).toBeGreaterThan(0);
+      const rev = await db.query<{ reason_code: string }>(
+        `SELECT r.reason_code FROM timeline_plan_revision r
+           JOIN journey_instance j ON j.id = r.journey_id WHERE j.booking_id = $1`,
+        [bookingId]
+      );
+      expect(rev.rows[0]?.reason_code).toBeTruthy();
+    }
   });
 
   it("Phase 1 + Day 2 still hold; spare pool V101/V104/V108 unbooked", async () => {

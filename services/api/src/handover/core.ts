@@ -8,6 +8,7 @@ import { createAction } from "../actions/core";
 import { onHandoverCompleted } from "../warranty";
 import { evaluateCase, type CaseView } from "./gates";
 import { loadOrCreateCase, loadCaseByBooking, loadGateConfig, GATE_DB_TO_TYPE, type HoCaseRow } from "./store";
+import { assertStoredFileKey } from "./files";
 
 // 16-handover-gates.md. Writers: QA/Handover role for case work; Management for the pipeline +
 // override log (Screens). Per-gate override eligibility is config-driven (override_roles),
@@ -217,6 +218,10 @@ export async function rescheduleAppointment(bookingId: string, input: { slot: st
 
 export async function updateChecklist(bookingId: string, patch: Partial<ChecklistRow>, ctx: Ctx): Promise<HandoverView> {
   requireRole(ctx, HANDOVER_ROLES);
+  await assertEntityScope(ctx, "booking", bookingId, "write");
+  assertStoredFileKey(patch.customer_signature_file_id, "customer_signature_file_id");
+  assertStoredFileKey(patch.company_signature_file_id, "company_signature_file_id");
+  for (const photo of patch.photos ?? []) assertStoredFileKey(photo, "photos");
   const view = await evaluateCase(bookingId);
   const existing = await loadChecklist(view.case.id);
   const groups: Record<string, Record<string, unknown>> = { ...existing.groups };

@@ -89,11 +89,11 @@ describe("createCommitment + lifecycle (rule 1)", () => {
   });
 });
 
-describe("approval (rule 2) — MANAGEMENT for high financial impact / COMMERCIAL-TIMELINE, CRM lead otherwise", () => {
-  it("starts DRAFT when approval_required, rejects self-approval, and MANAGEMENT (the resolved approver role) can approve", async () => {
+describe("approval (rule 2) — requiredApprovers COMMITMENT/INR bands, no in-code ₹ fallback", () => {
+  it("starts DRAFT when approval_required, rejects self-approval, and MANAGEMENT can approve above the band", async () => {
     const bookingId = await freshBooking();
     const c = await createCommitment(
-      { booking_id: bookingId, category: "COMMERCIAL", description: "Waive one late fee", source: "CRM", beneficiary: "CUSTOMER", customer_facing: true, financial_impact_inr: 50000, approval_required: true },
+      { booking_id: bookingId, category: "COMMERCIAL", description: "Waive a large fee", source: "CRM", beneficiary: "CUSTOMER", customer_facing: true, financial_impact_inr: 250000, approval_required: true },
       crm()
     );
     expect(c.status).toBe("DRAFT");
@@ -106,16 +106,27 @@ describe("approval (rule 2) — MANAGEMENT for high financial impact / COMMERCIA
     await expect(approveCommitment(c.id, management())).rejects.toThrow(/not awaiting approval/);
   });
 
-  it("a small, non-COMMERCIAL/TIMELINE commitment's approver defaults to CRM, so matrix WRITE (CRM, not the creator) can approve it", async () => {
+  it("a small commitment's band is CRM, so matrix WRITE (CRM, not the creator) can approve it", async () => {
     const bookingId = await freshBooking();
-    // Created by SUPER_ADMIN (source tag is still MANAGEMENT) so the approver check below is
-    // exercised against a real, different actor — CRM itself can never approve its own creation.
     const c = await createCommitment(
       { booking_id: bookingId, category: "MODIFICATION", description: "Extra shelf", source: "MANAGEMENT", beneficiary: "CUSTOMER", customer_facing: true, financial_impact_inr: 1000, approval_required: true },
       superAdminCtx
     );
     expect(c.status).toBe("DRAFT");
-    const approved = await approveCommitment(c.id, crm()); // CRM lead — matrix WRITE, not the creator
+    const approved = await approveCommitment(c.id, crm());
+    expect(approved.status).toBe("APPROVED");
+  });
+
+  it("commitment above the INR band needs MANAGEMENT via requiredApprovers", async () => {
+    const bookingId = await freshBooking();
+    const c = await createCommitment(
+      { booking_id: bookingId, category: "OTHER", description: "High-value promise", source: "CRM", beneficiary: "CUSTOMER", customer_facing: true, financial_impact_inr: 250000, approval_required: true },
+      crm()
+    );
+    const { requiredApprovers } = await import("../approvals/matrix");
+    const band = await requiredApprovers("COMMITMENT", "INR", 250000, PROJECT_ID);
+    expect(band.approver_role).toBe("MANAGEMENT");
+    const approved = await approveCommitment(c.id, management());
     expect(approved.status).toBe("APPROVED");
   });
 });

@@ -12,6 +12,10 @@ import { listDemands } from "./demands";
 import { getCustomer } from "./model/customers";
 import { AppError } from "./authz/types";
 import type { Actor } from "./authz/types";
+import { getChangeRequest } from "./change-requests/capture";
+import { getAction, createAction } from "./actions/core";
+import { listHolds } from "./sales/holds";
+import { withTx } from "./events";
 
 // Phase 4.1–4.3: GUCs + homeflow_app on the request path (not only rls.test.ts's
 // manual SET ROLE), customer A ↛ B, East Crest ↛ Meadows, mask() on GET money/PII.
@@ -130,6 +134,38 @@ describe("e42 — assertProjectScope on product handlers", () => {
       await expect(returnBooking("b_mv01", "out of scope", { actor: crm })).rejects.toMatchObject({
         code: "forbidden",
       });
+    });
+  });
+
+  it("e42b: East Crest actor 404/403 on Meadows CR, action, holds", async () => {
+    const crm = await actorForEmail("crm@demo.pranava");
+    const cr = await runAsSystem(() =>
+      db.query<{ id: string }>(`SELECT id FROM change_request WHERE booking_id = 'b_mt201' LIMIT 1`)
+    );
+    expect(cr.rows[0], "Nisha CR").toBeTruthy();
+    await runWithActor(crm, async () => {
+      await expect(getChangeRequest(cr.rows[0]!.id, { actor: crm })).rejects.toMatchObject({ code: "not_found" });
+      await expect(listHolds("p_meadows", undefined, { actor: crm })).rejects.toMatchObject({ code: "not_found" });
+    });
+    const actionId = await runAsSystem(() =>
+      withTx(undefined, (tx) =>
+        createAction(
+          {
+            type: "exec_simple",
+            title: "Meadows scoped",
+            source_module: "e42b",
+            source_entity_type: "test",
+            source_entity_id: "e42b",
+            project_id: "p_meadows",
+            origin: "MANUAL",
+            created_by: "user_superadmin",
+          },
+          tx
+        )
+      )
+    );
+    await runWithActor(crm, async () => {
+      await expect(getAction(actionId, { actor: crm })).rejects.toMatchObject({ code: "not_found" });
     });
   });
 

@@ -2,6 +2,8 @@ import { db } from "../db";
 import { generateDocument } from "../legal-docs";
 import { confirmAvailability, bookSlot, getRegistrationCase } from "../registration/core";
 import { proposeAppointment, confirmAppointment, updateChecklist, overrideGate } from "../handover/core";
+import { presignHandoverSignature } from "../handover/files";
+import { files } from "../ports/files";
 import { verifyComponent } from "../qa";
 import { setOverdueReason } from "../demands";
 import { bookAndAccept } from "./occupants-book";
@@ -62,9 +64,18 @@ export async function seedIshaanHandoverInProgress(): Promise<void> {
     { slot: slots[0]!, confirmed_by: "CRM_ON_BEHALF", note: "Ishaan confirmed the earlier slot by phone." },
     crm
   );
+  const png = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+    "base64"
+  );
+  const signed = await presignHandoverSignature(ISHAAN.booking_id, { kind: "customer", content_type: "image/png" }, qa);
+  await files.putBuffer(signed.key, png, "image/png");
   await updateChecklist(
     ISHAAN.booking_id,
-    { groups: { property: { cleaning: { done: true, by: "user_qa", at: new Date().toISOString(), file_ids: [] } } } },
+    {
+      groups: { property: { cleaning: { done: true, by: "user_qa", at: new Date().toISOString(), file_ids: [] } } },
+      customer_signature_file_id: signed.key,
+    },
     qa
   );
 }

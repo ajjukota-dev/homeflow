@@ -16,6 +16,7 @@ import { db } from "../db";
 import { AppError, type Ctx } from "../authz/types";
 import { authorize } from "../authz/authorize";
 import { requireRole } from "../authz/requireRole";
+import { assertEntityScope } from "../authz/entity-scope";
 import { withTx, appendEvent, actorFields, type DbLike } from "../events";
 import { bookingForCustomerUser } from "../customer";
 import { t2Payments } from "../collections-view";
@@ -201,6 +202,7 @@ export async function getDocuments(ctx: Ctx) {
  *  not the matrix (see seed/permissions.ts's CUSTOMER_MODULES comment). */
 export async function uploadCustomerDocument(customerDocumentId: string, contentType: string, ctx: Ctx) {
   const bookingId = await myBooking(ctx);
+  await assertEntityScope(ctx, "booking", bookingId, "write");
   await authorize(ctx, "customer_documents", "READ");
   const owner = await db.query<{ booking_id: string }>(
     `SELECT ba.booking_id FROM customer_document cd JOIN booking_applicant ba ON ba.customer_id = cd.customer_id WHERE cd.id = $1`,

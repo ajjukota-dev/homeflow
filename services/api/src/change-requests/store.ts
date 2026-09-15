@@ -1,5 +1,6 @@
 import { db } from "../db";
 import { AppError, type Ctx } from "../authz/types";
+import { assertEntityScope } from "../authz/entity-scope";
 import type { DbLike } from "../events";
 
 // 18-change-requests.md — shared row shapes + loaders, split out to avoid the same import-cycle
@@ -71,6 +72,10 @@ export async function loadQuotation(id: string, tx: DbLike = db): Promise<Quotat
 /** Customers may only act on their own CR (via `customer_login`'s user_id -> booking_id, same
  *  lookup as `customer.ts::bookingForCustomerUser`); staff need the CUSTOMISATION-desk role set
  *  (same `ctx.actor.kind` split as qa/snags.ts::reopenSnag). */
+export async function assertCrScope(ctx: Ctx, crId: string, mode: "read" | "write"): Promise<string> {
+  return assertEntityScope(ctx, "change_request", crId, mode);
+}
+
 export async function assertCrActor(cr: CrRow, ctx: Ctx, staffRoles: string[], tx: DbLike = db): Promise<void> {
   if (ctx.actor.kind === "CUSTOMER") {
     const r = await tx.query<{ booking_id: string }>(`SELECT booking_id FROM customer_login WHERE user_id = $1`, [ctx.actor.user_id]);

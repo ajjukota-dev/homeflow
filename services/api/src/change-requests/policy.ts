@@ -1,6 +1,7 @@
 import { db } from "../db";
 import { requireRole, POLICY_STUDIO_ROLES } from "../authz/requireRole";
 import { AppError, type Ctx } from "../authz/types";
+import { assertEntityScope } from "../authz/entity-scope";
 import { loadPolicy } from "./store";
 
 // Policy Studio "Customisation policy" tab — freeze dates, quotation validity, payment gate %,
@@ -8,6 +9,7 @@ import { loadPolicy } from "./store";
 
 export async function getCustomisationPolicy(projectId: string, ctx: Ctx) {
   requireRole(ctx, POLICY_STUDIO_ROLES);
+  await assertEntityScope(ctx, "project", projectId, "read");
   return loadPolicy(projectId, db);
 }
 
@@ -15,6 +17,7 @@ export interface PolicyInput { freeze_dates?: Record<string, string>; quotation_
 
 export async function putCustomisationPolicy(projectId: string, input: PolicyInput, ctx: Ctx) {
   requireRole(ctx, POLICY_STUDIO_ROLES);
+  await assertEntityScope(ctx, "project", projectId, "write");
   if (input.payment_gate_pct !== undefined && (input.payment_gate_pct < 0 || input.payment_gate_pct > 100)) {
     throw new AppError("validation", "payment_gate_pct must be between 0 and 100", "payment_gate_pct");
   }

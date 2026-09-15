@@ -3,6 +3,7 @@ import { db } from "../db";
 import { appendEvent, withTx, actorFields, type DbLike } from "../events";
 import { requireRole, STAFF_ROLES } from "../authz/requireRole";
 import { AppError, type Ctx } from "../authz/types";
+import { assertEntityScope } from "../authz/entity-scope";
 import { nextCode } from "../model/codes";
 import { todayIst } from "../authz/clock";
 import { loadHoldPolicy } from "./policy";
@@ -53,6 +54,7 @@ export async function requestHold(
   ctx: Ctx
 ): Promise<HoldRow> {
   requireRole(ctx, REQUEST_ROLES);
+  await assertEntityScope(ctx, "unit", input.unit_id, "write");
   if (!input.reason?.trim()) throw new AppError("validation", "reason is required", "reason");
   if (!input.requested_until) throw new AppError("validation", "requested_until is required", "requested_until");
   const unit = (await db.query<{ project_id: string }>(`SELECT project_id FROM unit WHERE id = $1`, [input.unit_id])).rows[0];
@@ -86,6 +88,7 @@ export async function requestHold(
 
 async function decide(id: string, to: "APPROVED" | "REJECTED", input: { approved_until?: string; note?: string }, ctx: Ctx): Promise<HoldRow> {
   requireRole(ctx, STAFF_ROLES);
+  await assertEntityScope(ctx, "hold", id, "write");
   const h = await loadHold(id);
   const policy = await loadHoldPolicy(h.project_id);
   if (!ctx.actor.roles.includes(policy.approver_role) && !ctx.actor.roles.includes("SUPER_ADMIN")) throw new AppError("forbidden", `hold decisions require the ${policy.approver_role} role`);
@@ -107,6 +110,7 @@ export const rejectHold = (id: string, note: string | undefined, ctx: Ctx) => de
 
 export async function releaseHold(id: string, reason: string, ctx: Ctx): Promise<HoldRow> {
   requireRole(ctx, REQUEST_ROLES);
+  await assertEntityScope(ctx, "hold", id, "write");
   if (!reason?.trim()) throw new AppError("validation", "reason is required", "reason");
   const h = await loadHold(id);
   if (h.status !== "APPROVED" && h.status !== "REQUESTED") throw new AppError("conflict", `hold is ${h.status}`);
@@ -132,6 +136,7 @@ export async function consumeHoldsForBooking(prospectId: string, unitId: string,
 
 export async function listHolds(projectId: string, status: string | undefined, ctx: Ctx): Promise<HoldRow[]> {
   requireRole(ctx, STAFF_ROLES);
+  await assertEntityScope(ctx, "project", projectId, "read");
   await withTx(undefined, (tx) => expireHolds(tx, todayIst()));
   return (await db.query<HoldRow>(`${SELECT} WHERE project_id = $1 ${status ? "AND status = $2" : ""} ORDER BY created_at DESC`, status ? [projectId, status.toUpperCase()] : [projectId])).rows;
 }

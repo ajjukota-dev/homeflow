@@ -1,15 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@homeflow/ui";
 
-// 16-handover-gates.md Files list names this component explicitly — a real canvas signature
-// capture, not a text field pretending to be one. No presigned-upload port is wired anywhere in
-// this codebase yet (CommitmentDrawer.tsx's own comment flags the same gap for evidence files),
-// so the captured PNG data URL itself stands in for a `*_signature_file_id` — flagged, not faked.
+// 16-handover-gates.md — canvas capture, then the parent PUTs PNG bytes to the files port.
+// signedFileId is a storage key (project/...), rendered via /api/files/.
 
 export function SignaturePad({ label, signedFileId, onSign, onClear, disabled }: {
   label: string;
   signedFileId: string | null;
-  onSign: (dataUrl: string) => void;
+  onSign: (blob: Blob) => void;
   onClear: () => void;
   disabled?: boolean;
 }) {
@@ -71,8 +69,12 @@ export function SignaturePad({ label, signedFileId, onSign, onClear, disabled }:
   function save() {
     const canvas = canvasRef.current;
     if (!canvas || !hasInk.current) return;
-    onSign(canvas.toDataURL("image/png"));
+    canvas.toBlob((blob) => {
+      if (blob) onSign(blob);
+    }, "image/png");
   }
+
+  const previewSrc = signedFileId && !signedFileId.startsWith("data:") ? `/api/files/${signedFileId}` : null;
 
   return (
     <div className="flex flex-col gap-2">
@@ -80,8 +82,8 @@ export function SignaturePad({ label, signedFileId, onSign, onClear, disabled }:
         <span className="text-footnote font-medium text-fg-muted">{label}</span>
         {signedFileId && <span className="text-caption font-medium text-ontrack">Signed</span>}
       </div>
-      {signedFileId ? (
-        <img src={signedFileId} alt={`${label} signature`} className="h-24 w-full rounded-lg border border-line bg-surface object-contain" />
+      {previewSrc ? (
+        <img src={previewSrc} alt={`${label} signature`} className="h-24 w-full rounded-lg border border-line bg-surface object-contain" />
       ) : (
         <canvas
           ref={canvasRef}

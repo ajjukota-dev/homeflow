@@ -200,6 +200,7 @@ test("QA handover completes keys for an eligible villa", async ({ page }) => {
     // Scope to this pad's own button row (its next sibling), not "Save signature" globally —
     // both signature panes render one each, and only one becomes enabled per iteration.
     await pad.locator("xpath=following-sibling::div[1]").getByRole("button", { name: "Save signature" }).click();
+    await expect(dialog.getByText("Signed").nth(who === "Customer" ? 0 : 1)).toBeVisible({ timeout: 15_000 });
   }
 
   await dialog.getByRole("button", { name: "Complete handover" }).click();

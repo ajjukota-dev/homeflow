@@ -4,6 +4,7 @@ import { appendEvent, withTx, actorFields, type DbLike } from "../events";
 import { authorize } from "../authz/authorize";
 import { requireRole } from "../authz/requireRole";
 import { AppError, type Ctx } from "../authz/types";
+import { assertEntityScope } from "../authz/entity-scope";
 import { createAction } from "../actions/core";
 import { updateProgress } from "../progress/core";
 import { files, assertAllowedContentType } from "../ports/files";
@@ -60,6 +61,7 @@ async function assertInspector(ctx: Ctx, kind: InspectionKind): Promise<void> {
 export async function startInspection(unitId: string, input: { component_code: string; kind: InspectionKind }, ctx: Ctx): Promise<InspectionRow & { template: TemplateRow | null }> {
   if (!["SITE_DECLARATION", "QA_VERIFICATION", "RE_INSPECTION"].includes(input.kind)) throw new AppError("validation", `invalid kind ${input.kind}`, "kind");
   await assertInspector(ctx, input.kind);
+  await assertEntityScope(ctx, "unit", unitId, "write");
   const unit = await db.query<{ project_id: string; product_type: string }>(`SELECT project_id, product_type FROM unit WHERE id = $1`, [unitId]);
   if (!unit.rows[0]) throw new AppError("not_found", "unit not found");
   const comp = await db.query<{ code: string }>(`SELECT code FROM component_definition WHERE code = $1`, [input.component_code]);
@@ -87,6 +89,7 @@ export async function startInspection(unitId: string, input: { component_code: s
 
 export async function getInspection(id: string, ctx: Ctx): Promise<InspectionRow & { template: TemplateRow | null; evidence: EvidenceRow[] }> {
   await authorize(ctx, "unit_readiness", "READ");
+  await assertEntityScope(ctx, "qa_inspection", id, "read");
   const insp = await loadInspection(id);
   const template = insp.template_id
     ? (await db.query<TemplateRow>(`SELECT id, component_code, product_types, items, min_photos, version, effective_from::text AS effective_from, effective_to::text AS effective_to FROM qa_checklist_template WHERE id = $1`, [insp.template_id])).rows[0] ?? null
@@ -102,6 +105,7 @@ async function templateFor(insp: InspectionRow, tx: DbLike = db): Promise<Templa
 }
 
 export async function setInspectionItems(id: string, items: InspectionItem[], ctx: Ctx): Promise<InspectionRow> {
+  await assertEntityScope(ctx, "qa_inspection", id, "write");
   const insp = await loadInspection(id);
   await assertInspector(ctx, insp.kind);
   if (insp.status !== "IN_PROGRESS" && insp.status !== "SCHEDULED") throw new AppError("conflict", `inspection is ${insp.status}`);
@@ -124,6 +128,7 @@ export async function addInspectionEvidence(
   input: { item_code: string; kind: "PHOTO" | "TEST_REPORT" | "CERTIFICATE"; content_type: string; gps?: Record<string, unknown> | null; supersedes?: string | null },
   ctx: Ctx
 ) {
+  await assertEntityScope(ctx, "qa_inspection", id, "write");
   const insp = await loadInspection(id);
   await assertInspector(ctx, insp.kind);
   if (insp.status === "PASSED" || insp.status === "FAILED") throw new AppError("conflict", `inspection is ${insp.status}`);
@@ -198,6 +203,7 @@ function evaluate(insp: InspectionRow, template: TemplateRow | null, evidence: E
 }
 
 export async function completeInspection(id: string, ctx: Ctx): Promise<InspectionRow> {
+  await assertEntityScope(ctx, "qa_inspection", id, "write");
   const insp = await loadInspection(id);
   await assertInspector(ctx, insp.kind);
   if (insp.status !== "IN_PROGRESS" && insp.status !== "SCHEDULED") throw new AppError("conflict", `inspection is ${insp.status}`);
@@ -269,6 +275,7 @@ export async function completeInspection(id: string, ctx: Ctx): Promise<Inspecti
 
 export async function listInspectionsForUnit(unitId: string, ctx: Ctx): Promise<InspectionRow[]> {
   await authorize(ctx, "unit_readiness", "READ");
+  await assertEntityScope(ctx, "unit", unitId, "read");
   return (await db.query<InspectionRow>(`${SELECT} WHERE unit_id = $1 ORDER BY started_at DESC`, [unitId])).rows;
 }
 
@@ -276,6 +283,7 @@ export async function listInspectionsForUnit(unitId: string, ctx: Ctx): Promise<
  *  cause) pattern from the snags those inspections raised. */
 export async function listQaExceptions(projectId: string, ctx: Ctx) {
   await authorize(ctx, "unit_readiness", "READ");
+  await assertEntityScope(ctx, "project", projectId, "read");
   const r = await db.query<{
     id: string; unit_id: string; unit_number: string; component_code: string; kind: string; status: string; attempt_no: number; failure_reason: string | null;
     failures_on_component: number; contractors: string[] | null; root_causes: string[] | null;

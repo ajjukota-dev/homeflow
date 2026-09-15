@@ -12,16 +12,26 @@ import { SET_SESSION_TIME_ZONE_SQL } from "./session";
 // the same session and pass an already-settled promise.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- PGlite's own Transaction/PGlite types are structurally identical (query/exec) but not a shared interface
 function wrap(instance: { query: any; exec: any; close?: any; transaction?: any }, ready: Promise<unknown>): DbClient {
+  async function withConnection<T>(fn: Parameters<DbClient["withConnection"]>[0]): Promise<T> {
+    await ready;
+    return fn({
+      query: async (sql, params) => {
+        const result = await instance.query(sql, params as unknown[]);
+        return { rows: result.rows };
+      },
+      exec: async (sql) => {
+        await instance.exec(sql);
+      },
+    });
+  }
   return {
     async query<T>(sql: string, params?: unknown[]): Promise<QueryResult<T>> {
-      await ready;
-      const result = await instance.query(sql, params as unknown[]);
-      return { rows: result.rows };
+      return withConnection((c) => c.query<T>(sql, params));
     },
     exec: async (sql: string) => {
-      await ready;
-      await instance.exec(sql);
+      await withConnection((c) => c.exec(sql));
     },
+    withConnection,
     close: async () => {
       if (instance.close) await instance.close();
     },
