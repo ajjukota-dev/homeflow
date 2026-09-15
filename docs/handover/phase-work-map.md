@@ -23,18 +23,18 @@ A work tick without an exit tick is not done. Prove exit on a **fresh reset**: s
 
 ## Work
 
-### Phase 1 — Occupant foundation · You · Day 1
+### Phase 1 — Occupant foundation · You · Day 1 — **closed 2026-09-15**
 
-Make the existing four families real. Without this, every later phase tests empty screens.
+Make the existing four families real. Without this, every later phase tests empty screens. Exit verified: Journey tabs non-empty on `:5173`; `services/api` vitest 800/800.
 
-- [ ] **1a** Cut seed off raw INSERT INTO booking / demand / handover / AOS — You · Day 1
-- [ ] **1b** Karthik V110 via handlers + journey on construction/cash — You · Day 1
-- [ ] **1c** Meera V111 via handlers + journey on funding/loan + critical snag — You · Day 1
-- [ ] **1d** Ananya V112 via handlers + journey on pre-handover; keep customer@ login — You · Day 1
-- [ ] **1e** Rohan V113 via handlers + journey on post-handover + DLP/warranty + passport + 7/30/90 check-ins — You · Day 1
-- [ ] **1f** Portal logins karthik@ meera@ rohan@ / Demo@2026 — You · Day 1
-- [ ] **1g** db:reset proof: 360 Journey not empty for all four; four portal sign-ins — You · Day 1 EOD
-- [ ] **1h** Write the occupant roster (stage, name, unit, done/not) into click-path.md — You · Day 1 EOD
+- [x] **1a** Cut seed off raw INSERT INTO booking / demand / handover / AOS — You · Day 1
+- [x] **1b** Karthik V110 via handlers + journey on construction/cash — You · Day 1
+- [x] **1c** Meera V111 via handlers + journey on funding/loan + critical snag — You · Day 1
+- [x] **1d** Ananya V112 via handlers + journey on pre-handover; keep customer@ login — You · Day 1
+- [x] **1e** Rohan V113 via handlers + journey on post-handover + DLP/warranty + passport + 7/30/90 check-ins — You · Day 1
+- [x] **1f** Portal logins karthik@ meera@ rohan@ / Demo@2026 — You · Day 1
+- [x] **1g** db:reset proof: 360 Journey not empty for all four; four portal sign-ins — You · Day 1 EOD
+- [x] **1h** Write the occupant roster (stage, name, unit, done/not) into click-path.md — You · Day 1 EOD
 
 
 
@@ -130,53 +130,53 @@ If every work item is ticked and exit is not, the phase is **not finished**. Do 
 
 
 
-### Phase 1 exit — Occupant foundation
+### Phase 1 exit — Occupant foundation — **closed 2026-09-15**
 
-If this fails, **stop**. Later phases test empty screens. Do not tick Phase 1 done from the work list alone.
+If this fails, **stop**. Later phases test empty screens. Do not tick Phase 1 done from the work list alone. Verified: handler seed, visual Journey walk, full API suite.
 
 **Not this phase:** Queues, RLS, Meadows bookings, packets, CRs, scheduler, files port.
 
-- [ ] **e1a** 1a — Seed no longer creates the four families with raw SQL  
+- [x] **e1a** 1a — Seed no longer creates the four families with raw SQL  
   - **Prove:** Search `seed.ts`, `seed-lifecycle.ts`, `seed-canonical.ts`. Karthik/Meera/Ananya/Rohan go through handlers (handover accept, demands, AOS). No `INSERT INTO booking` / `sales_handover` / `demand` / `agreement` for those people.  
   - **Not done if:** Any of those INSERTs still create BK-V110–V113.
 
-- [ ] **e1b** 1b — Karthik V110 / BK-V110 has a live construction + cash journey  
+- [x] **e1b** 1b — Karthik V110 / BK-V110 has a live construction + cash journey  
   - **Prove:** Stop API → `npm run db:reset` in `services/api` → start stack. Login `crm@demo.pranava`. Open V110. Journey tab has stages/tasks. Construction current; overdue/cash still open. Person label is Karthik Iyer.  
   - **Not done if:** Empty Journey; uuid in the heading; booking row with no `journey_instance`.
 
-- [ ] **e1c** 1c — Meera V111 / BK-V111 has funding/loan + dispute + critical snag  
+- [x] **e1c** 1c — Meera V111 / BK-V111 has funding/loan + dispute + critical snag  
   - **Prove:** `crm@` 360 for V111: Journey not empty, loan/funding current, a disputed collection, a CRITICAL snag on the unit.  
   - **Not done if:** Empty Journey, or snag/dispute only in SQL with no UI row.
 
-- [ ] **e1d** 1d — Ananya V112 / BK-V112 pre-handover; customer@ still works  
+- [x] **e1d** 1d — Ananya V112 / BK-V112 pre-handover; customer@ still works  
   - **Prove:** `crm@` 360 Journey not empty (pre-handover). Portal `:5174` as `customer@demo.pranava` / `Demo@2026` still opens BK-V112.  
   - **Not done if:** Existing customer login broken, or Journey empty.
 
-- [ ] **e1e** 1e — Rohan V113 keys + DLP/warranty + passport + 7/30/90 check-ins  
+- [x] **e1e** 1e — Rohan V113 keys + DLP/warranty + passport + 7/30/90 check-ins  
   - **Prove:** Staff 360: keys issued, DLP/warranty, Home Passport items, 7/30/90 check-ins listed (not a blank after-care tab).  
   - **Not done if:** Passport missing, check-ins missing, or only a keys-issued flag.
 
-- [ ] **e1f** 1f — Four portal logins, each sees only their home  
+- [x] **e1f** 1f — Four portal logins, each sees only their home  
   - **Prove:** Portal login `karthik@demo.pranava`, `meera@demo.pranava`, `rohan@demo.pranava`, `customer@demo.pranava` — all `Demo@2026`. Each landing is that family’s unit. No vendor price, internal note, or unapproved forecast.  
   - **Not done if:** 401, wrong unit, Ananya-only still, or Rohan still staff-only.
 
-- [ ] **e1g** 1g — Proved on a freshly reset DB, not a dirty one  
+- [x] **e1g** 1g — Proved on a freshly reset DB, not a dirty one  
   - **Prove:** The walk in e1b–e1f was after `db:reset` with the API stopped first. You watched reset finish.  
   - **Not done if:** It only worked because leftover rows from a previous run.
 
-- [ ] **e1h** 1h — click-path.md is the roster the team will copy  
+- [x] **e1h** 1h — click-path.md is the roster the team will copy  
   - **Prove:** `docs/demo/click-path.md` lists stage, person, unit, booking, login, done/not, and that handlers (not SQL) created them.  
   - **Not done if:** Team has to ask you how to add the next occupant.
 
-- [ ] **e1-names** No raw ids on 360 or portal for these four  
+- [x] **e1-names** No raw ids on 360 or portal for these four  
   - **Prove:** Headings and lists show Karthik Iyer / V110 / BK-V110, not `user.id` or `unit_id`.  
   - **Not done if:** A uuid or numeric id is the visible name.
 
-- [ ] **e1-get** Opening 360 / Journey does not write a new audit/snapshot row every load  
+- [x] **e1-get** Opening 360 / Journey does not write a new audit/snapshot row every load  
   - **Prove:** Reload Customer 360 twice. Event/snapshot count for that booking does not climb on GET.  
   - **Not done if:** Compute-on-read that inserts on every request.
 
-- [ ] **e1-lock** Nobody else rewrote seed during Phase 1  
+- [x] **e1-lock** Nobody else rewrote seed during Phase 1  
   - **Prove:** No parallel PR that edits `seed.ts` / `seed-lifecycle` while 1a–1h are in flight.  
   - **Not done if:** Two handler patterns, or SQL put back.
 

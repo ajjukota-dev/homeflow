@@ -1,6 +1,4 @@
 import type { DbClient } from "./db/types";
-import { nextCode } from "./model/codes";
-import { openPostHandoverCase } from "./post-handover/core";
 
 const AOS_BODY = `AGREEMENT FOR SALE
 
@@ -18,6 +16,7 @@ const AOS_FIELDS = JSON.stringify([
   { key: "consideration", label: "Consideration", source_ref: "booking.total_consideration", mandatory: true },
 ]);
 
+/** Config + QA fixtures. Bookings/demands/AOS/handover for V110–V113 are created by handlers. */
 export async function seedLifecycleDemo(db: DbClient) {
   await db.query(
     `INSERT INTO document_template
@@ -35,172 +34,12 @@ export async function seedLifecycleDemo(db: DbClient) {
     UPDATE qa_evidence SET qa_verified = true, evidence_note = 'Photo + checklist signed', verified_at = now()
      WHERE unit_id IN ('u_v112','u_v113');
     INSERT INTO snag (id, unit_id, project_id, severity, location, trade, description, status) VALUES
-      ('s_v110_1','u_v110','p_eastcrest','minor','Foyer','paint','Paint touch-up on the foyer wall','open'),
-      ('s_v111_1','u_v111','p_eastcrest','critical','Electrical panel','electrical','Exposed live wiring at the distribution board','open');
+      ('s_v110_1','u_v110','p_eastcrest','minor','Foyer','paint','Paint touch-up on the foyer wall','open');
     INSERT INTO home_passport_item (id, unit_id, project_id, category, name, paint_tile_code, customer_facing, approved)
     VALUES ('pp_v110_paint','u_v110','p_eastcrest','finishes','Living-room wall colour','Warm Sand 04', true, true);
-  `);
-
-  const aosV110 =
-    "AGREEMENT FOR SALE\n\nThis Agreement for Sale is made for Villa V110 (3BHK, East facing) at East Crest.\n\nPurchaser: Karthik Iyer (PAN ABCDE1234F).\nBooking BK-V110.\nTotal consideration ₹12000000.\n";
-  await db.query(
-    `INSERT INTO generated_document
-      (id, template_id, booking_id, project_id, unit_id, document_family, status, version, snapshot, body_rendered, checksum)
-     VALUES ('doc_v110_aos','tpl_aos','b_v110','p_eastcrest','u_v110','AOS','executed',1,$1::jsonb,$2,'chk-v110')`,
-    [
-      JSON.stringify({
-        applicant_name: "Karthik Iyer",
-        pan: "ABCDE1234F",
-        unit_number: "V110",
-        unit_type: "3BHK",
-        facing: "East",
-        project_name: "East Crest",
-        booking_number: "BK-V110",
-        consideration: "12000000",
-      }),
-      aosV110,
-    ]
-  );
-  await db.exec(`
-    INSERT INTO registration_case (id, code, booking_id, unit_id, project_id, status)
-    VALUES ('reg_v110','REG-000001','b_v110','u_v110','p_eastcrest','readiness_in_progress');
-  `);
-
-  await seedKeysVilla(db);
-  await seedHandedOverVilla(db);
-  // 23-registration.md: the 3 hardcoded codes above bypass nextCode's own code_sequence, so it
-  // must be bumped past them here or the first real loadOrCreateCase call would mint 'REG-000001'
-  // again and collide with reg_v110's own UNIQUE code.
-  await db.exec(`
-    INSERT INTO code_sequence (prefix, next_value) VALUES ('REG', 4)
-    ON CONFLICT (prefix) DO UPDATE SET next_value = GREATEST(code_sequence.next_value, 4);
-    -- 16-handover-gates.md: same trap, same fix — 'ho_v113' above bypasses nextCode.
-    INSERT INTO code_sequence (prefix, next_value) VALUES ('HO', 2)
-    ON CONFLICT (prefix) DO UPDATE SET next_value = GREATEST(code_sequence.next_value, 2);
-  `);
-}
-
-async function seedKeysVilla(db: DbClient) {
-  const ananyaCode = await nextCode(db, "CUS");
-  const v112Code = await nextCode(db, "BKG");
-  await db.query(
-    `INSERT INTO customer (id, display_name, primary_phone, kyc_status, code, primary_name)
-     VALUES ('c_ananya','Ananya Rao','9845055566','verified',$1,'Ananya Rao')`,
-    [ananyaCode]
-  );
-  await db.query(
-    `INSERT INTO booking
-      (id, project_id, unit_id, booking_number, status, total_consideration, completeness_score,
-       rm_owner, payment_plan_id, code, agreement_value_inr)
-     VALUES ('b_v112','p_eastcrest','u_v112','BK-V112','active',10000000,100,'Priya Nair','plan_eastcrest',$1,10000000)`,
-    [v112Code]
-  );
-  await db.exec(`
-    INSERT INTO booking_applicant (id, booking_id, customer_id, display_name, role, phone, pan)
-    VALUES ('a_v112','b_v112','c_ananya','Ananya Rao','primary','9845055566','PQRST6789L');
-    UPDATE unit SET sale_status = 'registered' WHERE id = 'u_v112';
-
-    INSERT INTO demand (id, booking_id, project_id, milestone_key, milestone_label, construction_trigger_event, sequence, amount, due_date, status) VALUES
-      ('d_v112_1','b_v112','p_eastcrest','booking_token','Booking amount',NULL,1,1000000,CURRENT_DATE - 200,'settled'),
-      ('d_v112_2','b_v112','p_eastcrest','structure_milestone','Structure complete','structure:complete',2,3000000,CURRENT_DATE - 120,'settled'),
-      ('d_v112_3','b_v112','p_eastcrest','mep_milestone','MEP first-fix complete','mep_first_fix:complete',3,2000000,CURRENT_DATE - 80,'settled'),
-      ('d_v112_4','b_v112','p_eastcrest','flooring_milestone','Flooring laid','flooring:complete',4,2000000,CURRENT_DATE - 40,'settled'),
-      ('d_v112_5','b_v112','p_eastcrest','possession_milestone','Possession','finishing:verified',5,2000000,CURRENT_DATE,'due');
-
-    INSERT INTO receipt (id, booking_id, project_id, demand_id, amount, mode, received_at, status, idempotency_key) VALUES
-      ('r_v112_1','b_v112','p_eastcrest','d_v112_1',1000000,'neft',CURRENT_DATE - 190,'reconciled','seed-v112-1'),
-      ('r_v112_2','b_v112','p_eastcrest','d_v112_2',3000000,'neft',CURRENT_DATE - 110,'reconciled','seed-v112-2'),
-      ('r_v112_3','b_v112','p_eastcrest','d_v112_3',2000000,'neft',CURRENT_DATE - 70,'reconciled','seed-v112-3'),
-      ('r_v112_4','b_v112','p_eastcrest','d_v112_4',2000000,'neft',CURRENT_DATE - 30,'reconciled','seed-v112-4'),
-      ('r_v112_5','b_v112','p_eastcrest','d_v112_5',1000000,'neft',CURRENT_DATE - 2,'reconciled','seed-v112-5');
-
-    INSERT INTO generated_document (id, template_id, booking_id, project_id, unit_id, document_family, status, version, snapshot, body_rendered, checksum)
-    VALUES ('doc_v112_aos','tpl_aos','b_v112','p_eastcrest','u_v112','AOS','executed',1,
-      '{"applicant_name":"Ananya Rao","pan":"PQRST6789L","unit_number":"V112","consideration":"10000000"}',
-      'Agreement for Villa V112 with Ananya Rao.','chk-v112');
-    INSERT INTO registration_case (id, code, booking_id, unit_id, project_id, status, sro_reference, completed_at)
-    VALUES ('reg_v112','REG-000002','b_v112','u_v112','p_eastcrest','completed','SRO/BNG/2026/4412', now());
-  `);
-}
-
-async function seedHandedOverVilla(db: DbClient) {
-  const rohanCode = await nextCode(db, "CUS");
-  const v113Code = await nextCode(db, "BKG");
-  await db.query(
-    `INSERT INTO customer (id, display_name, primary_phone, kyc_status, code, primary_name)
-     VALUES ('c_rohan','Rohan Desai','9845077788','verified',$1,'Rohan Desai')`,
-    [rohanCode]
-  );
-  await db.query(
-    `INSERT INTO booking
-      (id, project_id, unit_id, booking_number, status, total_consideration, completeness_score,
-       rm_owner, payment_plan_id, code, agreement_value_inr)
-     VALUES ('b_v113','p_eastcrest','u_v113','BK-V113','active',9500000,100,'Priya Nair','plan_eastcrest',$1,9500000)`,
-    [v113Code]
-  );
-  await db.exec(`
-    INSERT INTO booking_applicant (id, booking_id, customer_id, display_name, role, phone, pan)
-    VALUES ('a_v113','b_v113','c_rohan','Rohan Desai','primary','9845077788','LMNOP4321K');
-    UPDATE unit SET sale_status = 'handed_over' WHERE id = 'u_v113';
-
-    INSERT INTO demand (id, booking_id, project_id, milestone_key, milestone_label, sequence, amount, due_date, status) VALUES
-      ('d_v113_1','b_v113','p_eastcrest','booking_token','Booking amount',1,950000,CURRENT_DATE - 400,'settled'),
-      ('d_v113_2','b_v113','p_eastcrest','structure_milestone','Structure complete',2,2850000,CURRENT_DATE - 300,'settled'),
-      ('d_v113_3','b_v113','p_eastcrest','mep_milestone','MEP first-fix complete',3,1900000,CURRENT_DATE - 200,'settled'),
-      ('d_v113_4','b_v113','p_eastcrest','flooring_milestone','Flooring laid',4,1900000,CURRENT_DATE - 120,'settled'),
-      ('d_v113_5','b_v113','p_eastcrest','possession_milestone','Possession',5,1900000,CURRENT_DATE - 40,'settled');
-    INSERT INTO receipt (id, booking_id, project_id, demand_id, amount, mode, received_at, status, idempotency_key) VALUES
-      ('r_v113_1','b_v113','p_eastcrest','d_v113_1',950000,'neft',CURRENT_DATE - 390,'reconciled','seed-v113-1'),
-      ('r_v113_2','b_v113','p_eastcrest','d_v113_2',2850000,'neft',CURRENT_DATE - 290,'reconciled','seed-v113-2'),
-      ('r_v113_3','b_v113','p_eastcrest','d_v113_3',1900000,'neft',CURRENT_DATE - 190,'reconciled','seed-v113-3'),
-      ('r_v113_4','b_v113','p_eastcrest','d_v113_4',1900000,'neft',CURRENT_DATE - 110,'reconciled','seed-v113-4'),
-      ('r_v113_5','b_v113','p_eastcrest','d_v113_5',1900000,'neft',CURRENT_DATE - 30,'reconciled','seed-v113-5');
-
-    INSERT INTO generated_document (id, template_id, booking_id, project_id, unit_id, document_family, status, version, snapshot, body_rendered, checksum)
-    VALUES ('doc_v113_aos','tpl_aos','b_v113','p_eastcrest','u_v113','AOS','archived',1,
-      '{"applicant_name":"Rohan Desai","pan":"LMNOP4321K","unit_number":"V113","consideration":"9500000"}',
-      'Agreement for Villa V113 with Rohan Desai.','chk-v113');
-    INSERT INTO registration_case (id, code, booking_id, unit_id, project_id, status, sro_reference, completed_at)
-    VALUES ('reg_v113','REG-000003','b_v113','u_v113','p_eastcrest','completed','SRO/BNG/2026/3301', now() - interval '45 days');
-
-    INSERT INTO handover_record (id, code, booking_id, unit_id, project_id, status, completed_at)
-    VALUES ('ho_v113','HO-000001','b_v113','u_v113','p_eastcrest','completed', now() - interval '20 days');
-    INSERT INTO dlp_window (id, unit_id, booking_id, project_id, dlp_start, dlp_end, status, policy_months)
-    VALUES ('dlp_v113','u_v113','b_v113','p_eastcrest', (CURRENT_DATE - 20), (CURRENT_DATE - 20) + interval '12 months', 'active', 12);
-
-    INSERT INTO home_passport_item (id, unit_id, project_id, category, name, brand_model, warranty_months, customer_facing, approved) VALUES
-      ('pp_v113_ac','u_v113','p_eastcrest','appliance','Living-room AC','Daikin 1.5T FTKF',12,true,true),
-      ('pp_v113_wh','u_v113','p_eastcrest','appliance','Water heater','Racold 25L',24,true,true);
-    INSERT INTO home_passport_item (id, unit_id, project_id, category, name, paint_tile_code, customer_facing, approved)
-    VALUES ('pp_v113_paint','u_v113','p_eastcrest','finishes','Bedroom wall colour','Soft Clay 12',true,true);
-
-    INSERT INTO warranty_case (id, unit_id, booking_id, project_id, passport_item_id, category, trade, severity, description, coverage, status)
-    VALUES ('w_v113_1','u_v113','b_v113','p_eastcrest','pp_v113_wh','plumbing','plumbing','minor',
-            'Guest-bath mixer drips overnight','dlp','open');
-    INSERT INTO service_history (id, unit_id, event_type, description, actor, occurred_at) VALUES
-      ('sh_v113_1','u_v113','handover.completed','Keys issued and Home Passport handed over','Priya Nair', now() - interval '20 days'),
-      ('sh_v113_2','u_v113','warranty.case.opened','Guest-bath mixer drips overnight','Rohan Desai', now() - interval '3 days');
-    INSERT INTO checkin_record (id, booking_id, day, status) VALUES
-      ('ci_v113_7','b_v113',7,'scheduled'),
-      ('ci_v113_30','b_v113',30,'scheduled'),
-      ('ci_v113_90','b_v113',90,'scheduled');
-
-    -- 15-qa-evidence-snags.md's own contractor table (0032_qa.sql) had no demo seed anywhere in
-    -- this codebase — only test fixtures insert one (post-handover.test.ts's 'con_a'). 30's own
-    -- WarrantyPanel is the first real UI consumer of the contractor picker (assignWarrantyCase),
-    -- and QA's snag-assignment flow shares the same picker gap; a couple of real rows here make
-    -- both actually demoable instead of a permanently-empty dropdown.
     INSERT INTO contractor (id, name, trade, contact) VALUES
       ('con_sunrise_plumbing','Sunrise Plumbing & Waterproofing','plumbing','contact@sunriseplumbing.example'),
       ('con_voltage_electricals','Voltage Electricals','electrical','service@voltageelectricals.example'),
       ('con_eastcrest_fm','East Crest FM Services','general','fm@eastcrestservices.example');
   `);
-
-  // 30-post-handover.md rule 1: this seed's own `handover_record` insert above is raw SQL, not a
-  // call through `qa.ts::completeHandover`/`handover/core.ts::completeCase` — the only two real
-  // callers of `openPostHandoverCase`. Without this, the one seeded handed-over villa would have
-  // no `post_handover_case` row at all, leaving the whole After-keys screen permanently empty on
-  // a fresh reset — same "seed bypassed the event, downstream table stays empty" gap 09's own
-  // build already found and fixed for `unit_specification`.
-  await openPostHandoverCase("b_v113", "u_v113", "p_eastcrest");
 }

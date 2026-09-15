@@ -133,7 +133,7 @@ export interface CreateSnagInput {
 
 /** Rule 5 OPEN + rule 6 clock start. Internal variant (no ctx gate) so a failed QA inspection can
  *  raise snags inside its own transaction; `createSnag` is the ctx-gated public entry. */
-export async function insertSnag(input: CreateSnagInput, actor: { user_id: string | null; kind: "USER" | "SYSTEM" | "CUSTOMER" }, tx: DbLike): Promise<SnagView> {
+export async function insertSnag(input: CreateSnagInput, actor: { user_id: string | null; kind: "USER" | "SYSTEM" | "CUSTOMER" }, tx: DbLike, seedId?: string): Promise<SnagView> {
   const room = String(input.room ?? "").toUpperCase();
   const category = String(input.category ?? "").toUpperCase();
   if (!ROOMS.includes(room)) throw new AppError("validation", `invalid room ${input.room}`, "room");
@@ -151,7 +151,7 @@ export async function insertSnag(input: CreateSnagInput, actor: { user_id: strin
   if (!unit.rows[0]) throw new AppError("not_found", "unit not found");
   const u = unit.rows[0];
 
-  const id = "sng_" + randomUUID().slice(0, 8);
+  const id = seedId ?? "sng_" + randomUUID().slice(0, 8);
   const code = await nextCode(tx, "SNG");
   const repeat = await isRepeat(input.unit_id, room, category, null, tx);
 
@@ -189,10 +189,10 @@ export async function insertSnag(input: CreateSnagInput, actor: { user_id: strin
   return loadSnag(id, tx);
 }
 
-export async function createSnag(input: CreateSnagInput, ctx: Ctx): Promise<SnagView> {
+export async function createSnag(input: CreateSnagInput, ctx: Ctx, seedId?: string): Promise<SnagView> {
   await authorize(ctx, "snagging", "WRITE");
   const roleKind = ctx.actor.roles.includes("QA") ? "QA" : ctx.actor.roles.includes("SITE") ? "SITE" : ctx.actor.roles.includes("FM") ? "FM" : null;
-  return withTx(undefined, (tx) => insertSnag({ ...input, raised_by_kind: input.raised_by_kind ?? roleKind }, { user_id: ctx.actor.user_id, kind: "USER" }, tx));
+  return withTx(undefined, (tx) => insertSnag({ ...input, raised_by_kind: input.raised_by_kind ?? roleKind }, { user_id: ctx.actor.user_id, kind: "USER" }, tx, seedId));
 }
 
 function assertFrom(snag: SnagView, allowed: SnagStatus[], to: SnagStatus): void {

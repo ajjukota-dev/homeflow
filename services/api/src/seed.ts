@@ -2,6 +2,8 @@ import type { DbClient } from "./db/types";
 import { seedLifecycleDemo } from "./seed-lifecycle";
 import { seedCanonicalDemo } from "./seed-canonical";
 import { seedEastCrestJourney } from "./seed/demo-east-crest";
+import { seedStaffUsers } from "./seed/users";
+import { seedOccupantsViaHandlers } from "./seed/occupants-via-handlers";
 import { nextCode } from "./model/codes";
 
 // Configuration + sample project data (not hard-coded UI values).
@@ -171,74 +173,8 @@ export async function seed(db: DbClient) {
   }
   await db.exec(`UPDATE unit SET utilities_ready = true WHERE id IN ('u_v112','u_v113');`);
 
-  await seedMoneyDemo(db);
-  await seedLifecycleDemo(db);
-}
-
-async function seedMoneyDemo(db: DbClient) {
-  // V110 — Karthik: settled + due + overdue + true-risk + scheduled
-  const karthikCode = await nextCode(db, "CUS");
-  const v110Code = await nextCode(db, "BKG");
-  await db.query(
-    `INSERT INTO customer (id, display_name, primary_phone, kyc_status, code, primary_name)
-     VALUES ('c_karthik','Karthik Iyer','9845011122','verified',$1,'Karthik Iyer')`,
-    [karthikCode]
-  );
-  await db.query(
-    `INSERT INTO booking
-      (id, project_id, unit_id, booking_number, status, total_consideration, completeness_score,
-       rm_owner, payment_plan_id, code, agreement_value_inr)
-     VALUES ('b_v110','p_eastcrest','u_v110','BK-V110','active',12000000,100,'Priya Nair','plan_eastcrest',$1,12000000)`,
-    [v110Code]
-  );
-  await db.exec(`
-    INSERT INTO booking_applicant (id, booking_id, customer_id, display_name, role, phone, pan)
-    VALUES ('a_v110','b_v110','c_karthik','Karthik Iyer','primary','9845011122','ABCDE1234F');
-    UPDATE unit SET sale_status = 'booked' WHERE id = 'u_v110';
-
-    INSERT INTO demand (id, booking_id, project_id, milestone_key, milestone_label, construction_trigger_event, sequence, amount, due_date, status, overdue_reason_code, loan_dependent) VALUES
-      ('d_v110_1','b_v110','p_eastcrest','booking_token','Booking amount',NULL,1,1200000,CURRENT_DATE - 60,'settled',NULL,false),
-      ('d_v110_2','b_v110','p_eastcrest','structure_milestone','Structure complete','structure:complete',2,3600000,CURRENT_DATE,'due',NULL,false),
-      ('d_v110_3','b_v110','p_eastcrest','mep_milestone','MEP first-fix complete','mep_first_fix:complete',3,2400000,CURRENT_DATE - 10,'overdue','customer_delay',false),
-      ('d_v110_4','b_v110','p_eastcrest','flooring_milestone','Flooring laid','flooring:complete',4,2400000,CURRENT_DATE - 70,'overdue','unresponsive',false),
-      ('d_v110_5','b_v110','p_eastcrest','possession_milestone','Possession','finishing:verified',5,2400000,NULL,'scheduled',NULL,false);
-
-    INSERT INTO receipt (id, booking_id, project_id, demand_id, amount, mode, received_at, status, idempotency_key)
-    VALUES ('r_v110_1','b_v110','p_eastcrest','d_v110_1',1200000,'neft',CURRENT_DATE - 50,'reconciled','seed-v110-booking');
-  `);
-
-  // V111 — Meera: loan-dependent + disputed + PTP
-  const meeraCode = await nextCode(db, "CUS");
-  const v111Code = await nextCode(db, "BKG");
-  await db.query(
-    `INSERT INTO customer (id, display_name, primary_phone, kyc_status, code, primary_name)
-     VALUES ('c_meera','Meera Krishnan','9845033344','verified',$1,'Meera Krishnan')`,
-    [meeraCode]
-  );
-  await db.query(
-    `INSERT INTO booking
-      (id, project_id, unit_id, booking_number, status, total_consideration, completeness_score,
-       rm_owner, payment_plan_id, code, agreement_value_inr)
-     VALUES ('b_v111','p_eastcrest','u_v111','BK-V111','active',8000000,100,'Priya Nair','plan_eastcrest',$1,8000000)`,
-    [v111Code]
-  );
-  await db.exec(`
-    INSERT INTO booking_applicant (id, booking_id, customer_id, display_name, role, phone, pan)
-    VALUES ('a_v111','b_v111','c_meera','Meera Krishnan','primary','9845033344','XYZAB1234C');
-    UPDATE unit SET sale_status = 'booked' WHERE id = 'u_v111';
-    INSERT INTO loan_case (id, code, booking_id, project_id, lender_name, sanctioned_amount_inr, stage)
-    VALUES ('lc_v111','LN-DEMO01','b_v111','p_eastcrest','HDFC','6000000','DOCS_PENDING');
-
-    INSERT INTO demand (id, booking_id, project_id, milestone_key, milestone_label, construction_trigger_event, sequence, amount, due_date, status, overdue_reason_code, loan_dependent) VALUES
-      ('d_v111_1','b_v111','p_eastcrest','booking_token','Booking amount',NULL,1,800000,CURRENT_DATE,'due',NULL,true),
-      ('d_v111_2','b_v111','p_eastcrest','structure_milestone','Structure complete','structure:complete',2,2400000,CURRENT_DATE - 5,'disputed','dispute_raised',false),
-      ('d_v111_3','b_v111','p_eastcrest','mep_milestone','MEP first-fix complete','mep_first_fix:complete',3,1600000,CURRENT_DATE + 5,'due',NULL,false),
-      ('d_v111_4','b_v111','p_eastcrest','flooring_milestone','Flooring laid','flooring:complete',4,1600000,NULL,'scheduled',NULL,false),
-      ('d_v111_5','b_v111','p_eastcrest','possession_milestone','Possession','finishing:verified',5,1600000,NULL,'scheduled',NULL,false);
-
-    INSERT INTO promise_to_pay (id, demand_id, expected_date, expected_amount)
-    VALUES ('ptp_v111_3','d_v111_3',CURRENT_DATE + 12,1600000);
-  `);
-
   await seedEastCrestJourney(db);
+  await seedStaffUsers();
+  await seedLifecycleDemo(db);
+  await seedOccupantsViaHandlers();
 }

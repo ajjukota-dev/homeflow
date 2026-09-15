@@ -113,7 +113,8 @@ async function setBankDisbursementApplicable(bookingId: string, value: boolean, 
 export async function createLoanCase(
   bookingId: string,
   input: { lender_name?: string; requested_amount_inr: number; own_contribution_inr?: number },
-  ctx: Ctx
+  ctx: Ctx,
+  seed?: { id?: string; code?: string }
 ): Promise<LoanCaseRow> {
   await authorize(ctx, "loans", "WRITE");
   if (!Number.isFinite(input.requested_amount_inr) || input.requested_amount_inr <= 0) {
@@ -129,9 +130,9 @@ export async function createLoanCase(
   if (!b.rows[0]) throw new AppError("not_found", "booking not found");
   const projectId = b.rows[0].project_id;
 
-  const id = "lc_" + randomUUID().slice(0, 8);
+  const id = seed?.id ?? "lc_" + randomUUID().slice(0, 8);
   await withTx(undefined, async (tx) => {
-    const code = await nextCode(tx, "LN");
+    const code = seed?.code ?? (await nextCode(tx, "LN"));
     await tx.query(
       `INSERT INTO loan_case (id, code, booking_id, project_id, lender_name, requested_amount_inr, own_contribution_inr)
        VALUES ($1,$2,$3,$4,$5,$6,$7)`,

@@ -6,8 +6,8 @@
 import { db } from "../db";
 import { requireRole, STAFF_ROLES } from "../authz/requireRole";
 import { AppError, type Ctx } from "../authz/types";
-import { computeBookingReadiness } from "../scores/booking-readiness";
-import { computeHandoverReadiness } from "../scores/handover-readiness";
+import { explainBookingReadiness } from "../scores/booking-readiness";
+import { explainHandoverReadiness } from "../scores/handover-readiness";
 import { tab, notYetAvailable, type TabManifestEntry } from "./tabs";
 
 export interface NextAction { id: string; title: string; status: string; priority: string; due_at: string | null; owner_role: string }
@@ -19,8 +19,8 @@ export interface Booking360View {
   project_id: string;
   unit: { id: string; unit_number: string; unit_type: string } | null;
   customer: { id: string; display_name: string } | null;
-  booking_readiness: Awaited<ReturnType<typeof computeBookingReadiness>>;
-  handover_readiness: Awaited<ReturnType<typeof computeHandoverReadiness>>;
+  booking_readiness: Awaited<ReturnType<typeof explainBookingReadiness>>;
+  handover_readiness: Awaited<ReturnType<typeof explainHandoverReadiness>>;
   next_actions: NextAction[];
   tabs: TabManifestEntry[];
 }
@@ -49,8 +49,8 @@ export async function getBooking360(bookingId: string, ctx: Ctx): Promise<Bookin
   );
 
   const [booking_readiness, handover_readiness] = await Promise.all([
-    computeBookingReadiness(bookingId),
-    computeHandoverReadiness(bookingId),
+    explainBookingReadiness(bookingId),
+    explainHandoverReadiness(bookingId),
   ]);
 
   return {

@@ -1,7 +1,7 @@
 import { db } from "../db";
 import { handoverForBooking } from "../qa";
 import { openCommitmentsForBooking } from "../commitments/core";
-import { computeBookingReadiness } from "./booking-readiness";
+import { explainBookingReadiness } from "./booking-readiness";
 import { trendFrom, topDrivers, type Score, type ScoreDriver, type ScoreAction } from "./contract";
 import { previousValue, persistSnapshot } from "./store";
 
@@ -35,7 +35,7 @@ async function build(bookingId: string): Promise<Built & { projectId: string | n
   const openCommitments = await openCommitmentsForBooking(bookingId);
   const commitmentPenalty = Math.min(100, openCommitments.length * COMMITMENT_PENALTY_PER_OPEN);
   const snagsScore = ho.readiness.critical_snags > 0 ? 0 : 1;
-  const customer = await computeBookingReadiness(bookingId);
+  const customer = await explainBookingReadiness(bookingId);
 
   const value = Math.max(
     0,

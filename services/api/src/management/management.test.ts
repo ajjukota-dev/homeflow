@@ -129,7 +129,7 @@ describe("27 rule 6 — profitability: economic_event derives from real facts, e
     const id = "cmt_" + randomUUID().slice(0, 8);
     await db.query(
       `INSERT INTO commitment (id, code, project_id, booking_id, unit_id, category, description, committed_by_user_id, source, beneficiary, status, due_date, breached_at)
-       VALUES ($1,$1,'p_eastcrest',$2,$3,'TIMELINE','promised possession date','user_superadmin','CRM','CUSTOMER','BREACHED', CURRENT_DATE - 5, now())`,
+       VALUES ($1,$1,'p_eastcrest',$2,$3,'TIMELINE','promised possession date','user_superadmin','CRM','CUSTOMER','BREACHED', DATE '2026-01-01', TIMESTAMPTZ '2026-01-06T00:00:00Z')`,
       [id, bookingId, unitId]
     );
     const perDay = await db.query<{ value: number }>(`SELECT (value #>> '{}')::float8 AS value FROM management_config WHERE key = 'delay_cost_per_day_inr'`);

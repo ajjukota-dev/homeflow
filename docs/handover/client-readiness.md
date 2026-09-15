@@ -7,13 +7,13 @@ Shareable copy of the client-readiness canvas (2026-09-15).
 | | |
 |---|---|
 | Ready to hand over | **No** |
-| Seeded families | 4 — journeys empty |
+| Seeded families | 4 — journeys instantiate (Karthik / Meera / Ananya / Rohan) |
 | RLS on the live request path | Off |
-| Customer portal logins | 1 (Ananya only) |
+| Customer portal logins | 4 (`customer@` `karthik@` `meera@` `rohan@`) |
 
 Source: PDF §§24–27, §31.5, §32.11, §33.6, §34.7, Appendix A · main as of 2026-09-15.
 
-**Not ready to hand over.** Modules are written. The product is not finished. A client left alone would open Customer 360, see empty journeys, and have an open data path across projects. Do not schedule a handover until the work below is true — earliest honest date is after exams, suite green, RLS merged.
+**Not ready to hand over.** Modules are written. The product is not finished. Phase 1 journeys now instantiate for the four families. Remaining: Phase 2 desk coverage, Phase 4 RLS on the live path, Phase 5 proof. Do not schedule a handover until that work is true — earliest honest date is after exams, suite green, RLS merged.
 
 ---
 
@@ -31,9 +31,9 @@ Keep these. The remaining work is seed, wiring, and proof — not a rewrite of t
 
 ## What we must do
 
-Every row is required for handover. Order is the phase map. If Phase 1 slips, stop — later work tests empty screens.
+Every row is required for handover. Order is the phase map. Phase 1 is closed — do not reopen it. If Phase 2 Day 2 (2.1–2.5) slips, leftover goes to the team; do not start RLS.
 
-### 1. Occupant foundation — You, Day 1 (Phase 1)
+### 1. Occupant foundation — You, Day 1 (Phase 1) — **done 2026-09-15**
 
 Cut seed off raw `INSERT INTO booking` / demand / handover / AOS. Recreate the four families through the same handlers the UI uses so journeys actually instantiate.
 
@@ -58,16 +58,16 @@ One named occupant per PDF §34.2 state (and the extras). Same story on staff 36
 | 0 Hold | Missing | Nothing expires on a clock. | Time-boxed Change Window Hold that auto-expires | 2.4 |
 | 1 Packet submitted | Missing | Handover Packets queue has no live row. | Packet submitted, not CRM-accepted | 2.1 |
 | 1 Packet returned | Missing | Return path unproven. | Returned to Sales with reason + resubmit | 2.2 |
-| 2 Funding — loan | Meera V111 | No journey, no packet, no portal login. | Handler seed then keep her on funding/loan | 1c |
+| 2 Funding — loan | Meera V111 | Journey on funding/loan (Phase 1 done) | Keep her on funding/loan | 1c |
 | 2 Funding — NRI + loan | Missing | Conditional NRI task never appears. | NRI + DOCS_PENDING loan occupant | 2.9 |
 | 3 Agreement | Karthik AOS already executed | No draft-not-executed factory occupant. | AOS draft, watermark, locked clauses not silently edited | 2.6 |
-| 4 Construction | Karthik V110 | Raw SQL booking — no journey_instance. | Handler seed + construction current, finance still open | 1b |
+| 4 Construction | Karthik V110 | Journey on construction (Phase 1 done) | Keep construction current, finance still open | 1b |
 | 5 Collections | Karthik overdue · Meera disputed | No Default/Legal occupant; not every overdue has next action. | Default/Legal occupant (2.10) and reason + next action / PTP on every overdue (2.16) | 2.10 + 2.16 |
 | 6 Pre-registration | Karthik registration open | Blockers not named on a live desk row. | Registration blocked on finance/docs with named blockers | 2.13 |
 | 7 Registration | Ananya already registered | No slot-booked-not-completed occupant. | SRO slot booked + day-of checklist, not completed | 2.7 |
-| 8 Pre-handover | Ananya V112 — only portal login | Journey empty. Hard-gate occupant thin. | Ananya handler seed (1d). Separate occupant blocked on CRITICAL snag; hard gate cannot skip | 1d + 2.15 |
+| 8 Pre-handover | Ananya V112 | Journey pre-handover; portal works (Phase 1 done). Hard-gate occupant still thin. | Separate occupant blocked on CRITICAL snag; hard gate cannot skip | 1d + 2.15 |
 | 9 Handover in progress | Missing (Rohan is finished) | Cannot show appointment/checklist/signature in flight. | Appointment + checklist + real signature file, not Rohan | 2.8 |
-| 10 Post-handover | Rohan V113 staff-only | Customer cannot open this home. | Portal login + passport, warranty, 7/30/90 check-ins | 1e + 1f |
+| 10 Post-handover | Rohan V113 | Portal + passport/warranty/check-ins (Phase 1 done) | Keep; do not reuse as the in-progress handover (2.8) | 1e + 1f |
 | CR in flight | Zero change requests in seed | Customisation desk empty; portal raise-CR unproven. | One live CR (Awaiting Customer or Released) + payment before site release | 2.3 |
 | Cancel / transfer | Missing | Cannot prove unit history survives a closed booking. | Closed booking; unit 360 history intact | 2.11 |
 | Meadows apt + plot | MV / MP / MT units only | Product types look unused. Villa-only East Crest in practice. | One apartment booking + one plot booking via handlers | 2.5 |

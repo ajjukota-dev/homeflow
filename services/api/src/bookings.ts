@@ -51,7 +51,14 @@ export async function getBooking(id: string) {
 
 /** Sales creates the booking; blocked unless the completeness gate is satisfied.
  *  Fires sales_handover.submitted below — this IS the sales_handover submission step. */
-export async function createBooking(unitId: string, input: BookingInput, ctx: Ctx) {
+/** Seed-only. Omitted on every HTTP/test call so production still mints UUID + BK-<slice>. */
+export interface BookingSeedIds {
+  booking_id?: string;
+  booking_number?: string;
+  applicant_id?: string;
+}
+
+export async function createBooking(unitId: string, input: BookingInput, ctx: Ctx, seed?: BookingSeedIds) {
   await authorize(ctx, "sales_handover", "WRITE");
   const u = await db.query<{ project_id: string; sale_status: string }>(
     `SELECT project_id, sale_status FROM unit WHERE id = $1`,
@@ -67,8 +74,8 @@ export async function createBooking(unitId: string, input: BookingInput, ctx: Ct
     throw err;
   }
 
-  const bookingId = randomUUID();
-  const number = "BK-" + bookingId.slice(0, 8).toUpperCase();
+  const bookingId = seed?.booking_id ?? randomUUID();
+  const number = seed?.booking_number ?? "BK-" + bookingId.slice(0, 8).toUpperCase();
   await withTx(undefined, async (t) => {
     const code = await nextCode(t, "BKG");
     await t.query(
@@ -81,7 +88,7 @@ export async function createBooking(unitId: string, input: BookingInput, ctx: Ct
     await t.query(
       `INSERT INTO booking_applicant (id, booking_id, display_name, role, phone, pan)
        VALUES ($1,$2,$3,'primary',$4,$5)`,
-      [randomUUID(), bookingId, input.applicant.display_name, input.applicant.phone, input.applicant.pan]
+      [seed?.applicant_id ?? randomUUID(), bookingId, input.applicant.display_name, input.applicant.phone, input.applicant.pan]
     );
     await t.query(`UPDATE unit SET sale_status = 'held' WHERE id = $1`, [unitId]);
     await appendEvent(t, {

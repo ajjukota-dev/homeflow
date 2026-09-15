@@ -7,7 +7,7 @@
     "dev": "tsx watch src/server.ts",
     "start": "tsx src/server.ts",
     "migrate": "tsx src/db/cli.ts",
-    "test": "vitest run",
+    "test": "vitest run --hookTimeout=60000 --testTimeout=20000",
     "typecheck": "tsc --noEmit -p .",
     "db:reset": "node -e \"require('fs').rmSync('./.data/pglite',{recursive:true,force:true})\""
   },

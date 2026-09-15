@@ -230,8 +230,9 @@ describe("rule 6 — SLA clock by severity", () => {
     expect(clock.rows[0]!.policy_id).toBe("snag_critical");
     expect(new Date(clock.rows[0]!.due_at).getTime() - new Date(clock.rows[0]!.started_at).getTime()).toBe(2 * DAY);
 
-    const before = await scanEscalations(new Date(new Date(clock.rows[0]!.started_at).getTime() + 12 * 60 * 60 * 1000).toISOString());
-    expect(before.raised).toHaveLength(0);
+    await scanEscalations(new Date(new Date(clock.rows[0]!.started_at).getTime() + 12 * 60 * 60 * 1000).toISOString());
+    const beforeEsc = await db.query(`SELECT id FROM escalation WHERE action_id = $1`, [snag.action_id]);
+    expect(beforeEsc.rows).toHaveLength(0);
     const overdue = await scanEscalations(new Date(new Date(clock.rows[0]!.due_at).getTime() + DAY).toISOString());
     expect(overdue.raised.length).toBeGreaterThan(0);
     const esc = await db.query<{ tier: string; owner_user_id: string | null; status: string }>(`SELECT tier, owner_user_id, status FROM escalation WHERE action_id = $1`, [snag.action_id]);

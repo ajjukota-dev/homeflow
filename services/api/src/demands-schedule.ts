@@ -14,7 +14,7 @@ import type { Ctx } from "./authz/types";
  *  Every query below uses the transaction handle (`t`, or the caller's `tx`) — never the
  *  module-level `db` — because a bare `db.query` while this or an outer transaction is open
  *  deadlocks on PGlite's single connection. */
-export async function setupFunding(bookingId: string, ctx: Ctx, tx?: DbLike) {
+export async function setupFunding(bookingId: string, ctx: Ctx, tx?: DbLike, seedDemandIds?: string[]) {
   return withTx(tx, async (t) => {
     const existing = await t.query(`SELECT 1 FROM demand WHERE booking_id = $1 LIMIT 1`, [bookingId]);
     if (existing.rows.length > 0) return listDemands(bookingId, t);
@@ -76,7 +76,7 @@ export async function setupFunding(bookingId: string, ctx: Ctx, tx?: DbLike) {
       // Only a demand whose trigger has already fired gets a date; a scheduled demand
       // is dated later by raiseDemandsForUnit, when its trigger actually fires.
       const dueDate = status === "scheduled" ? null : today();
-      const demandId = randomUUID();
+      const demandId = seedDemandIds?.[i] ?? randomUUID();
       await t.query(
         `INSERT INTO demand (id, booking_id, project_id, milestone_key, milestone_label,
           construction_trigger_event, sequence, amount, due_date, status)

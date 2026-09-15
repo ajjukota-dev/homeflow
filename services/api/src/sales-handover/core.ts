@@ -6,7 +6,7 @@ import { AppError, type Ctx } from "../authz/types";
 import { requiredApprovers } from "../approvals/matrix";
 import { createAction } from "../actions/core";
 import { createCommitmentFromSource, approveCommitment, activateCommitment, type CommitmentCategory } from "../commitments/core";
-import { acceptBooking as acceptBookingLegacy, returnBooking as returnBookingLegacy } from "../bookings-crm";
+import { acceptBooking as acceptBookingLegacy, returnBooking as returnBookingLegacy, type AcceptSeedIds } from "../bookings-crm";
 import { MANDATORY_DOCS } from "../bookings";
 import { resolveChecklistRules, scoreCompleteness, type ChecklistRuleRow, type CompletenessResult } from "./checklist";
 
@@ -475,7 +475,7 @@ const ONBOARDING_ACTIONS: { title: string; owner_role: string }[] = [
  *  `sales_handover.accepted` emitted → journey instantiated for free via 06's subscriber) and
  *  layers the packet-specific rule-5 side effects on top: rm_owner round-robin, onboarding
  *  actions, commitment approve+activate (13 rule 6), first_time_right. */
-export async function acceptHandover(bookingId: string, ctx: Ctx): Promise<SalesHandoverRow> {
+export async function acceptHandover(bookingId: string, ctx: Ctx, seed?: AcceptSeedIds): Promise<SalesHandoverRow> {
   const h = await requireHandoverByBooking(bookingId, db);
   if (h.status !== "SUBMITTED") throw new AppError("conflict", `cannot accept a handover from ${h.status}`);
   if (ctx.actor.user_id === h.submitted_by) {
@@ -484,7 +484,7 @@ export async function acceptHandover(bookingId: string, ctx: Ctx): Promise<Sales
   await authorize(ctx, "sales_handover", "WRITE");
 
   const rm = await withTx(undefined, (tx) => assignRmOwner(h.project_id, tx));
-  await acceptBookingLegacy(bookingId, ctx, rm?.display_name);
+  await acceptBookingLegacy(bookingId, ctx, rm?.display_name, seed);
 
   await withTx(undefined, async (tx) => {
     const unit = await tx.query<{ unit_id: string }>(`SELECT unit_id FROM booking WHERE id = $1`, [bookingId]);

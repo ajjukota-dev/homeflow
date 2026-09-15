@@ -10,9 +10,15 @@ import type { Ctx } from "./authz/types";
 // CRM decisions on a submitted booking — split out of bookings.ts to respect the 200-line
 // rule (Sales → CRM handoff, handshakes.md H2).
 
+/** Seed-only. Omitted on every HTTP/test call so production still mints UUID customer/demand ids. */
+export interface AcceptSeedIds {
+  customer_id?: string;
+  demand_ids?: string[];
+}
+
 /** CRM accepts → Customer Twin is created and linked; unit becomes booked.
  *  Emits sales_handover.accepted (Appendix B) plus the canonical-model events (04 rule 8). */
-export async function acceptBooking(id: string, ctx: Ctx, rm = "Priya Nair") {
+export async function acceptBooking(id: string, ctx: Ctx, rm = "Priya Nair", seed?: AcceptSeedIds) {
   await authorize(ctx, "sales_handover", "WRITE");
   const b = await db.query<{ unit_id: string; status: string; project_id: string }>(
     `SELECT unit_id, status, project_id FROM booking WHERE id = $1`,
@@ -27,7 +33,7 @@ export async function acceptBooking(id: string, ctx: Ctx, rm = "Priya Nair") {
     [id]
   );
   const a = app.rows[0];
-  const custId = randomUUID();
+  const custId = seed?.customer_id ?? randomUUID();
   await withTx(undefined, async (t) => {
     const custCode = await nextCode(t, "CUS");
     await t.query(
@@ -77,7 +83,7 @@ export async function acceptBooking(id: string, ctx: Ctx, rm = "Priya Nair") {
       payload: { from: "held", to: "booked" },
       ...actorFields(ctx),
     });
-    await setupFunding(id, ctx, t);
+    await setupFunding(id, ctx, t, seed?.demand_ids);
   });
   return { booking: await getBooking(id), customer_id: custId };
 }

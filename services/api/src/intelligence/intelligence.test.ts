@@ -3,6 +3,8 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { initDb, db } from "../db";
 import { ctxWithRoles, superAdminCtx } from "../authz/test-helpers";
 import type { Ctx } from "../authz/types";
+import { createBooking, MANDATORY_DOCS } from "../bookings";
+import { createProject, createUnit } from "../projects";
 import { createCommitment, getCommitment } from "../commitments/core";
 import { logCommunication } from "../communications/core";
 import { createSnag } from "../qa/snags";
@@ -51,7 +53,22 @@ describe("31 rule 2 — Financial Health", () => {
 
 describe("31 rule 3 — Journey risk / Collection risk / Commitment risk", () => {
   it("journey risk reports LOW confidence and 0 when no journey_instance exists for the booking", async () => {
-    const score = await computeJourneyRisk("b_v110", superAdminCtx);
+    // b_v110 now has a real journey (Phase 1 occupant seed). Empty-path coverage uses a
+    // throwaway booking that is created but never handover-accepted.
+    const sa: Ctx = { actor: { ...superAdminCtx.actor, user_id: "user_superadmin" } };
+    const sales: Ctx = { actor: { ...ctxWithRoles(["SALES"]).actor, user_id: "user_sales" } };
+    const p = await createProject({ code: `jr${randomUUID().slice(0, 8)}`, name: "No-journey fixture" }, sa);
+    const u = await createUnit(p.id, { unit_number: "JR-1", unit_type: "3BHK", facing: "East" }, sa);
+    const booked = await createBooking(
+      u!.id,
+      {
+        applicant: { display_name: "No Journey", phone: "9000000001", pan: "AAAAA1111A" },
+        total_consideration: 1_000_000,
+        docs: MANDATORY_DOCS.map((type) => ({ type, received: true })),
+      },
+      sales
+    );
+    const score = await computeJourneyRisk(booked!.id, sa);
     expect(score.value).toBe(0);
     expect(score.confidence).toBe("LOW");
   });
