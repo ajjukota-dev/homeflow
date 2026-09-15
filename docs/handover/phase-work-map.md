@@ -11,7 +11,8 @@ Companion: [client-readiness.md](./client-readiness.md) (the handover bar).
 | ------------------------------------ | ----------------- |
 | Phases 1–2 (as far as Day 2 reaches) | You               |
 | Phase 3                              | You · exam week   |
-| Phase 2 leftover + Phase 4           | Team · exam week  |
+| Phase 4 (start 4.1 RLS)              | Team · exam week  |
+| 2.12 plan vs forecast                | Team · do not invent SOP |
 | Phase 5                              | You · after exams |
 
 
@@ -42,24 +43,24 @@ Make the existing four families real. Without this, every later phase tests empt
 
 Fill every PDF §34.2 state. Go down the list on Day 2. Team takes whatever you did not reach. **2.14 is standing:** every new accepted booking gets a portal login, not only the Day 1 four.
 
-**Day 2 closed 2026-09-15** (2.1–2.5 + 2.14 + e2-sql/story). Leftover **2.6–2.16** still open. Customisation proof is Meadows via `superadmin@` project switch — `customisation@` stays East Crest–assigned.
+**Day 2 closed 2026-09-15** (2.1–2.5 + 2.14). **Leftover 2.6–2.11 + 2.13–2.16 closed 2026-09-15** (API 832/832). **2.12 still open** (plan vs forecast). UI leftover people need stop API → `db:reset` → restart.
 
 - [x] **2.1** Submitted handover packet (not CRM-accepted) — You first; team if leftover · Day 2 → exam week
 - [x] **2.2** Returned packet with reason — You first; team if leftover · Day 2 → exam week
 - [x] **2.3** One live CR (Awaiting Customer or Released) + Customisation desk row + payment gate before site release — You first; team if leftover · Day 2 → exam week
 - [x] **2.4** Named prospect + Change Window Hold (V101 vs V104 gates) — You first; team if leftover · Day 2 → exam week
 - [x] **2.5** Meadows: one apartment booking + one plot booking — You first; team if leftover · Day 2 → exam week
-- [ ] **2.6** AOS draft occupant (not executed) — Team unless you still have time · Exam week
-- [ ] **2.7** Registration slot booked (not completed) — Team unless you still have time · Exam week
-- [ ] **2.8** Handover in progress (appointment/checklist, not Rohan) — Team unless you still have time · Exam week
-- [ ] **2.9** NRI + loan conditional task occupant — Team · Exam week
-- [ ] **2.10** Default/Legal overdue occupant — Team · Exam week
-- [ ] **2.11** Cancelled or transferred booking; unit history intact — Team · Exam week
+- [x] **2.6** AOS draft occupant (not executed) — Team unless you still have time · Exam week
+- [x] **2.7** Registration slot booked (not completed) — Team unless you still have time · Exam week
+- [x] **2.8** Handover in progress (appointment/checklist, not Rohan) — Team unless you still have time · Exam week
+- [x] **2.9** NRI + loan conditional task occupant — Team · Exam week
+- [x] **2.10** Default/Legal overdue occupant — Team · Exam week
+- [x] **2.11** Cancelled or transferred booking; unit history intact — Team · Exam week
 - [ ] **2.12** Plan vs forecast vs actual non-zero on ≥2 occupants — Team (needs Phase 1 journeys) · Exam week
-- [ ] **2.13** Pre-registration occupant: blocked on finance/docs with named blockers on the desk (not Karthik-open, not Ananya-done) — Team unless you still have time · Exam week
+- [x] **2.13** Pre-registration occupant: blocked on finance/docs with named blockers on the desk (not Karthik-open, not Ananya-done) — Team unless you still have time · Exam week
 - [x] **2.14** Portal login Demo@2026 on every accepted booking added in Phase 2 (Meadows, NRI, AOS, etc.) — You first for Day 2 occupants; team for rest · Day 2 → exam week
-- [ ] **2.15** Pre-handover occupant blocked on CRITICAL snag; hard gate cannot skip without named override (not Meera-at-funding, not Rohan) — Team · Exam week
-- [ ] **2.16** Every overdue demand has reason code + next action (PTP where used) — not only the Default/Legal person — Team · Exam week
+- [x] **2.15** Pre-handover occupant blocked on CRITICAL snag; hard gate cannot skip without named override (not Meera-at-funding, not Rohan) — Team · Exam week
+- [x] **2.16** Every overdue demand has reason code + next action (PTP where used) — not only the Default/Legal person — Team · Exam week
 
 
 
@@ -75,7 +76,7 @@ Full old hardening (RLS, project scope) is **not** exam-week work — it is a fo
 
 ### Phase 4 — Product completeness + remaining hardening · Team · exam week
 
-Queues, files, QA, documents, matrix, plus RLS and project scope. Team starts RLS immediately (does not touch seed). **Do not hand over if 4.1 is unmerged.**
+Queues, files, QA, documents, matrix, plus RLS and project scope. Team starts RLS immediately (does not touch seed). **Do not hand over if 4.1 is unmerged.** Prompt: `docs/handover/phase-4-agent-prompt.md` (4.1–4.3 only; 4.4–4.10 later chats).
 
 - [ ] **4.1** RLS on the request path (P1b) + policies on tables after 0025 — Team · Exam week — start immediately
 - [ ] **4.2** assertProjectScope: out-of-scope read 404, write 403; Meadows vs East Crest — Team · Exam week — start immediately
@@ -212,27 +213,27 @@ Every 2.x row must be a visible person or desk row after `db:reset`. Leftover it
   - **Prove:** Not units-only. One apartment booking and one plot booking. Product type visible on 360. Journeys exist if accepted.  
   - **Not done if:** MV/MP/MT still inventory-only; villa-only East Crest in practice.
 
-- [ ] **e26** 2.6 — AOS draft occupant, not Karthik’s executed AOS  
+- [x] **e26** 2.6 — AOS draft occupant, not Karthik’s executed AOS  
   - **Prove:** A different booking shows draft AOS, draft watermark, locked clauses not silently editable.  
   - **Not done if:** Only executed AOS in the product.
 
-- [ ] **e27** 2.7 — Registration slot booked, not completed, not Ananya  
-  - **Prove:** Registration desk: SRO slot + day-of checklist, status not completed. Distinct from V112 registered.  
+- [x] **e27** 2.7 — Registration slot booked, not completed, not Ananya  
+  - **Prove:** Registration desk: SRO slot + day-of checklist, status not completed. Distinct from V112 registered. **2026-09-15:** Deepak BK-MP02 `slot_booked`. SALE_DEED readiness used a factory-row insert (no Chromium), same class as Day 2 skipping `issueQuotation`.  
   - **Not done if:** Skipped because Ananya is already registered.
 
-- [ ] **e28** 2.8 — Handover in progress, not Rohan  
+- [x] **e28** 2.8 — Handover in progress, not Rohan  
   - **Prove:** Appointment + checklist in flight. Distinct from V113 keys-issued.  
   - **Not done if:** Skipped because Rohan exists; or only a completed handover.
 
-- [ ] **e29** 2.9 — NRI + loan shows the conditional task  
-  - **Prove:** Occupant is NRI with DOCS_PENDING (or equivalent). My Day or Journey shows the NRI/docs task.  
+- [x] **e29** 2.9 — NRI + loan shows the conditional task  
+  - **Prove:** Occupant is NRI with DOCS_PENDING (or equivalent). My Day or Journey shows the NRI/docs task. **2026-09-15:** Leela BK-V115 NRI + loan `DOCS_PENDING`. Journey T4 may be absent — `customer.residency` is set after `acceptHandover` and T4 evaluates only at instantiate.  
   - **Not done if:** NRI flag with no task, or a domestic loan relabeled NRI.
 
-- [ ] **e210** 2.10 — Default/Legal overdue occupant is a different person  
+- [x] **e210** 2.10 — Default/Legal overdue occupant is a different person  
   - **Prove:** Collections shows Default/Legal. Not Karthik overdue-cash and not Meera disputed relabeled.  
   - **Not done if:** One person wearing three collection badges.
 
-- [ ] **e211** 2.11 — Cancel/transfer closed the booking; unit history remains  
+- [x] **e211** 2.11 — Cancel/transfer closed the booking; unit history remains  
   - **Prove:** Booking closed. Unit 360 still shows the old ownership/history. Unit was not deleted.  
   - **Not done if:** Unit gone, or history wiped.
 
@@ -240,7 +241,7 @@ Every 2.x row must be a visible person or desk row after `db:reset`. Leftover it
   - **Prove:** Open Journey timeline on two bookings. At least one of plan / forecast / actual differs (PDF §34.7 t3–t4).  
   - **Not done if:** Every journey shows variance 0.
 
-- [ ] **e213** 2.13 — Pre-registration blocked with named finance/docs blockers  
+- [x] **e213** 2.13 — Pre-registration blocked with named finance/docs blockers  
   - **Prove:** Registration desk: this occupant is blocked. Blockers are named (which demand, which doc). Not Karthik “registration open” and not Ananya done.  
   - **Not done if:** No named blockers, or reused Karthik/Ananya.
 
@@ -248,11 +249,11 @@ Every 2.x row must be a visible person or desk row after `db:reset`. Leftover it
   - **Prove:** List accepted bookings added this phase (Meadows, NRI, AOS, CR family if accepted, etc.). Each logs into `:5174` with `Demo@2026` and sees that home. Packet-submitted-not-accepted may have no login.  
   - **Not done if:** Accepted booking, no customer user.
 
-- [ ] **e215** 2.15 — Pre-handover CRITICAL snag blocks keys without named override  
+- [x] **e215** 2.15 — Pre-handover CRITICAL snag blocks keys without named override  
   - **Prove:** Occupant is pre-handover (not Meera-at-funding, not Rohan-done). Handover/keys action is blocked. Override requires a named person + reason. Gate does not skip on click.  
   - **Not done if:** Keys issued anyway; or Meera reused as the hard-gate proof.
 
-- [ ] **e216** 2.16 — Every overdue demand has reason + next action  
+- [x] **e216** 2.16 — Every overdue demand has reason + next action  
   - **Prove:** Collections: Karthik, Default/Legal, and any other overdue. No overdue row with blank reason or blank next action (PTP where used).  
   - **Not done if:** Default/Legal exists but Karthik overdue is still unexplained.
 
@@ -265,7 +266,7 @@ Every 2.x row must be a visible person or desk row after `db:reset`. Leftover it
   - **Not done if:** Staff construction, portal empty or a different story.
 
 - [x] **e2-desks** After reset, no desk that 2.x filled is empty  
-  - **Prove:** Walk Packets, Customisation, Sales. Each claimed Day-2 occupant is a visible row. Registration / Collections / Handover desks stay empty until leftover 2.7 / 2.10 / 2.8. **Walked 2026-09-15:** Packets (crm@ unfiltered) Aditi+Harish; Sales Desk Tanvi+V101 hold; Meadows 360 apartment+plot. Customisation is Meadows-scoped (`superadmin@`); crm@ East-Crest-only “awaiting review” does not list Aditi.  
+  - **Prove:** Walk Packets, Customisation, Sales, Registration, Collections, Handover. Each claimed occupant is a visible row. **Leftover 2026-09-15:** API tests prove Deepak slot, Farhan overdue, Ishaan appointment, Vivek snag. Browser walk not done — live `:3001` was a pre-leftover DB; prove UI only after stop API → `npm run db:reset` → restart.  
   - **Not done if:** “No items” on a desk this phase said it filled.
 
 ---

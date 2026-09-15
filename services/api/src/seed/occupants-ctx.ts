@@ -40,6 +40,7 @@ export const fm = staff("fm", ["FM"]);
 export const registration = staff("registration", ["REGISTRATION"]);
 export const site = staff("site", ["SITE"]);
 export const customisation = staff("customisation", ["CUSTOMISATION"]);
+export const management = staff("management", ["MANAGEMENT"]);
 export const sa = staff("superadmin", ["SUPER_ADMIN"]);
 
 export interface OccupantSpec {

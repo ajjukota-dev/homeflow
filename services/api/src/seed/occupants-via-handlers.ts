@@ -4,10 +4,12 @@ import { seedAnanyaMoney, seedKarthikMoney, seedMeeraMoney, seedRohanMoney } fro
 import { executeAos, handOverBooking, registerBooking, seedRohanAfterCare } from "./occupants-papers";
 import { ANANYA, KARTHIK, MEERA, ROHAN } from "./occupants-ctx";
 import { seedOccupantsPhase2 } from "./occupants-phase2";
+import { seedOccupantsLeftover } from "./occupants-leftover";
 import { seedCustomerLogins } from "./users";
 
 // Phase 1: four East Crest families through the same handlers the UI uses.
-// Phase 2: packets, Meadows bookings, customisation CR, sales prospect/hold — after Phase 1.
+// Phase 2 Day 2: packets, Meadows, customisation, sales hold.
+// Phase 2 leftover: 2.6–2.16 after Day 2. Never books V101/V104/V108.
 
 export async function seedOccupantsViaHandlers(): Promise<void> {
   await bookAndAccept(KARTHIK);
@@ -34,5 +36,6 @@ export async function seedOccupantsViaHandlers(): Promise<void> {
   await seedRohanAfterCare();
 
   await seedOccupantsPhase2();
+  await seedOccupantsLeftover();
   await seedCustomerLogins();
 }

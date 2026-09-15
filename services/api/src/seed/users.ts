@@ -36,6 +36,13 @@ const PORTALS: { userId: string; email: string; name: string; customerId: string
   { userId: "user_rohan", email: "rohan@demo.pranava", name: "Rohan Desai", customerId: "c_rohan", bookingId: "b_v113" },
   { userId: "user_nisha", email: "nisha@demo.pranava", name: "Nisha Verma", customerId: "c_nisha", bookingId: "b_mt201", projectId: "p_meadows" },
   { userId: "user_suresh", email: "suresh@demo.pranava", name: "Suresh Naik", customerId: "c_suresh", bookingId: "b_mp01", projectId: "p_meadows" },
+  { userId: "user_kavya", email: "kavya@demo.pranava", name: "Kavya Iyer", customerId: "c_kavya", bookingId: "b_mt502", projectId: "p_meadows" },
+  { userId: "user_deepak", email: "deepak@demo.pranava", name: "Deepak Nair", customerId: "c_deepak", bookingId: "b_mp02", projectId: "p_meadows" },
+  { userId: "user_ishaan", email: "ishaan@demo.pranava", name: "Ishaan Gupta", customerId: "c_ishaan", bookingId: "b_v114" },
+  { userId: "user_leela", email: "leela@demo.pranava", name: "Leela Fernandes", customerId: "c_leela", bookingId: "b_v115" },
+  { userId: "user_farhanq", email: "farhanq@demo.pranava", name: "Farhan Qureshi", customerId: "c_farhanq", bookingId: "b_v116" },
+  { userId: "user_anjali", email: "anjali@demo.pranava", name: "Anjali Bhat", customerId: "c_anjali", bookingId: "b_v118" },
+  { userId: "user_vivek", email: "vivek@demo.pranava", name: "Vivek Sharma", customerId: "c_vivek", bookingId: "b_v119" },
 ];
 
 async function ensureTeam(department: string): Promise<string> {

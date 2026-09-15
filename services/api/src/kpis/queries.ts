@@ -92,9 +92,19 @@ async function cOverdueInr(projectId: string, _period: string, h: DbLike): Promi
 }
 
 async function cTrueRiskInr(projectId: string, _period: string, h: DbLike): Promise<KpiResult> {
+  // Match collections-view TRUE_RISK: overdue, recovery band >45d (0.25 < 0.40 policy),
+  // not loan-dependent, no open PTP. Reason code is independent of the bucket.
   const r = await h.query<{ total: number }>(
     `SELECT COALESCE(SUM(d.amount), 0)::float8 AS total FROM demand d
-      WHERE d.project_id = $1 AND d.status = 'overdue' AND d.overdue_reason_code = 'unresponsive'`,
+      WHERE d.project_id = $1
+        AND d.status = 'overdue'
+        AND COALESCE(d.loan_dependent, false) = false
+        AND d.due_date IS NOT NULL
+        AND (CURRENT_DATE - d.due_date) > 45
+        AND NOT EXISTS (
+          SELECT 1 FROM promise_to_pay p
+           WHERE p.demand_id = d.id AND p.converted_receipt_id IS NULL
+        )`,
     [projectId]
   );
   return sum([r.rows[0]?.total ?? 0]);

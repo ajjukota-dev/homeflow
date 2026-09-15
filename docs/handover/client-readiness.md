@@ -7,13 +7,13 @@ Shareable copy of the client-readiness canvas (2026-09-15).
 | | |
 |---|---|
 | Ready to hand over | **No** |
-| Seeded families | 6 accepted (4 East Crest + Nisha apartment + Suresh plot); plus Aditi submitted + Harish returned packets |
+| Seeded families | Leftover + Day 2 + Phase 1 occupants (see click-path roster) |
 | RLS on the live request path | Off |
-| Customer portal logins | 6 (`customer@` `karthik@` `meera@` `rohan@` `nisha@` `suresh@`) |
+| Customer portal logins | Phase 1 four + nisha@ suresh@ kavya@ deepak@ ishaan@ leela@ farhanq@ anjali@ vivek@ |
 
 Source: PDF §§24–27, §31.5, §32.11, §33.6, §34.7, Appendix A · main as of 2026-09-15.
 
-**Not ready to hand over.** Modules are written. The product is not finished. Phase 1 journeys now instantiate for the four families. Remaining: Phase 2 desk coverage, Phase 4 RLS on the live path, Phase 5 proof. Do not schedule a handover until that work is true — earliest honest date is after exams, suite green, RLS merged.
+**Not ready to hand over.** Modules are written. Occupant desks are mostly seeded (2.12 still open). Remaining: Phase 4 RLS on the live path, Phase 5 proof, leftover UI walk after `db:reset`. Do not schedule a handover until that work is true — earliest honest date is after exams, suite green, RLS merged.
 
 ---
 
@@ -52,29 +52,29 @@ Cut seed off raw `INSERT INTO booking` / demand / handover / AOS. Recreate the f
 
 One named occupant per PDF §34.2 state (and the extras). Same story on staff 360 and that customer’s portal. Go down the list; do not start a new occupant at end of Day 2. Standing rule **2.14:** every accepted booking added here gets a portal login, not only the Day 1 four.
 
-**Day 2 (2.1–2.5 + 2.14) closed 2026-09-15.** Leftover 2.6–2.16 is still required for handover.
+**Day 2 (2.1–2.5 + 2.14) closed 2026-09-15.** Leftover 2.6–2.11 + 2.13–2.16 closed (API). **2.12 still open.** Workspace shows leftover people only after stop API → `db:reset` → restart.
 
 | Stage | Who / unit today | What is wrong today | Build this | Phase |
 |---|---|---|---|---|
-| 0 Pre-sale | Tanvi Joshi · V101 hold, V104 gates differ | Hold expiry does not fire until Phase 3 scheduler | Keep; scheduler is 3.1 | 2.4 |
-| 0 Hold | Tanvi / V101 kitchen_layout APPROVED until ~+7d | Nothing expires on a clock yet | Time-boxed hold row exists; auto-expire is Phase 3 | 2.4 |
-| 1 Packet submitted | Aditi Bansal MV-01 BK-MV01 | Done (not CRM-accepted, no journey) | Keep | 2.1 |
-| 1 Packet returned | Harish Patel MV-02 BK-MV02 | Done (MISSING_DOCUMENTS + note; resubmit path exists) | Keep | 2.2 |
-| 2 Funding — loan | Meera V111 | Journey on funding/loan (Phase 1 done) | Keep her on funding/loan | 1c |
-| 2 Funding — NRI + loan | Missing | Conditional NRI task never appears. | NRI + DOCS_PENDING loan occupant | 2.9 |
-| 3 Agreement | Karthik AOS already executed | No draft-not-executed factory occupant. | AOS draft, watermark, locked clauses not silently edited | 2.6 |
-| 4 Construction | Karthik V110 | Journey on construction (Phase 1 done) | Keep construction current, finance still open | 1b |
-| 5 Collections | Karthik overdue · Meera disputed | No Default/Legal occupant; not every overdue has next action. | Default/Legal occupant (2.10) and reason + next action / PTP on every overdue (2.16) | 2.10 + 2.16 |
-| 6 Pre-registration | Karthik registration open | Blockers not named on a live desk row. | Registration blocked on finance/docs with named blockers | 2.13 |
-| 7 Registration | Ananya already registered | No slot-booked-not-completed occupant. | SRO slot booked + day-of checklist, not completed | 2.7 |
-| 8 Pre-handover | Ananya V112 | Journey pre-handover; portal works (Phase 1 done). Hard-gate occupant still thin. | Separate occupant blocked on CRITICAL snag; hard gate cannot skip | 1d + 2.15 |
-| 9 Handover in progress | Missing (Rohan is finished) | Cannot show appointment/checklist/signature in flight. | Appointment + checklist + real signature file, not Rohan | 2.8 |
-| 10 Post-handover | Rohan V113 | Portal + passport/warranty/check-ins (Phase 1 done) | Keep; do not reuse as the in-progress handover (2.8) | 1e + 1f |
-| CR in flight | Nisha Verma BK-MT201 Kitchen island AWAITING_CUSTOMER | Visible on Meadows Customisation Desk (`superadmin@`); `customisation@` East Crest default is empty | Keep; payment gate proven unpaid | 2.3 |
-| Cancel / transfer | Missing | Cannot prove unit history survives a closed booking. | Closed booking; unit 360 history intact | 2.11 |
-| Meadows apt + plot | Nisha MT1-201 APARTMENT · Suresh MP-01 PLOT | Done via handlers + journeys | Keep | 2.5 |
-| Plan vs forecast vs actual | Thin / often zero | PDF §34.7 t3–t4 fails if every journey shows variance 0. | Non-zero variance on at least two occupants | 2.12 |
-| Portal on every accepted Phase 2 booking | nisha@ · suresh@ (Day 2 accepted) | Leftover occupants (2.6–2.16) still need logins when added | Standing rule for the rest of Phase 2 | 2.14 |
+| 0 Pre-sale | Tanvi Joshi · V101 hold, V104 gates differ | Hold auto-expire is Phase 3 scheduler (wired) | Keep | 2.4 |
+| 0 Hold | Tanvi / V101 kitchen_layout APPROVED until ~+7d | Job expires it; seed stays APPROVED | Keep | 2.4 |
+| 1 Packet submitted | Aditi Bansal MV-01 BK-MV01 | Done | Keep | 2.1 |
+| 1 Packet returned | Harish Patel MV-02 BK-MV02 | Done | Keep | 2.2 |
+| 2 Funding — loan | Meera V111 | Done | Keep | 1c |
+| 2 Funding — NRI + loan | Leela Fernandes V115 | NRI + loan DOCS_PENDING. Journey T4 may be missing (residency set after instantiate). | Optional T4 re-instantiate | 2.9 |
+| 3 Agreement | Kavya Iyer MT1-502 draft AOS · Karthik executed | Done | Keep | 2.6 |
+| 4 Construction | Karthik V110 | Done | Keep | 1b |
+| 5 Collections | Farhan Qureshi V116 cheque_bounce · Karthik overdue with reasons | Done | Keep | 2.10 + 2.16 |
+| 6 Pre-registration | Anjali Bhat V118 blocked on named docs/clearance/AOS | Done | Keep | 2.13 |
+| 7 Registration | Deepak Nair MP-02 slot booked · Ananya completed | Done | Keep | 2.7 |
+| 8 Pre-handover | Vivek Sharma V119 CRITICAL snag · Ananya V112 | Done | Keep | 1d + 2.15 |
+| 9 Handover in progress | Ishaan Gupta V114 appointment + checklist | Done | Keep | 2.8 |
+| 10 Post-handover | Rohan V113 | Done | Keep | 1e + 1f |
+| CR in flight | Nisha Verma BK-MT201 Kitchen island AWAITING_CUSTOMER | Meadows Customisation Desk (`superadmin@`) | Keep | 2.3 |
+| Cancel / transfer | Gita Reddy V117 cancelled; unit remains | Done | Keep | 2.11 |
+| Meadows apt + plot | Nisha MT1-201 · Suresh MP-01 · Kavya MT1-502 · Deepak MP-02 | Done | Keep | 2.5 |
+| Plan vs forecast vs actual | Thin / often zero | Still skipped — no seeded delay_reason; do not invent SOP | Non-zero variance on ≥2 occupants | 2.12 |
+| Portal on every accepted Phase 2 booking | kavya@ deepak@ ishaan@ leela@ farhanq@ anjali@ vivek@ + nisha@ suresh@ | Gita/V117 closed, no login (allowed) | Standing if more accepted bookings are added | 2.14 |
 
 ### 3. Exam week — You (Phase 3 only) — **code closed 2026-09-15**
 
@@ -88,7 +88,7 @@ Interruptible work. **Not RLS.** Daily 15–30 min PR review (`docs/handover/pha
 
 ### 4. Product holes + hardening — Team, exam week (Phase 4)
 
-Start RLS immediately. It does not touch seed. Do not hand over if 4.1 is unmerged. After Phase 1 is on main, also finish leftover Phase 2 occupants via the handler pattern only.
+Start RLS immediately. It does not touch seed. Do not hand over if 4.1 is unmerged. Occupant leftover is closed except 2.12. Prompt: `docs/handover/phase-4-agent-prompt.md` (4.1–4.3 in one chat; 4.4–4.10 later).
 
 | Do this | Why handover fails without it | Phase |
 |---|---|---|

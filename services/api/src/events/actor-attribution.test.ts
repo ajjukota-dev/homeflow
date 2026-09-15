@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { initDb, db } from "../db";
 import { ctxWithRoles, customerCtx } from "../authz/test-helpers";
 import { createBooking, acceptBooking } from "../bookings";
+import { createUnit } from "../projects";
 import { actorFields } from "./append";
 
 // P5 (docs/reports/2026-09-05-branch-review.md's consolidation §6) / R0.6c / SCHEMA.md's
@@ -27,10 +28,20 @@ let availableUnits: string[] = [];
 
 beforeAll(async () => {
   await initDb();
-  const r = await db.query<{ id: string }>(
-    `SELECT id FROM unit WHERE project_id = 'p_eastcrest' AND sale_status = 'available' ORDER BY id LIMIT 2`
+  // Own inventory — leftover seed books/cancels extra villas, so "first available"
+  // can already carry unit.sale_status_changed history (V117) or be the V101/V104/V108 spare pool.
+  const site = ctxWithRoles(["SITE"], "ALL");
+  const a = await createUnit(
+    "p_eastcrest",
+    { unit_number: "VP5A", unit_type: "3BHK", facing: "East", product_type: "VILLA", carpet_area_sqft: 2100, base_price_inr: 12_000_000 },
+    site
   );
-  availableUnits = r.rows.map((row) => row.id);
+  const b = await createUnit(
+    "p_eastcrest",
+    { unit_number: "VP5B", unit_type: "3BHK", facing: "West", product_type: "VILLA", carpet_area_sqft: 2100, base_price_inr: 12_000_000 },
+    site
+  );
+  availableUnits = [a!.id, b!.id];
 });
 
 describe("actorFields()", () => {
