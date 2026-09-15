@@ -4,6 +4,7 @@ import { appendEvent, withTx, actorFields, type DbLike } from "../events";
 import { authorize } from "../authz/authorize";
 import { requireRole } from "../authz/requireRole";
 import { AppError, type Ctx } from "../authz/types";
+import { isWithinQuietHours, nowIstHm } from "../authz/clock";
 import { nextCode } from "../model/codes";
 import { createAction } from "../actions/core";
 import { startClock } from "../journey/sla";
@@ -150,7 +151,7 @@ export async function logCommunication(input: LogCommunicationInput, ctx: Ctx): 
 
 /** POST /communications/send-email — rule 5: outbound email via the mailer port (03), auto-logged. */
 export async function sendCommunicationEmail(
-  input: { customer_id: string; booking_id?: string | null; to: string; template_id?: string; body?: string; subject?: string; override_reason?: string },
+  input: { customer_id: string; booking_id?: string | null; to: string; template_id?: string; body?: string; subject?: string; override_reason?: string; nowHm?: string },
   ctx: Ctx
 ): Promise<CommunicationRow> {
   await authorize(ctx, "communications", "WRITE");
@@ -171,7 +172,7 @@ export async function sendCommunicationEmail(
     }
   }
 
-  await checkFrequencyGuardrail(input.customer_id, input.template_id, ctx, input.override_reason);
+  await checkFrequencyGuardrail(input.customer_id, input.template_id, ctx, input.override_reason, input.nowHm);
 
   // Rule 1 ("every customer touch is logged") requires the row to exist before the customer sees
   // the message — send-then-log left an unlogged email on any insert failure. Validate/insert
@@ -200,32 +201,85 @@ export async function sendCommunicationEmail(
  *  "empty config narrows nothing, doesn't block" call as 27's materiality thresholds, not 19's
  *  WAIVER-bands fail-closed (a guardrail is a courtesy cap, not a financial control). Override
  *  requires CRM lead + reason — modeled as `overrideReason` present + a CRM/MANAGEMENT/SUPER_ADMIN
- *  actor, same seniority-has-no-role-value simplification as elsewhere. */
-export interface GuardrailStatus { blocked: boolean; purpose: string | null; sent: number; max: number | null; window_days: number | null }
+ *  actor, same seniority-has-no-role-value simplification as elsewhere.
+ *  Quiet hours (frequency_guardrail.quiet_hours_start/end) block outbound EMAIL on this path and
+ *  are not overrideable by CRM+reason (no spec override). nowHm is honoured only under vitest. */
+export interface GuardrailStatus {
+  blocked: boolean;
+  purpose: string | null;
+  sent: number;
+  max: number | null;
+  window_days: number | null;
+  reason: "frequency" | "quiet_hours" | null;
+  quiet_hours_start: string | null;
+  quiet_hours_end: string | null;
+}
+
+const DEFAULT_QUIET_START = "21:00";
+const DEFAULT_QUIET_END = "08:00";
+
+function resolveNowHm(passed?: string): string {
+  if (passed && (process.env.VITEST || process.env.NODE_ENV === "test")) return passed;
+  return nowIstHm();
+}
+
+function quietBlocked(start: string, end: string, nowHm: string, purpose: string | null): GuardrailStatus | null {
+  if (!isWithinQuietHours(nowHm, start, end)) return null;
+  return {
+    blocked: true, purpose, sent: 0, max: null, window_days: null,
+    reason: "quiet_hours", quiet_hours_start: start, quiet_hours_end: end,
+  };
+}
 
 /** Send-email flow's "blocked with the last-sent facts, not just a disabled button" (rule 4) —
  *  the same read `checkFrequencyGuardrail` does, but returned as data instead of thrown, so the
  *  UI can show the count/window before the customer ever clicks Send. */
-export async function getGuardrailStatus(customerId: string, templateId: string | undefined, ctx: Ctx): Promise<GuardrailStatus> {
+export async function getGuardrailStatus(customerId: string, templateId: string | undefined, ctx: Ctx, nowHm?: string): Promise<GuardrailStatus> {
   await authorize(ctx, "communications", "READ");
-  if (!templateId) return { blocked: false, purpose: null, sent: 0, max: null, window_days: null };
+  const hm = resolveNowHm(nowHm);
+  const open = (purpose: string | null, start: string, end: string): GuardrailStatus => ({
+    blocked: false, purpose, sent: 0, max: null, window_days: null, reason: null,
+    quiet_hours_start: start, quiet_hours_end: end,
+  });
+
+  if (!templateId) {
+    const g = (await db.query<{ quiet_hours_start: string; quiet_hours_end: string }>(
+      `SELECT quiet_hours_start, quiet_hours_end FROM frequency_guardrail WHERE purpose = 'GENERAL'`
+    )).rows[0];
+    const start = g?.quiet_hours_start ?? DEFAULT_QUIET_START;
+    const end = g?.quiet_hours_end ?? DEFAULT_QUIET_END;
+    return quietBlocked(start, end, hm, null) ?? open(null, start, end);
+  }
+
   const t = await loadCommunicationTemplate(templateId);
-  const g = (await db.query<{ max_per_customer_per_window: number; window_days: number }>(
-    `SELECT max_per_customer_per_window, window_days FROM frequency_guardrail WHERE purpose = $1`,
+  const g = (await db.query<{ max_per_customer_per_window: number; window_days: number; quiet_hours_start: string; quiet_hours_end: string }>(
+    `SELECT max_per_customer_per_window, window_days, quiet_hours_start, quiet_hours_end FROM frequency_guardrail WHERE purpose = $1`,
     [t.purpose]
   )).rows[0];
-  if (!g) return { blocked: false, purpose: t.purpose, sent: 0, max: null, window_days: null };
+  const start = g?.quiet_hours_start ?? DEFAULT_QUIET_START;
+  const end = g?.quiet_hours_end ?? DEFAULT_QUIET_END;
+  const quiet = quietBlocked(start, end, hm, t.purpose);
+  if (quiet) return quiet;
+  if (!g) return open(t.purpose, start, end);
+
   const count = (await db.query<{ n: string }>(
     `SELECT count(*)::text AS n FROM communication WHERE customer_id = $1 AND template_id IN (SELECT id FROM communication_template WHERE purpose = $2)
        AND occurred_at >= now() - ($3 || ' days')::interval AND direction = 'OUTBOUND'`,
     [customerId, t.purpose, g.window_days]
   )).rows[0];
   const sent = Number(count?.n ?? 0);
-  return { blocked: sent >= g.max_per_customer_per_window, purpose: t.purpose, sent, max: g.max_per_customer_per_window, window_days: g.window_days };
+  const blocked = sent >= g.max_per_customer_per_window;
+  return {
+    blocked, purpose: t.purpose, sent, max: g.max_per_customer_per_window, window_days: g.window_days,
+    reason: blocked ? "frequency" : null, quiet_hours_start: start, quiet_hours_end: end,
+  };
 }
 
-export async function checkFrequencyGuardrail(customerId: string, templateId: string | undefined, ctx: Ctx, overrideReason?: string): Promise<void> {
-  const status = await getGuardrailStatus(customerId, templateId, ctx);
+export async function checkFrequencyGuardrail(customerId: string, templateId: string | undefined, ctx: Ctx, overrideReason?: string, nowHm?: string): Promise<void> {
+  const status = await getGuardrailStatus(customerId, templateId, ctx, nowHm);
+  if (status.reason === "quiet_hours") {
+    throw new AppError("conflict", `quiet hours: outbound send is blocked between ${status.quiet_hours_start} and ${status.quiet_hours_end} IST`);
+  }
   if (!status.blocked) return;
   if (overrideReason?.trim()) {
     requireRole(ctx, ["CRM", "MANAGEMENT", "SUPER_ADMIN"]);

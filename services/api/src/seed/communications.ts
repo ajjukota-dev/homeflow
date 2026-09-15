@@ -12,12 +12,12 @@ import type { DbClient } from "../db/types";
 //     exact caps; seeded so the guardrail mechanism is exercisable, same convention as the
 //     escalation ladder's own UNCONFIRMED step timings.
 
-const GUARDRAILS: { purpose: string; max_per_customer_per_window: number; window_days: number }[] = [
-  { purpose: "PAYMENT_REMINDER", max_per_customer_per_window: 3, window_days: 7 }, // UNCONFIRMED
-  { purpose: "DELAY_NOTICE", max_per_customer_per_window: 2, window_days: 30 }, // UNCONFIRMED
-  { purpose: "MILESTONE", max_per_customer_per_window: 5, window_days: 30 }, // UNCONFIRMED
-  { purpose: "CHECK_IN", max_per_customer_per_window: 1, window_days: 7 }, // UNCONFIRMED
-  { purpose: "GENERAL", max_per_customer_per_window: 10, window_days: 30 }, // UNCONFIRMED
+const GUARDRAILS: { purpose: string; max_per_customer_per_window: number; window_days: number; quiet_hours_start: string; quiet_hours_end: string }[] = [
+  { purpose: "PAYMENT_REMINDER", max_per_customer_per_window: 3, window_days: 7, quiet_hours_start: "21:00", quiet_hours_end: "08:00" }, // UNCONFIRMED
+  { purpose: "DELAY_NOTICE", max_per_customer_per_window: 2, window_days: 30, quiet_hours_start: "21:00", quiet_hours_end: "08:00" }, // UNCONFIRMED
+  { purpose: "MILESTONE", max_per_customer_per_window: 5, window_days: 30, quiet_hours_start: "21:00", quiet_hours_end: "08:00" }, // UNCONFIRMED
+  { purpose: "CHECK_IN", max_per_customer_per_window: 1, window_days: 7, quiet_hours_start: "21:00", quiet_hours_end: "08:00" }, // UNCONFIRMED
+  { purpose: "GENERAL", max_per_customer_per_window: 10, window_days: 30, quiet_hours_start: "21:00", quiet_hours_end: "08:00" }, // UNCONFIRMED
 ];
 
 export async function seedCommunicationsConfig(db: DbClient): Promise<void> {
@@ -34,8 +34,8 @@ export async function seedCommunicationsConfig(db: DbClient): Promise<void> {
   if (Number(guardrails.rows[0]?.count ?? 0) > 0) return; // idempotent
   for (const g of GUARDRAILS) {
     await db.query(
-      `INSERT INTO frequency_guardrail (purpose, max_per_customer_per_window, window_days) VALUES ($1,$2,$3)`,
-      [g.purpose, g.max_per_customer_per_window, g.window_days]
+      `INSERT INTO frequency_guardrail (purpose, max_per_customer_per_window, window_days, quiet_hours_start, quiet_hours_end) VALUES ($1,$2,$3,$4,$5)`,
+      [g.purpose, g.max_per_customer_per_window, g.window_days, g.quiet_hours_start, g.quiet_hours_end]
     );
   }
 }

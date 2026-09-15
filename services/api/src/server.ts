@@ -56,6 +56,7 @@ import { registerPostHandoverRoutes } from "./routes-post-handover";
 import { registerIntelligenceRoutes } from "./routes-intelligence";
 import { getAudit } from "./events";
 import { failHttp } from "./authz/httpError";
+import { startScheduler } from "./scheduler/start";
 
 // Local API gateway. Handlers are Lambda-portable; this Express wrapper is the local
 // mirror (architecture.md §6b) — the same handlers run behind API Gateway on AWS.
@@ -359,5 +360,8 @@ registerStaticRoutes(app);
 
 const PORT = Number(process.env.PORT ?? 3001);
 initDb().then(() => {
-  app.listen(PORT, () => console.log(`HomeFlow API ready → http://localhost:${PORT}`));
+  app.listen(PORT, () => {
+    console.log(`HomeFlow API ready → http://localhost:${PORT}`);
+    startScheduler();
+  });
 });

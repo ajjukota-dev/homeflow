@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { db, initDb } from "../db";
 import { randomUUID } from "node:crypto";
-import { logCommunication, sendCommunicationEmail, publishCommunicationToPortal, listCustomerCommunications } from "./core";
+import { logCommunication, sendCommunicationEmail, publishCommunicationToPortal, listCustomerCommunications, getGuardrailStatus, checkFrequencyGuardrail } from "./core";
 import { createCommunicationTemplate, submitTemplateForLegalReview, approveCommunicationTemplate, renderTemplateBody } from "./templates";
 import { createInternalNote, listInternalNotes } from "./notes";
 import { scanEscalations } from "../escalations/core";
@@ -124,14 +124,67 @@ describe("29 rule 4 — frequency guardrails", () => {
       legal
     );
     // frequency_guardrail seeded PAYMENT_REMINDER at max 3 per 7 days (see seed/communications.ts)
+    // nowHm 10:00 IST so this does not flake inside seeded quiet hours (21:00–08:00).
     for (let i = 0; i < 3; i++) {
-      await sendCommunicationEmail({ customer_id: "c_karthik", to: "karthik@example.com", template_id: approved.id }, realCrmCtx);
+      await sendCommunicationEmail({ customer_id: "c_karthik", to: "karthik@example.com", template_id: approved.id, nowHm: "10:00" }, realCrmCtx);
     }
-    await expect(sendCommunicationEmail({ customer_id: "c_karthik", to: "karthik@example.com", template_id: approved.id }, realCrmCtx)).rejects.toThrow(/frequency guardrail/);
+    await expect(sendCommunicationEmail({ customer_id: "c_karthik", to: "karthik@example.com", template_id: approved.id, nowHm: "10:00" }, realCrmCtx)).rejects.toThrow(/frequency guardrail/);
 
-    const { checkFrequencyGuardrail } = await import("./core");
-    await expect(checkFrequencyGuardrail("c_karthik", approved.id, realCrmCtx, "customer escalated, sending anyway")).resolves.toBeUndefined();
-    await expect(checkFrequencyGuardrail("c_karthik", approved.id, sales, "trying to bypass")).rejects.toThrow(/requires one of/);
+    await expect(checkFrequencyGuardrail("c_karthik", approved.id, realCrmCtx, "customer escalated, sending anyway", "10:00")).resolves.toBeUndefined();
+    await expect(checkFrequencyGuardrail("c_karthik", approved.id, sales, "trying to bypass", "10:00")).rejects.toThrow(/requires one of/);
+  });
+
+  it("e32-freq: a second outbound template send inside window_days throws", async () => {
+    // CHECK_IN is seeded max 1 / 7 days.
+    const code = "CHECKIN_FREQ_" + randomUUID().slice(0, 6);
+    const approved = await approveCommunicationTemplate(
+      (await submitTemplateForLegalReview((await createCommunicationTemplate({ code, channel: "EMAIL", purpose: "CHECK_IN", subject: "Checking in", body: "How is the home?" }, crm)).id, crm)).id,
+      crm
+    );
+    await sendCommunicationEmail({ customer_id: "c_karthik", to: "karthik@example.com", template_id: approved.id, nowHm: "10:00" }, realCrmCtx);
+    await expect(sendCommunicationEmail({ customer_id: "c_karthik", to: "karthik@example.com", template_id: approved.id, nowHm: "10:00" }, realCrmCtx)).rejects.toThrow(/frequency guardrail/);
+  });
+});
+
+describe("e32-quiet — quiet hours on the send path", () => {
+  async function approvedGeneral(): Promise<string> {
+    const code = "QUIET_TEST_" + randomUUID().slice(0, 6);
+    const approved = await approveCommunicationTemplate(
+      (await submitTemplateForLegalReview((await createCommunicationTemplate({ code, channel: "EMAIL", purpose: "GENERAL", subject: "Hello", body: "A daytime-or-quiet send." }, crm)).id, crm)).id,
+      crm
+    );
+    return approved.id;
+  }
+
+  it("blocks EMAIL send at 22:00 IST for 21:00–08:00 and does not insert a communication row", async () => {
+    const templateId = await approvedGeneral();
+    const before = Number((await db.query<{ n: string }>(`SELECT count(*)::text AS n FROM communication WHERE template_id = $1`, [templateId])).rows[0]?.n ?? 0);
+
+    const status = await getGuardrailStatus("c_karthik", templateId, crm, "22:00");
+    expect(status.blocked).toBe(true);
+    expect(status.reason).toBe("quiet_hours");
+
+    await expect(
+      sendCommunicationEmail({ customer_id: "c_karthik", to: "karthik@example.com", template_id: templateId, nowHm: "22:00" }, realCrmCtx)
+    ).rejects.toThrow(/quiet hours/);
+
+    await expect(
+      checkFrequencyGuardrail("c_karthik", templateId, realCrmCtx, "customer escalated, sending anyway", "22:00")
+    ).rejects.toThrow(/quiet hours/);
+
+    const after = Number((await db.query<{ n: string }>(`SELECT count(*)::text AS n FROM communication WHERE template_id = $1`, [templateId])).rows[0]?.n ?? 0);
+    expect(after).toBe(before);
+  });
+
+  it("allows EMAIL send at 10:00 IST when frequency permits", async () => {
+    const templateId = await approvedGeneral();
+    const status = await getGuardrailStatus("c_karthik", templateId, crm, "10:00");
+    expect(status.blocked).toBe(false);
+    expect(status.reason).not.toBe("quiet_hours");
+
+    const row = await sendCommunicationEmail({ customer_id: "c_karthik", to: "karthik@example.com", template_id: templateId, nowHm: "10:00" }, realCrmCtx);
+    expect(row.channel).toBe("EMAIL");
+    expect(row.direction).toBe("OUTBOUND");
   });
 });
 

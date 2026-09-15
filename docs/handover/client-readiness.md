@@ -76,15 +76,15 @@ One named occupant per PDF §34.2 state (and the extras). Same story on staff 36
 | Plan vs forecast vs actual | Thin / often zero | PDF §34.7 t3–t4 fails if every journey shows variance 0. | Non-zero variance on at least two occupants | 2.12 |
 | Portal on every accepted Phase 2 booking | nisha@ · suresh@ (Day 2 accepted) | Leftover occupants (2.6–2.16) still need logins when added | Standing rule for the rest of Phase 2 | 2.14 |
 
-### 3. Exam week — You (Phase 3 only)
+### 3. Exam week — You (Phase 3 only) — **code closed 2026-09-15**
 
-Interruptible work. **Not RLS.** RLS is a focused day and will break tests — that is Phase 4 for the team.
+Interruptible work. **Not RLS.** Daily 15–30 min PR review (`docs/handover/phase-3-pr-review.md`) continues through exam week.
 
 | Do this | Done when | Phase |
 |---|---|---|
-| Wire existing overdue / loan-validity / hold-expiry / forecast-snapshot sweeps to a scheduler; off in tests | Holds expire and SLA/forecast jobs run without curling endpoints | 3.1 |
-| Enforce quiet hours + frequency guardrails on the send path (policy is already stored) | A send in quiet hours is blocked or deferred — not silently ignored | 3.2 |
-| 15–30 min/day PR review: seed, RLS, Queues | Block raw SQL bookings and chatbots | 3.3 |
+| Wire existing overdue / loan-validity / hold-expiry / forecast-snapshot sweeps to a scheduler; off in tests | Holds expire and jobs run without curling endpoints (`HOMEFLOW_SCHEDULER=0` to disable) | 3.1 |
+| Enforce quiet hours + frequency guardrails on the send path (policy is already stored) | EMAIL send 21:00–08:00 IST is blocked (`conflict`); frequency cap still blocks a second send | 3.2 |
+| 15–30 min/day PR review: seed, RLS, Queues | Checklist shipped; keep using it daily | 3.3 |
 
 ### 4. Product holes + hardening — Team, exam week (Phase 4)
 

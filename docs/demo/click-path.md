@@ -55,6 +55,10 @@ Same handler pattern as Phase 1. Password for every portal login: `Demo@2026`. D
 
 Staff proof: `crm@` Packets lists Aditi BK-MV01 + Harish BK-MV02 (plus Phase 1). `sales@` Sales Desk → Prospects (Tanvi Joshi) and Holds (V101 kitchen_layout APPROVED until a future date). `customisation@` is East Crest–assigned, so that desk is empty until the project is Meadows — `superadmin@` → switch to Pranava Meadows → Customisation Desk shows CR-000001 Kitchen island (MT1-201 / BK-MT201, AWAITING_CUSTOMER); Site → View 360 on MT1-201 (APARTMENT, BK-MT201) and MP-01 (PLOT, BK-MP01). Portal `:5174` nisha@ / suresh@ / `Demo@2026`.
 
+## Scheduler (Phase 3)
+
+The API process (`:3001`) runs overdue, loan-validity, hold-expiry, and forecast-snapshot jobs on a clock after listen (default every 60s via `HOMEFLOW_SCHEDULER_MS`). Demo does not need to curl `/sweep`. Set `HOMEFLOW_SCHEDULER=0` (or `false`) to disable. Vitest never starts the interval. Tanvi Joshi’s V101 kitchen_layout hold stays APPROVED at seed; it expires when the job runs with `asOf` after `approved_until`.
+
 ## Walkthrough
 _Nothing on the URL yet._
 

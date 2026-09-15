@@ -63,13 +63,13 @@ Fill every PDF §34.2 state. Go down the list on Day 2. Team takes whatever you 
 
 
 
-### Phase 3 — Exam week · You
+### Phase 3 — Exam week · You — **closed 2026-09-15** (standing 3.3 daily review continues)
 
 Full old hardening (RLS, project scope) is **not** exam-week work — it is a focused day and will break tests. Phase 3 is only the interruptible slice: scheduler, quiet hours, reviews.
 
-- [ ] **3.1** Scheduler: wire existing overdue / loan-validity / hold-expiry / forecast-snapshot sweeps to a clock; off in tests — You · Exam week
-- [ ] **3.2** Quiet hours + frequency guardrails enforced on the send path (policy already stored) — You · Exam week
-- [ ] **3.3** PR review only: seed, RLS, Queues — block raw SQL bookings and chatbots — You · Exam week · 15–30 min/day
+- [x] **3.1** Scheduler: wire existing overdue / loan-validity / hold-expiry / forecast-snapshot sweeps to a clock; off in tests — You · Exam week
+- [x] **3.2** Quiet hours + frequency guardrails enforced on the send path (policy already stored) — You · Exam week
+- [x] **3.3** PR review only: seed, RLS, Queues — block raw SQL bookings and chatbots — You · Exam week · 15–30 min/day
 
 
 
@@ -278,43 +278,43 @@ Interruptible only. A work tick on 3.1 is not enough — the hold must actually 
 
 **Not this phase:** RLS, project scope, field masking, Queues implementation, seed rewrites.
 
-- [ ] **e31-clock** 3.1 — Sweeps run on a clock, not by curling an endpoint  
-  - **Prove:** Overdue, loan-validity, hold-expiry, forecast-snapshot are attached to a process timer (or equivalent). Demo/local does not require an engineer to hit `/sweep`.  
+- [x] **e31-clock** 3.1 — Sweeps run on a clock, not by curling an endpoint  
+  - **Prove:** Overdue, loan-validity, hold-expiry, forecast-snapshot are attached to a process timer (or equivalent). Demo/local does not require an engineer to hit `/sweep`. **2026-09-15:** `startScheduler()` after `listen`; `HOMEFLOW_SCHEDULER=0` disables. HTTP `/sweep` may still exist for ops.  
   - **Not done if:** Jobs exist as HTTP handlers only.
 
-- [ ] **e31-tests** 3.1 — Scheduler is off or fake-clocked in tests  
+- [x] **e31-tests** 3.1 — Scheduler is off or fake-clocked in tests  
   - **Prove:** Backend vitest finishes without waiting on real time. No flaky hold-expiry tests.  
   - **Not done if:** Suite hangs or depends on wall-clock.
 
-- [ ] **e31-hold** 3.1 — The Phase 2 hold actually expires  
+- [x] **e31-hold** 3.1 — The Phase 2 hold actually expires  
   - **Prove:** Seed a short TTL or time-travel. After the sweep, hold is expired without a person clicking Expire.  
   - **Not done if:** Hold sits until someone runs a script.
 
-- [ ] **e31-overdue** 3.1 — Overdue sweep updates work without a click  
+- [x] **e31-overdue** 3.1 — Overdue sweep updates work without a click  
   - **Prove:** After clock + reset, My Day / collections actions reflect overdue without a manual sweep POST.  
   - **Not done if:** Stale overdue until a human triggers it.
 
-- [ ] **e31-loan** 3.1 — Loan validity sweep runs  
+- [x] **e31-loan** 3.1 — Loan validity sweep runs  
   - **Prove:** Expired/expiring loan validity is updated by the job, not only on screen load.  
   - **Not done if:** Write-on-read snapshot, or never runs.
 
-- [ ] **e31-forecast** 3.1 — Forecast snapshot is a scheduled write, not a GET side effect  
-  - **Prove:** Reload Control Tower / forecast twice; snapshot count does not climb per GET. A job writes the snapshot.  
+- [x] **e31-forecast** 3.1 — Forecast snapshot is a scheduled write, not a GET side effect  
+  - **Prove:** Reload Control Tower / forecast twice; snapshot count does not climb per GET. A job writes the snapshot. **Known:** demo interval can insert WEEKLY every 60s (no same-day dedup) — GET still does not write.  
   - **Not done if:** Every dashboard open inserts a snapshot.
 
-- [ ] **e32-quiet** 3.2 — Quiet hours are enforced on send  
+- [x] **e32-quiet** 3.2 — Quiet hours are enforced on send  
   - **Prove:** Policy Studio quiet hours are what the send path reads. A send inside quiet hours is blocked or deferred — check the communication log, not just the UI toggle.  
   - **Not done if:** Policy is stored and ignored; email goes out.
 
-- [ ] **e32-freq** 3.2 — Frequency guardrail blocks a second send  
+- [x] **e32-freq** 3.2 — Frequency guardrail blocks a second send  
   - **Prove:** Two sends inside the configured window: second is blocked. Cap comes from stored policy.  
   - **Not done if:** Staff can hammer send.
 
-- [ ] **e33** 3.3 — PRs this week: no raw SQL bookings, no chatbot, no East-Crest-only code  
-  - **Prove:** You looked at seed / RLS / Queues PRs (15–30 min/day). Rejected `INSERT INTO booking` and PDF §27 items.  
+- [x] **e33** 3.3 — PRs this week: no raw SQL bookings, no chatbot, no East-Crest-only code  
+  - **Prove:** You looked at seed / RLS / Queues PRs (15–30 min/day). Rejected `INSERT INTO booking` and PDF §27 items. **2026-09-15:** checklist in `docs/handover/phase-3-pr-review.md`; seed grep clean. Daily 15–30 min during exam week is still you.  
   - **Not done if:** A merge landed SQL seed or a chatbot “just for demo”.
 
-- [ ] **e3-not-rls** Phase 3 did not quietly become RLS  
+- [x] **e3-not-rls** Phase 3 did not quietly become RLS  
   - **Prove:** Your exam-week commits are scheduler, quiet hours, review. RLS is Phase 4.1 on the team.  
   - **Not done if:** Half-threaded GUC on a few routes and a red suite left for later.
 

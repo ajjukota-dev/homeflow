@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { db } from "../db";
 import { appendEvent, type DbLike } from "../events";
 import { AppError, type Ctx } from "../authz/types";
-import { clock } from "../ports/clock";
+import { isWithinQuietHours, nowIstHm } from "../authz/clock";
 import { mailer } from "../mail";
 
 // 12-escalations-notifications.md rule 5/6/7. `notification`/`notification_preference` are
@@ -53,17 +53,6 @@ async function getOrDefaultPreference(userId: string, handle: DbLike = db): Prom
   const r = await handle.query<NotificationPreference>(`${PREFERENCE_SELECT} WHERE user_id = $1`, [userId]);
   if (r.rows[0]) return { ...r.rows[0], mentions_email: Boolean(r.rows[0].mentions_email) };
   return { user_id: userId, digest_time: "08:30", quiet_hours_start: "21:00", quiet_hours_end: "08:00", email_on: "ESCALATION", mentions_email: true };
-}
-
-/** IST wall-clock "HH:MM" comparison, wrap-safe (21:00–08:00 crosses midnight). */
-function isWithinQuietHours(nowHm: string, start: string, end: string): boolean {
-  if (start === end) return false;
-  if (start < end) return nowHm >= start && nowHm < end;
-  return nowHm >= start || nowHm < end; // wraps midnight
-}
-
-function nowIstHm(): string {
-  return clock.nowIst().toISOString().slice(11, 16);
 }
 
 /** Rule 5: creates the in-app row always; emails immediately unless quiet hours are in effect or

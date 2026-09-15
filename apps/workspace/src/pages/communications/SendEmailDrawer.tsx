@@ -65,7 +65,7 @@ export function SendEmailDrawer({
         template_id: mode === "template" ? templateId : undefined,
         subject: mode === "freeform" ? subject.trim() : undefined,
         body: mode === "freeform" ? body.trim() : undefined,
-        override_reason: guardrail?.blocked ? overrideReason.trim() || undefined : undefined,
+        override_reason: guardrail?.reason === "frequency" ? overrideReason.trim() || undefined : undefined,
       });
       reset();
       onSent();
@@ -77,7 +77,9 @@ export function SendEmailDrawer({
     }
   }
 
-  const blockedAndNoOverride = guardrail?.blocked && (!canOverride || !overrideReason.trim());
+  const quietBlocked = guardrail?.reason === "quiet_hours";
+  const freqBlocked = guardrail?.blocked && guardrail.reason !== "quiet_hours";
+  const blockedAndNoOverride = quietBlocked || (freqBlocked && (!canOverride || !overrideReason.trim()));
 
   return (
     <Drawer open={open} onOpenChange={(o) => { onOpenChange(o); if (!o) reset(); }}>
@@ -117,13 +119,24 @@ export function SendEmailDrawer({
                 </div>
               )}
 
-              {guardrail?.blocked && (
+              {quietBlocked && (
+                <div className="rounded-lg border border-atrisk bg-atrisk/10 p-3">
+                  <p className="flex items-center gap-1.5 text-footnote font-semibold text-atrisk">
+                    <ShieldAlert className="h-4 w-4" /> Quiet hours — outbound email is blocked
+                  </p>
+                  <p className="mt-1 text-footnote text-fg-muted">
+                    Sends are closed between {guardrail?.quiet_hours_start ?? "21:00"} and {guardrail?.quiet_hours_end ?? "08:00"} IST. This cannot be overridden.
+                  </p>
+                </div>
+              )}
+
+              {freqBlocked && (
                 <div className="rounded-lg border border-atrisk bg-atrisk/10 p-3">
                   <p className="flex items-center gap-1.5 text-footnote font-semibold text-atrisk">
                     <ShieldAlert className="h-4 w-4" /> Frequency guardrail blocked
                   </p>
                   <p className="mt-1 text-footnote text-fg-muted">
-                    Already sent {guardrail.sent} of {guardrail.max} allowed in the last {guardrail.window_days} days for {guardrail.purpose ? PURPOSE_LABEL[guardrail.purpose as keyof typeof PURPOSE_LABEL] ?? guardrail.purpose : "this purpose"}.
+                    Already sent {guardrail?.sent} of {guardrail?.max} allowed in the last {guardrail?.window_days} days for {guardrail?.purpose ? PURPOSE_LABEL[guardrail.purpose as keyof typeof PURPOSE_LABEL] ?? guardrail.purpose : "this purpose"}.
                   </p>
                   {canOverride ? (
                     <Field label="Override reason" htmlFor="override-reason" required hint="Required to send anyway.">

@@ -21,7 +21,16 @@ export interface CommunicationTemplateRow {
   project_id: string | null; version: number; status: TemplateStatus; approved_by: string | null; approved_at: string | null; created_at: string;
 }
 
-export interface GuardrailStatus { blocked: boolean; purpose: string | null; sent: number; max: number | null; window_days: number | null }
+export interface GuardrailStatus {
+  blocked: boolean;
+  purpose: string | null;
+  sent: number;
+  max: number | null;
+  window_days: number | null;
+  reason?: "frequency" | "quiet_hours" | null;
+  quiet_hours_start?: string | null;
+  quiet_hours_end?: string | null;
+}
 
 export interface InternalNoteRow { id: string; entity_type: string; entity_id: string; body: string; author_user_id: string; author_name: string | null; mentions: string[]; created_at: string }
 
