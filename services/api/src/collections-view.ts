@@ -11,6 +11,8 @@ import {
 import { type ProgressState } from "./gates";
 import { asDate, DEMAND_SELECT, listDemands, today, type DemandRow } from "./demands";
 import { authorize } from "./authz/authorize";
+import { assertEntityScope } from "./authz/entity-scope";
+import { mask, maskAll } from "./authz/mask";
 import type { Ctx } from "./authz/types";
 
 // Workbench + T2 projections over the demand ledger (accounts/spec.md §2.3 / T2).
@@ -21,7 +23,7 @@ export interface CollectionItem {
   customer_name: string;
   unit_number: string;
   milestone_label: string;
-  amount: number;
+  amount: number | null;
   ageing_days: number;
   overdue_reason_code: string | null;
   next_action: string | null;
@@ -31,7 +33,10 @@ export interface CollectionItem {
 // `ctx` optional: also called internally by tower-view.ts's controlTower, which is
 // itself gated (escalations READ) before reaching here.
 export async function projectCollections(projectId: string, asOf = today(), ctx?: Ctx) {
-  if (ctx) await authorize(ctx, "collections", "READ");
+  if (ctx) {
+    await authorize(ctx, "collections", "READ_STATUS_ONLY");
+    await assertEntityScope(ctx, "project", projectId, "read");
+  }
   const policy = await db.query<{ true_risk_max_probability: number }>(
     `SELECT true_risk_max_probability::float8 AS true_risk_max_probability
        FROM collection_policy WHERE project_id = $1`,
@@ -89,7 +94,20 @@ export async function projectCollections(projectId: string, asOf = today(), ctx?
       bucket,
     });
   }
-  return { outstanding_total, buckets };
+  if (!ctx) return { outstanding_total, buckets };
+  const top = await mask(ctx, "collections", { outstanding_inr: outstanding_total, amount_inr: outstanding_total });
+  const maskedTotal = (top.outstanding_inr as number | null) ?? (top.amount_inr as number | null);
+  const maskedBuckets = { ...buckets };
+  for (const key of RISK_BUCKETS) {
+    const bkt = maskedBuckets[key];
+    const items = await maskAll(ctx, "collections", bkt.items.map((i) => ({ ...i, amount_inr: i.amount })));
+    const amt = await mask(ctx, "collections", { amount_inr: bkt.amount, amount: bkt.amount });
+    maskedBuckets[key] = {
+      amount: (amt.amount as number | null) ?? 0,
+      items: items.map((i) => ({ ...i, amount: (i.amount_inr as number | null) ?? (i.amount as number | null) })),
+    };
+  }
+  return { outstanding_total: maskedTotal ?? 0, buckets: maskedBuckets };
 }
 
 export async function listOverdueReasons(ctx: Ctx) {

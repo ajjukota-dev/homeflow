@@ -23,6 +23,7 @@ const PROJECT_B = "p_rls_test2"; // hand-seeded, minimal, exists only to prove i
 
 beforeAll(async () => {
   await initDb();
+  await db.query(`RESET ROLE`);
 
   await db.query(`INSERT INTO project (id, code, name) VALUES ($1,'RLST2','RLS Test Project 2')`, [PROJECT_B]);
   await db.query(
@@ -76,6 +77,7 @@ beforeAll(async () => {
 });
 
 async function asHomeflowApp<T>(realm: string, projectIds: string | null, allProjects: boolean, fn: () => Promise<T>): Promise<T> {
+  await db.query(`RESET ROLE`);
   await db.query(`SET ROLE homeflow_app`);
   try {
     await db.query(`SELECT set_config('app.realm', $1, false), set_config('app.project_ids', $2, false), set_config('app.all_projects', $3, false)`, [

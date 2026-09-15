@@ -2,6 +2,8 @@ import { db } from "./db";
 import type { ProgressState } from "./gates";
 import type { DbLike } from "./events";
 import { requireRole, STAFF_ROLES } from "./authz/requireRole";
+import { assertEntityScope } from "./authz/entity-scope";
+import { assertProjectScope } from "./authz/scope";
 import type { Ctx } from "./authz/types";
 import { loadGateCategories, loadGateRules, loadProgressMap, gatesFromProgress } from "./progress/gate-inputs";
 import { updateProgress } from "./progress/core";
@@ -18,6 +20,7 @@ async function gatesForUnit(unitId: string) {
  *  Pre-booking master data, not in the customer-file permission_matrix — role-gated (R0.6). */
 export async function listUnits(projectId: string | undefined, ctx: Ctx) {
   requireRole(ctx, STAFF_ROLES);
+  if (projectId) assertProjectScope(ctx.actor, projectId, "read");
   const units = await db.query<{
     id: string;
     unit_number: string;
@@ -42,7 +45,10 @@ export async function listUnits(projectId: string | undefined, ctx: Ctx) {
  *  (createUnit, setProgress returning the fresh state) skip it — the caller already
  *  authorized before reaching here, so this isn't a separate attack surface. */
 export async function getUnit(unitId: string, ctx?: Ctx) {
-  if (ctx) requireRole(ctx, STAFF_ROLES);
+  if (ctx) {
+    requireRole(ctx, STAFF_ROLES);
+    await assertEntityScope(ctx, "unit", unitId, "read");
+  }
   const u = await db.query<{
     id: string;
     unit_number: string;

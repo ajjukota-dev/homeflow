@@ -5,6 +5,7 @@
 
 import { db } from "../db";
 import { requireRole, STAFF_ROLES } from "../authz/requireRole";
+import { assertEntityScope } from "../authz/entity-scope";
 import { AppError, type Ctx } from "../authz/types";
 import { explainBookingReadiness } from "../scores/booking-readiness";
 import { explainHandoverReadiness } from "../scores/handover-readiness";
@@ -27,6 +28,7 @@ export interface Booking360View {
 
 export async function getBooking360(bookingId: string, ctx: Ctx): Promise<Booking360View> {
   requireRole(ctx, STAFF_ROLES);
+  await assertEntityScope(ctx, "booking", bookingId, "read");
   const b = await db.query<{ booking_number: string; status: string; project_id: string; unit_id: string; unit_number: string; unit_type: string }>(
     `SELECT b.booking_number, b.status, b.project_id, u.id AS unit_id, u.unit_number, u.unit_type
        FROM booking b JOIN unit u ON u.id = b.unit_id WHERE b.id = $1`,
@@ -83,6 +85,7 @@ export async function getBooking360(bookingId: string, ctx: Ctx): Promise<Bookin
 /** GET /bookings/:id/activity — same real per-entity event-log slice as unit-360's. */
 export async function getBookingActivity(bookingId: string, ctx: Ctx): Promise<{ type: string; occurred_at: string; payload: unknown }[]> {
   requireRole(ctx, STAFF_ROLES);
+  await assertEntityScope(ctx, "booking", bookingId, "read");
   const r = await db.query<{ type: string; occurred_at: string; payload: unknown }>(
     `SELECT type, occurred_at::text AS occurred_at, payload FROM event WHERE booking_id = $1 ORDER BY occurred_at DESC LIMIT 100`,
     [bookingId]

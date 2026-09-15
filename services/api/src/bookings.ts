@@ -4,6 +4,7 @@ import type { BookingDetailRow, BookingListRow } from "./bookings-types";
 import { appendEvent, withTx, actorFields } from "./events";
 import { nextCode } from "./model/codes";
 import { authorize } from "./authz/authorize";
+import { assertEntityScope } from "./authz/entity-scope";
 import type { Ctx } from "./authz/types";
 
 // Sales → CRM handoff (handshakes.md H2). Completeness gate → accept births a Customer Twin.
@@ -60,6 +61,7 @@ export interface BookingSeedIds {
 
 export async function createBooking(unitId: string, input: BookingInput, ctx: Ctx, seed?: BookingSeedIds) {
   await authorize(ctx, "sales_handover", "WRITE");
+  await assertEntityScope(ctx, "unit", unitId, "write");
   const u = await db.query<{ project_id: string; sale_status: string }>(
     `SELECT project_id, sale_status FROM unit WHERE id = $1`,
     [unitId]

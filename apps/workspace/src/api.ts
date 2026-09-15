@@ -57,7 +57,7 @@ export interface Booking {
 export interface CustomerRow {
   id: string;
   display_name: string;
-  primary_phone: string;
+  primary_phone: string | null;
   kyc_status: string;
   booking_number: string;
   unit_number: string;
@@ -65,13 +65,13 @@ export interface CustomerRow {
 export interface Customer {
   id: string;
   display_name: string;
-  primary_phone: string;
+  primary_phone: string | null;
   kyc_status: string;
   bookings: {
     booking_id: string;
     booking_number: string;
     status: string;
-    total_consideration: number;
+    total_consideration: number | null;
     unit_number: string;
     unit_type: string;
     facing: string;
@@ -98,7 +98,7 @@ export interface CollectionItem {
   customer_name: string;
   unit_number: string;
   milestone_label: string;
-  amount: number;
+  amount: number | null;
   ageing_days: number;
   overdue_reason_code: string | null;
   next_action: string | null;
@@ -106,7 +106,7 @@ export interface CollectionItem {
 }
 
 export interface CollectionsView {
-  outstanding_total: number;
+  outstanding_total: number | null;
   buckets: Record<RiskBucket, { amount: number; items: CollectionItem[] }>;
 }
 

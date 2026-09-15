@@ -3,6 +3,7 @@ import { db } from "../db";
 import { appendEvent, withTx, actorFields, type DbLike } from "../events";
 import { createAction } from "../actions/core";
 import { authorize } from "../authz/authorize";
+import { assertEntityScope } from "../authz/entity-scope";
 import { AppError, type Ctx } from "../authz/types";
 import { nextCode } from "../model/codes";
 import { DEMAND_SELECT, mapDemands, today } from "../demands";
@@ -432,6 +433,7 @@ export async function listProjectLoans(projectId: string, filters: { stage?: str
 
 export async function getBookingLoan(bookingId: string, ctx: Ctx): Promise<LoanCaseRow | null> {
   await authorize(ctx, "loans", "READ");
+  await assertEntityScope(ctx, "booking", bookingId, "read");
   const rows = await mapLoan(db, `${LOAN_SELECT} WHERE lc.booking_id = $1 ORDER BY lc.created_at DESC LIMIT 1`, [bookingId]);
   return rows[0] ?? null;
 }

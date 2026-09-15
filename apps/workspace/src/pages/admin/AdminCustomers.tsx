@@ -33,7 +33,11 @@ export function AdminCustomers() {
 
   const filtered = useMemo(
     () =>
-      customers.filter((c) => c.display_name.toLowerCase().includes(search.toLowerCase()) || c.primary_phone.includes(search)),
+      customers.filter(
+        (c) =>
+          c.display_name.toLowerCase().includes(search.toLowerCase()) ||
+          (c.primary_phone ?? "").includes(search)
+      ),
     [customers, search]
   );
 
@@ -98,7 +102,7 @@ export function AdminCustomers() {
               {filtered.map((c) => (
                 <tr key={c.id} className="border-t border-line">
                   <td className="px-3 py-2 font-medium">{c.display_name}</td>
-                  <td className="px-3 py-2 text-fg-muted">{c.primary_phone}</td>
+                  <td className="px-3 py-2 text-fg-muted">{c.primary_phone ?? "—"}</td>
                   <td className="px-3 py-2">{kycStatusLabel(c.kyc_status)}</td>
                   <td className="px-3 py-2">
                     {c.unit_number} · {c.booking_number}
@@ -121,7 +125,7 @@ export function AdminCustomers() {
                 <option value="">Select…</option>
                 {customers.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.display_name} ({c.primary_phone})
+                    {c.display_name} ({c.primary_phone ?? "—"})
                   </option>
                 ))}
               </select>
@@ -132,7 +136,7 @@ export function AdminCustomers() {
                 <option value="">Select…</option>
                 {customers.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.display_name} ({c.primary_phone})
+                    {c.display_name} ({c.primary_phone ?? "—"})
                   </option>
                 ))}
               </select>

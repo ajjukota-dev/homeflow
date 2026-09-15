@@ -8,12 +8,12 @@ Shareable copy of the client-readiness canvas (2026-09-15).
 |---|---|
 | Ready to hand over | **No** |
 | Seeded families | Leftover + Day 2 + Phase 1 occupants (see click-path roster) |
-| RLS on the live request path | Off |
+| RLS on the live request path | On (PGlite). pg Pool SET ROLE is not sticky — fix before RDS. |
 | Customer portal logins | Phase 1 four + nisha@ suresh@ kavya@ deepak@ ishaan@ leela@ farhanq@ anjali@ vivek@ |
 
 Source: PDF §§24–27, §31.5, §32.11, §33.6, §34.7, Appendix A · main as of 2026-09-15.
 
-**Not ready to hand over.** Modules are written. Occupant desks are mostly seeded (2.12 still open). Remaining: Phase 4 RLS on the live path, Phase 5 proof, leftover UI walk after `db:reset`. Do not schedule a handover until that work is true — earliest honest date is after exams, suite green, RLS merged.
+**Not ready to hand over.** Occupant desks are mostly seeded (2.12 still open). RLS is on the PGlite request path (4.1–4.3). Remaining: Phase 4.4–4.10, Phase 5 proof, leftover UI walk after `db:reset`, pg-Pool client pin before hosted Postgres. Do not schedule a handover until that work is true — earliest honest date is after exams, suite green, 4.4–4.10 closed.
 
 ---
 
@@ -88,13 +88,13 @@ Interruptible work. **Not RLS.** Daily 15–30 min PR review (`docs/handover/pha
 
 ### 4. Product holes + hardening — Team, exam week (Phase 4)
 
-Start RLS immediately. It does not touch seed. Do not hand over if 4.1 is unmerged. Occupant leftover is closed except 2.12. Prompt: `docs/handover/phase-4-agent-prompt.md` (4.1–4.3 in one chat; 4.4–4.10 later).
+**4.1–4.3 closed 2026-09-15** (PGlite). Remaining 4.4–4.10. Occupant leftover closed except 2.12. Do not hand over until 4.4–4.10 and Phase 5 are true. pg Pool `SET ROLE` is not the same client as `pool.query` — pin before RDS.
 
 | Do this | Why handover fails without it | Phase |
 |---|---|---|
-| RLS on every request (P1b) + policies on tables after 0025 | PDF §4.4 / §22. Today the migration exists and is inert (superuser bypass). Open database. | 4.1 |
-| assertProjectScope: out-of-scope read 404, write 403 (Meadows vs East Crest) | Staff can read another project’s rows. | 4.2 |
-| Field masking on financials / PII; UI tolerates nulls | Wrong role sees amounts and personal data they must not. | 4.3 |
+| RLS on every request (P1b) + policies on tables after 0025 | Done on PGlite (`wrapWithRls` + `0047`). pg Pool still needs a pinned client before RDS. | 4.1 |
+| assertProjectScope: out-of-scope read 404, write 403 (Meadows vs East Crest) | Done on 360/collections/registration/handover/customer; remaining id handlers still RLS-only. | 4.2 |
+| Field masking on financials / PII; UI tolerates nulls | Done (`mask()` + `formatINR(null)` → —). Browser walk not done. | 4.3 |
 | Queues.tsx: claim, Management reassign, empty/error states | PDF §20. My Day is not a substitute for departmental queues. | 4.4 |
 | Action Types Studio tab actually edits action_type | Config-over-code is a slide until this writes. | 4.5 |
 | Seed approval_authority_rule bands; commitments call requiredApprovers() — drop in-code ₹200k fallback | Empty matrix is unusable; silent code fallback is not Policy Studio. | 4.6 |

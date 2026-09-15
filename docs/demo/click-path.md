@@ -85,6 +85,10 @@ Staff proof: `legal@` Kavya BK-MT502 AOS draft; `registration@` Deepak BK-MP02 s
 
 The API process (`:3001`) runs overdue, loan-validity, hold-expiry, and forecast-snapshot jobs on a clock after listen (default every 60s via `HOMEFLOW_SCHEDULER_MS`). Demo does not need to curl `/sweep`. Set `HOMEFLOW_SCHEDULER=0` (or `false`) to disable. Vitest never starts the interval. Tanvi Joshi’s V101 kitchen_layout hold stays APPROVED at seed; it expires when the job runs with `asOf` after `approved_until`.
 
+## Access (Phase 4.1–4.3)
+
+Row-level security is on the live request path (`homeflow_app` + `app.realm` / `app.project_ids` GUCs from the session). An East Crest–assigned login (`crm@demo.pranava`) cannot open a Meadows booking (BK-MT201 / BK-MV01) — GET is 404, write is 403. Portal `customer@` (Ananya, BK-V112) cannot load Karthik’s BK-V110 (or any other customer’s home). Roles without finance see masked `null` amounts, not rupees; screens render "—".
+
 ## Walkthrough
 _Nothing on the URL yet._
 

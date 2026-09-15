@@ -39,6 +39,6 @@ export function assertProjectScope(actor: Actor, projectId: string, mode: "read"
   if (actor.project_ids === "ALL") return;
   if (actor.project_ids.includes(projectId)) return;
   throw mode === "read"
-    ? new AppError("not_found", "not found")
+    ? new AppError("not_found", "not_found")
     : new AppError("forbidden", "outside your assigned projects");
 }

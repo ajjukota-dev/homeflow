@@ -1,4 +1,5 @@
 import { db } from "../db";
+import { runAsSystem } from "../db/rls-context";
 import { todayIst } from "../authz/clock";
 import { sweepOverdueDemands } from "../collections-sweep";
 import { sweepLoanValidity } from "../loans/sweep";
@@ -43,27 +44,29 @@ export async function runOnce(
   asOf?: string,
   deps: SchedulerDeps = defaults
 ): Promise<{ overdue: number; loans: number; holds: string[]; snapshots: string[] }> {
-  const day = asOf ?? todayIst();
-  const kind = snapshotKind(day);
-  const overdueRows = await deps.overdue(day);
-  const loanRows = await deps.loans(day);
-  const holdResult = await deps.holds(day);
+  return runAsSystem(async () => {
+    const day = asOf ?? todayIst();
+    const kind = snapshotKind(day);
+    const overdueRows = await deps.overdue(day);
+    const loanRows = await deps.loans(day);
+    const holdResult = await deps.holds(day);
 
-  const snapshots: string[] = [];
-  for (const projectId of await deps.projectIds()) {
-    try {
-      const snap = await deps.snapshot(projectId, kind, undefined, day);
-      snapshots.push(snap.id);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      console.error(`[scheduler] snapshot failed for ${projectId}: ${message}`);
+    const snapshots: string[] = [];
+    for (const projectId of await deps.projectIds()) {
+      try {
+        const snap = await deps.snapshot(projectId, kind, undefined, day);
+        snapshots.push(snap.id);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(`[scheduler] snapshot failed for ${projectId}: ${message}`);
+      }
     }
-  }
 
-  return {
-    overdue: overdueRows.length,
-    loans: loanRows.length,
-    holds: holdResult.expired,
-    snapshots,
-  };
+    return {
+      overdue: overdueRows.length,
+      loans: loanRows.length,
+      holds: holdResult.expired,
+      snapshots,
+    };
+  });
 }

@@ -3,6 +3,7 @@
 
 import { db } from "../db";
 import { requireRole, STAFF_ROLES } from "../authz/requireRole";
+import { assertEntityScope } from "../authz/entity-scope";
 import { AppError, type Ctx } from "../authz/types";
 import { computeUnitReadiness } from "../scores/unit-readiness";
 import { getUnitChangeability } from "../changeability/core";
@@ -16,6 +17,7 @@ export interface ActivityRow { type: string; occurred_at: string; payload: unkno
  *  `event.unit_id` is a direct column, no join needed). */
 export async function getUnitActivity(unitId: string, ctx: Ctx): Promise<ActivityRow[]> {
   requireRole(ctx, STAFF_ROLES);
+  await assertEntityScope(ctx, "unit", unitId, "read");
   const r = await db.query<ActivityRow>(
     `SELECT type, occurred_at::text AS occurred_at, payload FROM event WHERE unit_id = $1 ORDER BY occurred_at DESC LIMIT 100`,
     [unitId]
@@ -54,6 +56,7 @@ export interface Unit360View {
 
 export async function getUnit360(unitId: string, ctx: Ctx): Promise<Unit360View> {
   requireRole(ctx, STAFF_ROLES);
+  await assertEntityScope(ctx, "unit", unitId, "read");
   const u = await db.query<{
     project_id: string; unit_number: string; unit_type: string; product_type: string; facing: string;
     sale_status: string; hierarchy_node_id: string; carpet_area_sqft: number | null; built_up_area_sqft: number | null;

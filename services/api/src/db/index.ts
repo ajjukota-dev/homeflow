@@ -1,6 +1,8 @@
 import { createPgliteClient } from "./pglite-adapter";
 import { createPgClient } from "./pg-adapter";
 import { migrate } from "./migrate";
+import { wrapWithRls } from "./rls-port";
+import { runAsSystem } from "./rls-context";
 import { seed } from "../seed";
 import { seedEventTypes } from "../events";
 import { seedIdentity } from "../seed/permissions";
@@ -45,7 +47,8 @@ function makeClient(): DbClient {
   return createPgliteClient("./.data/pglite");
 }
 
-export const db: DbClient = makeClient();
+export const db: DbClient = wrapWithRls(makeClient());
+export { runAsSystem, runWithActor, runFailClosed } from "./rls-context";
 
 // 00-conventions.md: one `db` port, `query(sql, params)`. Kept as a bare
 // function (not just `db.query`) so identity code (auth/*, authz/*, seed/*)
@@ -72,7 +75,7 @@ let ready: Promise<void> | null = null;
 // first boot (found in review) — require an explicit opt-in in prod.
 export function initDb(): Promise<void> {
   if (!ready) {
-    ready = (async () => {
+    ready = runAsSystem(async () => {
       await migrate(db);
       await seedEventTypes(db);
       // role / permission_matrix / field_sensitivity are config, not demo
@@ -152,7 +155,7 @@ export function initDb(): Promise<void> {
       }
       // 15: checklist templates key on component_definition rows, which seed.ts owns today.
       await seedQaTemplates(db);
-    })();
+    });
   }
   return ready;
 }
@@ -160,11 +163,13 @@ export function initDb(): Promise<void> {
 // Rule 3 (03-platform-deploy.md): one DB per test file. A fresh in-memory
 // pglite, migrated and seeded, independent of the module-level `db` above.
 export async function createTestDb(): Promise<DbClient> {
-  const testDb = createPgliteClient();
-  await migrate(testDb);
-  await seedEventTypes(testDb);
-  await seed(testDb);
-  return testDb;
+  return runAsSystem(async () => {
+    const testDb = createPgliteClient();
+    await migrate(testDb);
+    await seedEventTypes(testDb);
+    await seed(testDb);
+    return testDb;
+  });
 }
 
 // GET /health (03-platform-deploy.md: "checks DB").

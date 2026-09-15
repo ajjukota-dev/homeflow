@@ -27,6 +27,15 @@ export async function buildActor(userId: string): Promise<Actor | null> {
     defaultProjectId = projectIds[0];
   }
 
+  let customerId: string | null = null;
+  if (user.kind === "CUSTOMER") {
+    const login = await query<{ customer_id: string }>(
+      `SELECT customer_id FROM customer_login WHERE user_id = $1 ORDER BY booking_id LIMIT 1`,
+      [userId]
+    );
+    customerId = login.rows[0]?.customer_id ?? null;
+  }
+
   return {
     user_id: user.id,
     display_name: user.display_name,
@@ -34,5 +43,6 @@ export async function buildActor(userId: string): Promise<Actor | null> {
     roles,
     project_ids: projectIds,
     default_project_id: defaultProjectId,
+    customer_id: customerId,
   };
 }

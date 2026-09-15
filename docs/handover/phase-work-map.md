@@ -76,11 +76,11 @@ Full old hardening (RLS, project scope) is **not** exam-week work — it is a fo
 
 ### Phase 4 — Product completeness + remaining hardening · Team · exam week
 
-Queues, files, QA, documents, matrix, plus RLS and project scope. Team starts RLS immediately (does not touch seed). **Do not hand over if 4.1 is unmerged.** Prompt: `docs/handover/phase-4-agent-prompt.md` (4.1–4.3 only; 4.4–4.10 later chats).
+**4.1–4.3 closed 2026-09-15** (PGlite request path; `rls-request.test.ts` 13 + `rls.test.ts` 7). **4.4–4.10 + 2.12 + 4.1b still open.** Rest prompt: `docs/handover/phase-4-rest-agent-prompt.md`.
 
-- [ ] **4.1** RLS on the request path (P1b) + policies on tables after 0025 — Team · Exam week — start immediately
-- [ ] **4.2** assertProjectScope: out-of-scope read 404, write 403; Meadows vs East Crest — Team · Exam week — start immediately
-- [ ] **4.3** Field masking on financials/PII; UI tolerates nulls — Team · Exam week
+- [x] **4.1** RLS on the request path (P1b) + policies on tables after 0025 — Team · Exam week — start immediately
+- [x] **4.2** assertProjectScope: out-of-scope read 404, write 403; Meadows vs East Crest — Team · Exam week — start immediately
+- [x] **4.3** Field masking on financials/PII; UI tolerates nulls — Team · Exam week
 - [ ] **4.4** Queues.tsx: claim, Management reassign, empty/error; locators on main — Team · Exam week
 - [ ] **4.5** Action Types Studio tab actually edits action_type — Team · Exam week
 - [ ] **4.6** Seed approval_authority_rule bands; commitments use requiredApprovers(); drop in-code ₹200k fallback — Team · Exam week
@@ -329,16 +329,16 @@ Do not hand over if 4.1 is unmerged. Start RLS immediately; it must not touch se
 
 **Not this phase:** Chatbot, WhatsApp API, vendor portal, inventing SOP days, deploying AWS without spend approval.
 
-- [ ] **e41** 4.1 — RLS is on the live request path, not only a migration file  
-  - **Prove:** Each API request sets the RLS user/role GUC. Login as customer A; request customer B’s booking → denied. `0025` is not bypassed by a superuser connection on the request path. Tables added after 0025 have policies.  
+- [x] **e41** 4.1 — RLS is on the live request path, not only a migration file  
+  - **Prove:** Each API request sets the RLS user/role GUC. Login as customer A; request customer B’s booking → denied. `0025` is not bypassed by a superuser connection on the request path. Tables added after 0025 have policies. **2026-09-15:** `wrapWithRls` + `requireSession` → `enterActor`. `customer@` Ananya `b_v112` home succeeds; same actor SELECT `b_v110` is zero rows. `0047_rls_followup.sql` policies on post-0025 `project_id` tables + customer-realm `customer_own`. Coverage is ALS `runWithActor` (same store middleware enters), not an Express cookie test. **pg `Pool.query` is not the same client as `SET ROLE` — PGlite-proven only; pin a client or wrap actor queries in `transaction()` before RDS.**  
   - **Not done if:** Migration exists, API still superuser; cross-customer read returns 200.
 
-- [ ] **e42** 4.2 — East Crest cannot read or write Meadows  
-  - **Prove:** Session scoped to East Crest. GET Meadows booking id → 404. Write → 403. Reverse also holds.  
+- [x] **e42** 4.2 — East Crest cannot read or write Meadows  
+  - **Prove:** Session scoped to East Crest. GET Meadows booking id → 404. Write → 403. Reverse also holds. **2026-09-15:** `crm@` GET `b_mt201` → not_found; `returnBooking(b_mv01)` → forbidden; Meadows-scoped actor GET `b_v112` → not_found; `management@` still ALL. Remaining id-taking handlers (actions, CRs, QA, holds) still rely on RLS without `assertEntityScope`.  
   - **Not done if:** Both projects in one list; out-of-scope id still returns a body.
 
-- [ ] **e43** 4.3 — Masking: nulls in UI, no PII/amount leak  
-  - **Prove:** A role without finance sees null/hidden amounts; screen does not crash. Portal still has no vendor price, internal note, staff name-as-blame, unapproved forecast.  
+- [x] **e43** 4.3 — Masking: nulls in UI, no PII/amount leak  
+  - **Prove:** A role without finance sees null/hidden amounts; screen does not crash. Portal still has no vendor price, internal note, staff name-as-blame, unapproved forecast. **2026-09-15:** LEGAL `total_consideration == null`; CRM collections `amount == null`; ACCOUNTS sees numbers. `formatINR(null)` → — (workspace unit test). Browser walk not done.  
   - **Not done if:** Amounts leak; white screen on null.
 
 - [ ] **e44** 4.4 — Queues: claim, Management reassign, empty, error  
@@ -369,12 +369,12 @@ Do not hand over if 4.1 is unmerged. Start RLS immediately; it must not touch se
   - **Prove:** Change a weight, recompute readiness; value moves. Not a hardcoded scorer.  
   - **Not done if:** Studio field is decorative.
 
-- [ ] **e4-tests** RLS/scope tests pass — do not leave them red for Phase 5  
-  - **Prove:** Backend suite green with 4.1–4.3 on. Failures fixed in this phase.  
+- [x] **e4-tests** RLS/scope tests pass — do not leave them red for Phase 5  
+  - **Prove:** Backend suite green with 4.1–4.3 on. Failures fixed in this phase. **2026-09-15:** report 845/845; this verification re-ran `rls-request.test.ts` 13 + `rls.test.ts` 7, all pass.  
   - **Not done if:** 4.1 merged, suite red, “we’ll fix after exams”.
 
-- [ ] **e4-seed** Team did not put raw SQL bookings back  
-  - **Prove:** Phase 4 PRs do not reintroduce `INSERT INTO booking` for occupants.  
+- [x] **e4-seed** Team did not put raw SQL bookings back  
+  - **Prove:** Phase 4 PRs do not reintroduce `INSERT INTO booking` for occupants. Spare pool `u_v101`/`u_v104`/`u_v108` unbooked; leftover numbers still present after `initDb`.  
   - **Not done if:** Hardening landed, seed regressed.
 
 ---

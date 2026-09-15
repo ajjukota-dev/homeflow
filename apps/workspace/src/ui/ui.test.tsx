@@ -19,8 +19,10 @@ describe("design system", () => {
     expect(screen.getByText("True risk")).toBeInTheDocument();
   });
 
-  it("formats INR with lakh/crore grouping", () => {
+  it("formats INR with lakh/crore grouping and does not throw on null", () => {
     expect(formatINR(1234567)).toBe("₹12,34,567");
     expect(formatINR(450000)).toBe("₹4,50,000");
+    expect(formatINR(null)).toBe("—");
+    expect(formatINR(undefined)).toBe("—");
   });
 });

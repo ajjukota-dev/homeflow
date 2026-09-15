@@ -9,6 +9,8 @@
 
 import { db } from "../db";
 import { authorize } from "../authz/authorize";
+import { assertEntityScope } from "../authz/entity-scope";
+import { mask } from "../authz/mask";
 import { AppError, type Ctx } from "../authz/types";
 import { commitmentsForBooking, type CommitmentView } from "../commitments/core";
 import { listChangeRequests } from "../change-requests/capture";
@@ -49,6 +51,7 @@ export async function getCustomer360(customerId: string, ctx: Ctx): Promise<Cust
   // let them through. Advisor caught this exact bypass at landing (same class as 26's
   // customer_documents READ->WRITE widening, this time routing around the matrix instead).
   await authorize(ctx, "customer_overview", "READ");
+  await assertEntityScope(ctx, "customer", customerId, "read");
   const c = await db.query<{
     display_name: string; primary_phone: string | null; primary_email: string | null;
     kyc_status: string; residency: string; merged_into_customer_id: string | null;
@@ -80,11 +83,19 @@ export async function getCustomer360(customerId: string, ctx: Ctx): Promise<Cust
 
   const health = await computeCustomerHealth(customerId);
 
-  return {
-    customer_id: customerId,
+  const overview = await mask(ctx, "customer_overview", {
     display_name: c.rows[0].display_name,
     primary_phone: c.rows[0].primary_phone,
     primary_email: c.rows[0].primary_email,
+    phone: c.rows[0].primary_phone,
+    email: c.rows[0].primary_email,
+  });
+
+  return {
+    customer_id: customerId,
+    display_name: c.rows[0].display_name,
+    primary_phone: (overview.phone as string | null) ?? (overview.primary_phone as string | null),
+    primary_email: (overview.email as string | null) ?? (overview.primary_email as string | null),
     kyc_status: c.rows[0].kyc_status,
     residency: c.rows[0].residency,
     merged_into_customer_id: c.rows[0].merged_into_customer_id,

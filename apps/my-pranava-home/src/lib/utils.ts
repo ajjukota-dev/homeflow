@@ -29,7 +29,8 @@ export function formatDateTime(s: string | null | undefined): string {
   return d.toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
-export function formatINR(n: number): string {
+export function formatINR(n: number | null | undefined): string {
+  if (n == null || Number.isNaN(n)) return "—";
   const s = Math.round(n).toString();
   const last3 = s.slice(-3);
   const rest = s.slice(0, -3);

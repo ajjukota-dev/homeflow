@@ -3,6 +3,8 @@ import type { CustomerListRow, CustomerRow } from "../bookings-types";
 import { appendEvent, withTx, actorFields, type DbLike } from "../events";
 import { ValidationError } from "./derive";
 import { authorize } from "../authz/authorize";
+import { assertEntityScope } from "../authz/entity-scope";
+import { mask, maskAll } from "../authz/mask";
 import type { Ctx } from "../authz/types";
 
 // Customer directory (CRM-side) — split out of bookings.ts to respect the 200-line rule.
@@ -20,19 +22,24 @@ export async function listCustomers(ctx: Ctx) {
        JOIN unit u ON u.id = b.unit_id
       ORDER BY c.created_at DESC`
   );
-  return r.rows;
+  const aliased = r.rows.map((row) => ({ ...row, phone: row.primary_phone }));
+  const masked = await maskAll(ctx, "customer_overview", aliased);
+  return masked.map((row) => ({ ...row, primary_phone: (row.phone as string | null) ?? row.primary_phone }));
 }
 
 // `ctx` optional: also called internally by mergePreview (already authorized above it).
 export async function getCustomer(id: string, ctx?: Ctx) {
-  if (ctx) await authorize(ctx, "customer_overview", "READ");
+  if (ctx) {
+    await authorize(ctx, "customer_overview", "READ");
+    await assertEntityScope(ctx, "customer", id, "read");
+  }
   const c = await db.query<CustomerRow>(`SELECT * FROM customer WHERE id = $1`, [id]);
   if (c.rows.length === 0) return null;
   const bookings = await db.query<{
     booking_id: string;
     booking_number: string;
     status: string;
-    total_consideration: number;
+    total_consideration: number | null;
     unit_number: string;
     unit_type: string;
     facing: string;
@@ -45,7 +52,25 @@ export async function getCustomer(id: string, ctx?: Ctx) {
       WHERE a.customer_id = $1`,
     [id]
   );
-  return { ...c.rows[0], bookings: bookings.rows };
+  const base = { ...c.rows[0], bookings: bookings.rows };
+  if (!ctx) return base;
+  const overview = await mask(ctx, "customer_overview", {
+    ...base,
+    phone: base.primary_phone,
+    email: base.primary_email,
+  });
+  const bookingsMasked = await Promise.all(
+    bookings.rows.map(async (b) => {
+      const m = await mask(ctx, "customer_financials", { ...b, agreement_value_inr: b.total_consideration });
+      return { ...b, total_consideration: (m.agreement_value_inr as number | null) ?? null };
+    })
+  );
+  return {
+    ...overview,
+    primary_phone: (overview.phone as string | null) ?? overview.primary_phone,
+    primary_email: (overview.email as string | null) ?? overview.primary_email,
+    bookings: bookingsMasked,
+  };
 }
 
 /** Merge preview — what a merge would change, shown before the customer confirms it. */

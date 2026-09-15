@@ -1,6 +1,7 @@
 import { db } from "../db";
 import { AppError, type Ctx } from "../authz/types";
 import { requireRole, STAFF_ROLES } from "../authz/requireRole";
+import { assertEntityScope } from "../authz/entity-scope";
 import { withTx, appendEvent, actorFields } from "../events";
 import { computeReadiness, allHardOk } from "./readiness";
 import { loadOrCreateCase, loadCaseByBooking, loadTemplate, toDbRegStatus, type RegCaseRow, type Readiness } from "./store";
@@ -87,6 +88,7 @@ async function refresh(row: RegCaseRow, ctx: Ctx, tx = db): Promise<RegCaseRow> 
 
 export async function getRegistrationCase(bookingId: string, ctx: Ctx): Promise<RegCaseRow> {
   requireRole(ctx, STAFF_ROLES);
+  await assertEntityScope(ctx, "booking", bookingId, "read");
   const row = await loadOrCreateCase(bookingId);
   return refresh(row, ctx);
 }

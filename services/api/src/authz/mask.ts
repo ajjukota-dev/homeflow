@@ -7,7 +7,7 @@ import type { Ctx } from "./types";
 // actor's level for that module — never a per-handler branch. Nested rows
 // (Emergent's `milestones`/`payments`/`events`/`schedule.milestones`,
 // emergent-business-rules.md §1.5) are masked one level deep.
-const NESTED_ARRAY_KEYS = ["milestones", "payments", "events"];
+const NESTED_ARRAY_KEYS = ["milestones", "payments", "events", "schedule", "bookings", "items"];
 
 interface SensitivityRow {
   field: string;
@@ -37,7 +37,7 @@ function maskFieldsInPlace(row: Record<string, unknown>, sensitivity: Sensitivit
     }
   }
   const schedule = row["schedule"];
-  if (schedule && typeof schedule === "object" && Array.isArray((schedule as Record<string, unknown>).milestones)) {
+  if (schedule && typeof schedule === "object" && !Array.isArray(schedule) && Array.isArray((schedule as Record<string, unknown>).milestones)) {
     const scheduleCopy = { ...(schedule as Record<string, unknown>) };
     scheduleCopy.milestones = (scheduleCopy.milestones as unknown[]).map((item) => {
       if (!item || typeof item !== "object") return item;
@@ -47,6 +47,10 @@ function maskFieldsInPlace(row: Record<string, unknown>, sensitivity: Sensitivit
     });
     row["schedule"] = scheduleCopy;
   }
+}
+
+export async function maskAll<T extends Record<string, unknown>>(ctx: Ctx, module: string, rows: T[]): Promise<T[]> {
+  return Promise.all(rows.map((row) => mask(ctx, module, row)));
 }
 
 /** Rule 6: mask financial/PII fields on `row` for `module` per the actor's effective level. */

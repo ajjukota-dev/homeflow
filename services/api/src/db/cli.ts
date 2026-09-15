@@ -1,8 +1,8 @@
-import { db } from "./index";
+import { db, runAsSystem } from "./index";
 import { migrate } from "./migrate";
 
 // `npm run migrate` — also invoked at API boot via initDb().
-migrate(db)
+runAsSystem(() => migrate(db))
   .then((applied) => {
     console.log(applied.length ? `Applied: ${applied.join(", ")}` : "No pending migrations");
     return db.close();

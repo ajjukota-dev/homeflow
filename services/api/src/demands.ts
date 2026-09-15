@@ -5,6 +5,8 @@ import { type DemandStatus } from "./collections";
 import { appendEvent, withTx, actorFields, type DbLike } from "./events";
 import { createAction } from "./actions/core";
 import { authorize } from "./authz/authorize";
+import { assertEntityScope } from "./authz/entity-scope";
+import { maskAll } from "./authz/mask";
 import type { Ctx } from "./authz/types";
 
 // Accounts money handlers — H3 demand rows, overdue reasons, PTP (accounts/spec.md).
@@ -18,7 +20,7 @@ export interface DemandRow {
   milestone_label: string;
   construction_trigger_event: string | null;
   sequence: number;
-  amount: number;
+  amount: number | null;
   remaining: number;
   due_date: string | null; // null until the construction trigger fires (H3)
   status: DemandStatus;
@@ -83,8 +85,13 @@ export async function mapDemands(sql: string, params: unknown[] = [], handle: Db
 // internal reentrant callers (t2Payments, postReceipt) skip it; their own outer
 // handler already authorized before reaching here.
 export async function listDemands(bookingId: string, handle: DbLike = db, ctx?: Ctx) {
-  if (ctx) await authorize(ctx, "collections", "READ");
-  return mapDemands(`${DEMAND_SELECT} WHERE d.booking_id = $1 ORDER BY d.sequence`, [bookingId], handle);
+  if (ctx) {
+    await authorize(ctx, "collections", "READ_STATUS_ONLY");
+    await assertEntityScope(ctx, "booking", bookingId, "read");
+  }
+  const rows = await mapDemands(`${DEMAND_SELECT} WHERE d.booking_id = $1 ORDER BY d.sequence`, [bookingId], handle);
+  if (!ctx) return rows;
+  return maskAll(ctx, "collections", rows);
 }
 
 // Rule 2 (19-collections-true-risk.md): "next_action_id always set from the reason's default."
@@ -94,6 +101,7 @@ export async function listDemands(bookingId: string, handle: DbLike = db, ctx?: 
 // (overdue_reason.next_action, unchanged, still returned separately).
 export async function setOverdueReason(demandId: string, reasonCode: string, ctx: Ctx, note?: string) {
   await authorize(ctx, "collections", "WRITE");
+  await assertEntityScope(ctx, "demand", demandId, "write");
   const reason = await db.query<{ default_action_type: string | null }>(
     `SELECT default_action_type FROM overdue_reason WHERE code = $1`,
     [reasonCode]
@@ -146,6 +154,7 @@ export async function recordPtp(
   ctx: Ctx
 ) {
   await authorize(ctx, "collections", "WRITE");
+  await assertEntityScope(ctx, "demand", demandId, "write");
   const d = (await mapDemands(`${DEMAND_SELECT} WHERE d.id = $1`, [demandId]))[0];
   if (!d) throw new Error("not_found");
   await db.query(

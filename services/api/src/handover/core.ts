@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { db } from "../db";
 import { AppError, type Ctx } from "../authz/types";
 import { requireRole, STAFF_ROLES } from "../authz/requireRole";
+import { assertEntityScope } from "../authz/entity-scope";
 import { withTx, appendEvent, actorFields } from "../events";
 import { createAction } from "../actions/core";
 import { onHandoverCompleted } from "../warranty";
@@ -72,6 +73,7 @@ async function buildHandoverView(bookingId: string): Promise<HandoverView> {
 
 export async function getHandoverCase(bookingId: string, ctx: Ctx): Promise<HandoverView> {
   requireRole(ctx, STAFF_ROLES);
+  await assertEntityScope(ctx, "booking", bookingId, "read");
   return buildHandoverView(bookingId);
 }
 

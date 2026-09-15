@@ -4,6 +4,8 @@ import { t2Payments } from "./collections-view";
 import { t4Passport, t5Legal, t6Keys } from "./transparency";
 import { handoverForBooking } from "./qa";
 import { authorize } from "./authz/authorize";
+import { assertEntityScope } from "./authz/entity-scope";
+import { mask } from "./authz/mask";
 import type { Ctx } from "./authz/types";
 
 // My Pranava Home (customer) projection — the H10-filtered, approved view.
@@ -48,6 +50,12 @@ function friendlyWindow(state: string): string {
 // all READ+ per seed/permissions.ts; SITE/FM/QA are NONE and can't preview it).
 export async function getCustomerHome(bookingId: string, ctx: Ctx) {
   await authorize(ctx, "customer_journey", "READ");
+  if (ctx.actor.kind === "CUSTOMER") {
+    const own = await bookingForCustomerUser(ctx.actor.user_id);
+    if (own !== bookingId) return null;
+  } else {
+    await assertEntityScope(ctx, "booking", bookingId, "read");
+  }
   const b = await db.query<{
     unit_id: string;
     status: string;
@@ -102,7 +110,7 @@ export async function getCustomerHome(bookingId: string, ctx: Ctx) {
   const ho = await handoverForBooking(bookingId);
   const keys = await t6Keys(bookingId, ho.eligible, ho.lifecycle === "completed", progress);
 
-  return {
+  const home = {
     customer_name: bk.customer_name,
     project_name: bk.project_name,
     unit_number: bk.unit_number,
@@ -122,6 +130,12 @@ export async function getCustomerHome(bookingId: string, ctx: Ctx) {
     legal,
     keys,
   };
+  if (ctx.actor.kind === "CUSTOMER") return home;
+  const masked = await mask(ctx, "customer_financials", {
+    ...home,
+    agreement_value_inr: home.total_consideration,
+  });
+  return { ...masked, total_consideration: masked.agreement_value_inr ?? masked.total_consideration };
 }
 
 /** The active customer's booking (helper so the portal can resolve "me"). */

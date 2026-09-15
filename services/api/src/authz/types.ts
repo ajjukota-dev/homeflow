@@ -6,6 +6,8 @@ export interface Actor {
   roles: string[];
   project_ids: string[] | "ALL";
   default_project_id: string | null;
+  /** Set for CUSTOMER-kind actors from customer_login; drives app.customer_id. */
+  customer_id?: string | null;
 }
 
 // Handlers are Express-free: (input, ctx) => result. Ports beyond `actor` (db,

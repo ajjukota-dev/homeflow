@@ -4,6 +4,7 @@
 // re-evaluation, readiness recompute, action creation) belong to specs 05/07/08/10, not yet
 // merged in this worktree. The mechanism itself is built and tested (subscribers.test.ts).
 import { db } from "../db";
+import { runAsSystem } from "../db/rls-context";
 import type { AppendedEvent } from "./append";
 
 export type EventHandler = (event: AppendedEvent) => Promise<void> | void;
@@ -28,15 +29,17 @@ export function clearSubscribers(): void {
 }
 
 export async function dispatchAll(events: AppendedEvent[]): Promise<void> {
-  for (const event of events) {
-    for (const reg of subscribers.get(event.type) ?? []) {
-      try {
-        await reg.handler(event);
-      } catch (err) {
-        await recordDeliveryFailure(event, reg.name, err);
+  await runAsSystem(async () => {
+    for (const event of events) {
+      for (const reg of subscribers.get(event.type) ?? []) {
+        try {
+          await reg.handler(event);
+        } catch (err) {
+          await recordDeliveryFailure(event, reg.name, err);
+        }
       }
     }
-  }
+  });
 }
 
 async function recordDeliveryFailure(event: AppendedEvent, subscriberName: string, err: unknown): Promise<void> {

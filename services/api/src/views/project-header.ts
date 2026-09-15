@@ -4,6 +4,7 @@
 
 import { db } from "../db";
 import { requireRole, STAFF_ROLES, FORECAST_READ_ROLES } from "../authz/requireRole";
+import { assertEntityScope } from "../authz/entity-scope";
 import { AppError, type Ctx } from "../authz/types";
 import { projectCollections } from "../collections-view";
 import { listEscalations } from "../escalations/core";
@@ -33,6 +34,7 @@ export interface ProjectHeaderView {
  *  own comment) — returned as a named gap, not guessed. */
 export async function getProjectHeader(projectId: string, ctx: Ctx): Promise<ProjectHeaderView> {
   requireRole(ctx, STAFF_ROLES);
+  await assertEntityScope(ctx, "project", projectId, "read");
   const project = await db.query<{ code: string; name: string }>(`SELECT code, name FROM project WHERE id = $1`, [projectId]);
   if (!project.rows[0]) throw new AppError("not_found", "not_found");
 

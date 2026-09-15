@@ -3,6 +3,7 @@ import { db } from "../db";
 import { appendEvent, withTx, actorFields, type DbLike } from "../events";
 import { authorize } from "../authz/authorize";
 import { requireRole, STAFF_ROLES } from "../authz/requireRole";
+import { assertEntityScope } from "../authz/entity-scope";
 import { AppError, type Ctx } from "../authz/types";
 import { progressAtLeast, type ProgressState } from "../gates";
 import { createAction } from "../actions/core";
@@ -155,6 +156,7 @@ export async function updateProgress(
   opts: { source?: ProgressSource; tx?: DbLike } = {}
 ): Promise<UnitProgressView> {
   await assertProgressWriter(ctx);
+  await assertEntityScope(ctx, "unit", unitId, "write");
   await withTx(opts.tx, (tx) => applyChange(tx, unitId, componentCode, input, opts.source ?? "SITE_ENTRY", ctx));
   await raiseDemandsForUnit(unitId, ctx);
   return getUnitProgress(unitId);

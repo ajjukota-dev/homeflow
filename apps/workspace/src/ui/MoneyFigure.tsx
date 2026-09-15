@@ -3,7 +3,8 @@ import { cn } from "../lib/utils";
 type Risk = "none" | "due" | "overdue";
 
 /** INR money in tabular mono with lakh/crore grouping, optionally risk-tinted. */
-export function MoneyFigure({ amount, risk = "none" }: { amount: number; risk?: Risk }) {
+export function MoneyFigure({ amount, risk = "none" }: { amount: number | null; risk?: Risk }) {
+  if (amount == null) return <span className="text-fg-muted">—</span>;
   return (
     <span
       className={cn(
@@ -17,8 +18,9 @@ export function MoneyFigure({ amount, risk = "none" }: { amount: number; risk?: 
   );
 }
 
-/** Indian grouping: ₹12,34,567. */
-export function formatINR(n: number): string {
+/** Indian grouping: ₹12,34,567. Null from field masking renders as an em dash. */
+export function formatINR(n: number | null | undefined): string {
+  if (n == null || Number.isNaN(n)) return "—";
   const s = Math.round(n).toString();
   const last3 = s.slice(-3);
   const rest = s.slice(0, -3);

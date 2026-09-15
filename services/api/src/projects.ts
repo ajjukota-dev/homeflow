@@ -5,6 +5,7 @@ import { withTx, actorFields, type DbLike } from "./events";
 import { defaultPortfolioId } from "./model/projects";
 import { defaultHierarchyNodeId, insertUnit, type UnitInput } from "./model/units";
 import { requireRole, SITE_SETUP_ROLES, STAFF_ROLES } from "./authz/requireRole";
+import { assertEntityScope } from "./authz/entity-scope";
 import type { Ctx } from "./authz/types";
 
 // Project/Site master-data creation. Project owns unit creation (data-model.md §2).
@@ -42,6 +43,7 @@ export async function createUnit(
   tx?: DbLike
 ) {
   requireRole(ctx, SITE_SETUP_ROLES);
+  await assertEntityScope(ctx, "project", projectId, "write");
   const p = await db.query(`SELECT id FROM project WHERE id = $1`, [projectId]);
   if (p.rows.length === 0) throw new Error("project_not_found");
 
