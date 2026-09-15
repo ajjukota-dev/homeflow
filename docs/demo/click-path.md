@@ -23,6 +23,8 @@ Email/password, one seeded staff user per PDF §13 role plus one customer login,
 | Customer (portal) | `karthik@demo.pranava` | Their booking (BK-V110, Karthik Iyer, East Crest) |
 | Customer (portal) | `meera@demo.pranava` | Their booking (BK-V111, Meera Krishnan, East Crest) |
 | Customer (portal) | `rohan@demo.pranava` | Their booking (BK-V113, Rohan Desai, East Crest) |
+| Customer (portal) | `nisha@demo.pranava` | Their booking (BK-MT201, Nisha Verma, Meadows apartment) |
+| Customer (portal) | `suresh@demo.pranava` | Their booking (BK-MP01, Suresh Naik, Meadows plot) |
 
 Forgot password → `/reset/:token` (1h link, emailed via the file-mailer adapter locally). Staff/customer invites → `/invite/:token` (72h link) — Admin → Users → Invite user.
 
@@ -38,6 +40,20 @@ Created by the same handlers the UI uses (`createBooking` → `submitHandover` �
 | POST_HANDOVER (keys, DLP, passport, 7/30/90 check-ins) | Rohan Desai | V113 | BK-V113 | `rohan@demo.pranava` | yes |
 
 Staff proof login: `crm@demo.pranava` / `Demo@2026` on workspace `:5173` — open V110–V113; Journey tab is not empty.
+
+## Occupant roster (Phase 2)
+
+Same handler pattern as Phase 1. Password for every portal login: `Demo@2026`. Do not book V101 / V104 / V108 (test spare pool).
+
+| Desk / state | Person | Unit | booking_number | Portal login | Done |
+|---|---|---|---|---|---|
+| Packets — submitted, not CRM-accepted (no journey) | Aditi Bansal | MV-01 | BK-MV01 | none | yes |
+| Packets — returned, resubmittable | Harish Patel | MV-02 | BK-MV02 | none | yes |
+| Customisation — CR AWAITING_CUSTOMER + Meadows apartment (accepted, journey) | Nisha Verma | MT1-201 | BK-MT201 | `nisha@demo.pranava` | yes |
+| Meadows plot (accepted, journey) | Suresh Naik | MP-01 | BK-MP01 | `suresh@demo.pranava` | yes |
+| Sales — prospect + APPROVED kitchen_layout hold on V101 | Tanvi Joshi | interest in V101 (not booked) | n/a | n/a | yes |
+
+Staff proof: `crm@` Packets lists Aditi BK-MV01 + Harish BK-MV02 (plus Phase 1). `sales@` Sales Desk → Prospects (Tanvi Joshi) and Holds (V101 kitchen_layout APPROVED until a future date). `customisation@` is East Crest–assigned, so that desk is empty until the project is Meadows — `superadmin@` → switch to Pranava Meadows → Customisation Desk shows CR-000001 Kitchen island (MT1-201 / BK-MT201, AWAITING_CUSTOMER); Site → View 360 on MT1-201 (APARTMENT, BK-MT201) and MP-01 (PLOT, BK-MP01). Portal `:5174` nisha@ / suresh@ / `Demo@2026`.
 
 ## Walkthrough
 _Nothing on the URL yet._

@@ -3,9 +3,11 @@ import { completePt1T1T2, completeThroughT11, completeThroughT13 } from "./occup
 import { seedAnanyaMoney, seedKarthikMoney, seedMeeraMoney, seedRohanMoney } from "./occupants-money";
 import { executeAos, handOverBooking, registerBooking, seedRohanAfterCare } from "./occupants-papers";
 import { ANANYA, KARTHIK, MEERA, ROHAN } from "./occupants-ctx";
+import { seedOccupantsPhase2 } from "./occupants-phase2";
 import { seedCustomerLogins } from "./users";
 
 // Phase 1: four East Crest families through the same handlers the UI uses.
+// Phase 2: packets, Meadows bookings, customisation CR, sales prospect/hold — after Phase 1.
 
 export async function seedOccupantsViaHandlers(): Promise<void> {
   await bookAndAccept(KARTHIK);
@@ -31,5 +33,6 @@ export async function seedOccupantsViaHandlers(): Promise<void> {
   await handOverBooking(ROHAN.booking_id);
   await seedRohanAfterCare();
 
+  await seedOccupantsPhase2();
   await seedCustomerLogins();
 }

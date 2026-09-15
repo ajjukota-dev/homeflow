@@ -38,6 +38,8 @@ export const banking = staff("banking", ["BANKING"]);
 export const qa = staff("qa", ["QA"]);
 export const fm = staff("fm", ["FM"]);
 export const registration = staff("registration", ["REGISTRATION"]);
+export const site = staff("site", ["SITE"]);
+export const customisation = staff("customisation", ["CUSTOMISATION"]);
 export const sa = staff("superadmin", ["SUPER_ADMIN"]);
 
 export interface OccupantSpec {

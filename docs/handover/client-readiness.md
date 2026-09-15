@@ -7,9 +7,9 @@ Shareable copy of the client-readiness canvas (2026-09-15).
 | | |
 |---|---|
 | Ready to hand over | **No** |
-| Seeded families | 4 — journeys instantiate (Karthik / Meera / Ananya / Rohan) |
+| Seeded families | 6 accepted (4 East Crest + Nisha apartment + Suresh plot); plus Aditi submitted + Harish returned packets |
 | RLS on the live request path | Off |
-| Customer portal logins | 4 (`customer@` `karthik@` `meera@` `rohan@`) |
+| Customer portal logins | 6 (`customer@` `karthik@` `meera@` `rohan@` `nisha@` `suresh@`) |
 
 Source: PDF §§24–27, §31.5, §32.11, §33.6, §34.7, Appendix A · main as of 2026-09-15.
 
@@ -52,12 +52,14 @@ Cut seed off raw `INSERT INTO booking` / demand / handover / AOS. Recreate the f
 
 One named occupant per PDF §34.2 state (and the extras). Same story on staff 360 and that customer’s portal. Go down the list; do not start a new occupant at end of Day 2. Standing rule **2.14:** every accepted booking added here gets a portal login, not only the Day 1 four.
 
+**Day 2 (2.1–2.5 + 2.14) closed 2026-09-15.** Leftover 2.6–2.16 is still required for handover.
+
 | Stage | Who / unit today | What is wrong today | Build this | Phase |
 |---|---|---|---|---|
-| 0 Pre-sale | V101 / V108 / V104 unsold | No named prospect. Cannot prove match or hold. | Named prospect + OPEN kitchen vs HARD_CLOSED on two villas | 2.4 |
-| 0 Hold | Missing | Nothing expires on a clock. | Time-boxed Change Window Hold that auto-expires | 2.4 |
-| 1 Packet submitted | Missing | Handover Packets queue has no live row. | Packet submitted, not CRM-accepted | 2.1 |
-| 1 Packet returned | Missing | Return path unproven. | Returned to Sales with reason + resubmit | 2.2 |
+| 0 Pre-sale | Tanvi Joshi · V101 hold, V104 gates differ | Hold expiry does not fire until Phase 3 scheduler | Keep; scheduler is 3.1 | 2.4 |
+| 0 Hold | Tanvi / V101 kitchen_layout APPROVED until ~+7d | Nothing expires on a clock yet | Time-boxed hold row exists; auto-expire is Phase 3 | 2.4 |
+| 1 Packet submitted | Aditi Bansal MV-01 BK-MV01 | Done (not CRM-accepted, no journey) | Keep | 2.1 |
+| 1 Packet returned | Harish Patel MV-02 BK-MV02 | Done (MISSING_DOCUMENTS + note; resubmit path exists) | Keep | 2.2 |
 | 2 Funding — loan | Meera V111 | Journey on funding/loan (Phase 1 done) | Keep her on funding/loan | 1c |
 | 2 Funding — NRI + loan | Missing | Conditional NRI task never appears. | NRI + DOCS_PENDING loan occupant | 2.9 |
 | 3 Agreement | Karthik AOS already executed | No draft-not-executed factory occupant. | AOS draft, watermark, locked clauses not silently edited | 2.6 |
@@ -68,11 +70,11 @@ One named occupant per PDF §34.2 state (and the extras). Same story on staff 36
 | 8 Pre-handover | Ananya V112 | Journey pre-handover; portal works (Phase 1 done). Hard-gate occupant still thin. | Separate occupant blocked on CRITICAL snag; hard gate cannot skip | 1d + 2.15 |
 | 9 Handover in progress | Missing (Rohan is finished) | Cannot show appointment/checklist/signature in flight. | Appointment + checklist + real signature file, not Rohan | 2.8 |
 | 10 Post-handover | Rohan V113 | Portal + passport/warranty/check-ins (Phase 1 done) | Keep; do not reuse as the in-progress handover (2.8) | 1e + 1f |
-| CR in flight | Zero change requests in seed | Customisation desk empty; portal raise-CR unproven. | One live CR (Awaiting Customer or Released) + payment before site release | 2.3 |
+| CR in flight | Nisha Verma BK-MT201 Kitchen island AWAITING_CUSTOMER | Visible on Meadows Customisation Desk (`superadmin@`); `customisation@` East Crest default is empty | Keep; payment gate proven unpaid | 2.3 |
 | Cancel / transfer | Missing | Cannot prove unit history survives a closed booking. | Closed booking; unit 360 history intact | 2.11 |
-| Meadows apt + plot | MV / MP / MT units only | Product types look unused. Villa-only East Crest in practice. | One apartment booking + one plot booking via handlers | 2.5 |
+| Meadows apt + plot | Nisha MT1-201 APARTMENT · Suresh MP-01 PLOT | Done via handlers + journeys | Keep | 2.5 |
 | Plan vs forecast vs actual | Thin / often zero | PDF §34.7 t3–t4 fails if every journey shows variance 0. | Non-zero variance on at least two occupants | 2.12 |
-| Portal on every accepted Phase 2 booking | Only the Day 1 four have logins | Meadows / NRI / AOS / other accepted bookings cannot open the portal. | Same password convention, new people — standing rule for the rest of Phase 2 | 2.14 |
+| Portal on every accepted Phase 2 booking | nisha@ · suresh@ (Day 2 accepted) | Leftover occupants (2.6–2.16) still need logins when added | Standing rule for the rest of Phase 2 | 2.14 |
 
 ### 3. Exam week — You (Phase 3 only)
 

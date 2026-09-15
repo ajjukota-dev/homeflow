@@ -29,11 +29,13 @@ const STAFF: { slug: string; role: string; name: string; department: string | nu
   { slug: "superadmin", role: "SUPER_ADMIN", name: "Amarsh (Super Admin)", department: null },
 ];
 
-const PORTALS: { userId: string; email: string; name: string; customerId: string; bookingId: string }[] = [
+const PORTALS: { userId: string; email: string; name: string; customerId: string; bookingId: string; projectId?: string }[] = [
   { userId: "user_customer_demo", email: "customer@demo.pranava", name: "Ananya Rao", customerId: "c_ananya", bookingId: "b_v112" },
   { userId: "user_karthik", email: "karthik@demo.pranava", name: "Karthik Iyer", customerId: "c_karthik", bookingId: "b_v110" },
   { userId: "user_meera", email: "meera@demo.pranava", name: "Meera Krishnan", customerId: "c_meera", bookingId: "b_v111" },
   { userId: "user_rohan", email: "rohan@demo.pranava", name: "Rohan Desai", customerId: "c_rohan", bookingId: "b_v113" },
+  { userId: "user_nisha", email: "nisha@demo.pranava", name: "Nisha Verma", customerId: "c_nisha", bookingId: "b_mt201", projectId: "p_meadows" },
+  { userId: "user_suresh", email: "suresh@demo.pranava", name: "Suresh Naik", customerId: "c_suresh", bookingId: "b_mp01", projectId: "p_meadows" },
 ];
 
 async function ensureTeam(department: string): Promise<string> {
@@ -75,15 +77,13 @@ export async function seedStaffUsers(): Promise<void> {
 }
 
 export async function seedCustomerLogins(): Promise<void> {
-  const already = await query<{ n: number }>(`SELECT count(*)::int AS n FROM customer_login`);
-  if ((already.rows[0]?.n ?? 0) >= 4) return;
   const passwordHash = await demoPasswordHash();
   for (const p of PORTALS) {
     const exists = await query<{ id: string }>(`SELECT id FROM "user" WHERE id = $1`, [p.userId]);
     if (!exists.rows[0]) {
       await query(
         `INSERT INTO "user" (id, email, display_name, password_hash, status, kind, default_project_id) VALUES ($1,$2,$3,$4,'ACTIVE','CUSTOMER',$5)`,
-        [p.userId, p.email, p.name, passwordHash, PROJECT_ID]
+        [p.userId, p.email, p.name, passwordHash, p.projectId ?? PROJECT_ID]
       );
       await query(`INSERT INTO user_role (user_id, role_code) VALUES ($1,'CUSTOMER')`, [p.userId]);
     }

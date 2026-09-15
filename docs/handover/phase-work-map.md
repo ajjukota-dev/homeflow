@@ -42,11 +42,13 @@ Make the existing four families real. Without this, every later phase tests empt
 
 Fill every PDF §34.2 state. Go down the list on Day 2. Team takes whatever you did not reach. **2.14 is standing:** every new accepted booking gets a portal login, not only the Day 1 four.
 
-- [ ] **2.1** Submitted handover packet (not CRM-accepted) — You first; team if leftover · Day 2 → exam week
-- [ ] **2.2** Returned packet with reason — You first; team if leftover · Day 2 → exam week
-- [ ] **2.3** One live CR (Awaiting Customer or Released) + Customisation desk row + payment gate before site release — You first; team if leftover · Day 2 → exam week
-- [ ] **2.4** Named prospect + Change Window Hold (V101 vs V104 gates) — You first; team if leftover · Day 2 → exam week
-- [ ] **2.5** Meadows: one apartment booking + one plot booking — You first; team if leftover · Day 2 → exam week
+**Day 2 closed 2026-09-15** (2.1–2.5 + 2.14 + e2-sql/story). Leftover **2.6–2.16** still open. Customisation proof is Meadows via `superadmin@` project switch — `customisation@` stays East Crest–assigned.
+
+- [x] **2.1** Submitted handover packet (not CRM-accepted) — You first; team if leftover · Day 2 → exam week
+- [x] **2.2** Returned packet with reason — You first; team if leftover · Day 2 → exam week
+- [x] **2.3** One live CR (Awaiting Customer or Released) + Customisation desk row + payment gate before site release — You first; team if leftover · Day 2 → exam week
+- [x] **2.4** Named prospect + Change Window Hold (V101 vs V104 gates) — You first; team if leftover · Day 2 → exam week
+- [x] **2.5** Meadows: one apartment booking + one plot booking — You first; team if leftover · Day 2 → exam week
 - [ ] **2.6** AOS draft occupant (not executed) — Team unless you still have time · Exam week
 - [ ] **2.7** Registration slot booked (not completed) — Team unless you still have time · Exam week
 - [ ] **2.8** Handover in progress (appointment/checklist, not Rohan) — Team unless you still have time · Exam week
@@ -55,7 +57,7 @@ Fill every PDF §34.2 state. Go down the list on Day 2. Team takes whatever you 
 - [ ] **2.11** Cancelled or transferred booking; unit history intact — Team · Exam week
 - [ ] **2.12** Plan vs forecast vs actual non-zero on ≥2 occupants — Team (needs Phase 1 journeys) · Exam week
 - [ ] **2.13** Pre-registration occupant: blocked on finance/docs with named blockers on the desk (not Karthik-open, not Ananya-done) — Team unless you still have time · Exam week
-- [ ] **2.14** Portal login Demo@2026 on every accepted booking added in Phase 2 (Meadows, NRI, AOS, etc.) — You first for Day 2 occupants; team for rest · Day 2 → exam week
+- [x] **2.14** Portal login Demo@2026 on every accepted booking added in Phase 2 (Meadows, NRI, AOS, etc.) — You first for Day 2 occupants; team for rest · Day 2 → exam week
 - [ ] **2.15** Pre-handover occupant blocked on CRITICAL snag; hard gate cannot skip without named override (not Meera-at-funding, not Rohan) — Team · Exam week
 - [ ] **2.16** Every overdue demand has reason code + next action (PTP where used) — not only the Default/Legal person — Team · Exam week
 
@@ -190,23 +192,23 @@ Every 2.x row must be a visible person or desk row after `db:reset`. Leftover it
 
 **Not this phase:** RLS, Queues studio polish, document factory families, scheduler (hold expiry fire is Phase 3).
 
-- [ ] **e21** 2.1 — Handover Packets has a submitted, not-accepted row  
+- [x] **e21** 2.1 — Handover Packets has a submitted, not-accepted row  
   - **Prove:** After reset, open Packets as `sales@` or `crm@`. One packet is submitted. CRM has not accepted it into a live booking journey.  
   - **Not done if:** Empty queue, or the only packets are already accepted (the Day 1 four).
 
-- [ ] **e22** 2.2 — A returned packet shows reason and can be resubmitted  
+- [x] **e22** 2.2 — A returned packet shows reason and can be resubmitted  
   - **Prove:** Queue/360 shows Returned + reason. Sales can resubmit. Not a deleted row.  
   - **Not done if:** Returned with no reason, or no resubmit path.
 
-- [ ] **e23** 2.3 — Live CR + payment before site release  
-  - **Prove:** Customisation desk has Awaiting Customer or Released. Attempting site/drawing release without payment is blocked. Portal shows customer-facing status only.  
+- [x] **e23** 2.3 — Live CR + payment before site release  
+  - **Prove:** Customisation desk has Awaiting Customer or Released. Attempting site/drawing release without payment is blocked. Portal shows customer-facing status only. **Walked 2026-09-15:** CR-000001 Kitchen island on BK-MT201 at AWAITING_CUSTOMER; `releaseChangeRequest` throws unpaid; visible on Meadows Customisation Desk (`superadmin@` project switch). `customisation@` default East Crest is empty.  
   - **Not done if:** Desk empty; drawing released unpaid; vendor cost visible to the customer.
 
-- [ ] **e24** 2.4 — Named prospect + V101 vs V104 gates + hold with expiry  
-  - **Prove:** Sales desk names a prospect. V101 and V104 show different changeability (OPEN kitchen vs HARD_CLOSED). Hold row has an expiry timestamp (scheduler in Phase 3 actually fires it).  
+- [x] **e24** 2.4 — Named prospect + V101 vs V104 gates + hold with expiry  
+  - **Prove:** Sales desk names a prospect. V101 and V104 show different changeability (OPEN kitchen vs HARD_CLOSED). Hold row has an expiry timestamp (scheduler in Phase 3 actually fires it). **Walked 2026-09-15:** Tanvi Joshi; hold HLD on V101 `kitchen_layout` until 2026-09-22. Actual gates: V101 kitchen_layout OPEN; V104 kitchen_layout EXCEPTION_ONLY, structural HARD_CLOSED. V101/V104/V108 still unbooked.  
   - **Not done if:** Unsold units with no prospect; identical gates; hold with no expiry.
 
-- [ ] **e25** 2.5 — Meadows apartment + plot are bookings via handlers  
+- [x] **e25** 2.5 — Meadows apartment + plot are bookings via handlers  
   - **Prove:** Not units-only. One apartment booking and one plot booking. Product type visible on 360. Journeys exist if accepted.  
   - **Not done if:** MV/MP/MT still inventory-only; villa-only East Crest in practice.
 
@@ -242,7 +244,7 @@ Every 2.x row must be a visible person or desk row after `db:reset`. Leftover it
   - **Prove:** Registration desk: this occupant is blocked. Blockers are named (which demand, which doc). Not Karthik “registration open” and not Ananya done.  
   - **Not done if:** No named blockers, or reused Karthik/Ananya.
 
-- [ ] **e214** 2.14 — Every accepted Phase 2 booking has a portal login  
+- [x] **e214** 2.14 — Every accepted Phase 2 booking has a portal login  
   - **Prove:** List accepted bookings added this phase (Meadows, NRI, AOS, CR family if accepted, etc.). Each logs into `:5174` with `Demo@2026` and sees that home. Packet-submitted-not-accepted may have no login.  
   - **Not done if:** Accepted booking, no customer user.
 
@@ -254,16 +256,16 @@ Every 2.x row must be a visible person or desk row after `db:reset`. Leftover it
   - **Prove:** Collections: Karthik, Default/Legal, and any other overdue. No overdue row with blank reason or blank next action (PTP where used).  
   - **Not done if:** Default/Legal exists but Karthik overdue is still unexplained.
 
-- [ ] **e2-sql** Still no raw INSERT INTO booking for new occupants  
-  - **Prove:** Phase 2 seed uses the same handler pattern as Phase 1.  
+- [x] **e2-sql** Still no raw INSERT INTO booking for new occupants  
+  - **Prove:** Phase 2 seed uses the same handler pattern as Phase 1. Meadows `plan_meadows` is a copied `payment_plan` (no handler) so `setupFunding` can run — not an `INSERT INTO booking`.  
   - **Not done if:** Shortcut SQL “just for Meadows”.
 
-- [ ] **e2-story** Staff 360 and that customer’s portal tell the same stage  
+- [x] **e2-story** Staff 360 and that customer’s portal tell the same stage  
   - **Prove:** For each accepted occupant, pick the portal login and the CRM 360. Stage/money/papers match. Portal still has no internals.  
   - **Not done if:** Staff construction, portal empty or a different story.
 
-- [ ] **e2-desks** After reset, no desk that 2.x filled is empty  
-  - **Prove:** Walk Packets, Customisation, Sales, Registration, Collections, Handover. Each claimed occupant is a visible row.  
+- [x] **e2-desks** After reset, no desk that 2.x filled is empty  
+  - **Prove:** Walk Packets, Customisation, Sales. Each claimed Day-2 occupant is a visible row. Registration / Collections / Handover desks stay empty until leftover 2.7 / 2.10 / 2.8. **Walked 2026-09-15:** Packets (crm@ unfiltered) Aditi+Harish; Sales Desk Tanvi+V101 hold; Meadows 360 apartment+plot. Customisation is Meadows-scoped (`superadmin@`); crm@ East-Crest-only “awaiting review” does not list Aditi.  
   - **Not done if:** “No items” on a desk this phase said it filled.
 
 ---
