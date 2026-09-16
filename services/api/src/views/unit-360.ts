@@ -5,7 +5,7 @@ import { db } from "../db";
 import { requireRole, STAFF_ROLES } from "../authz/requireRole";
 import { assertEntityScope } from "../authz/entity-scope";
 import { AppError, type Ctx } from "../authz/types";
-import { computeUnitReadiness } from "../scores/unit-readiness";
+import { explainUnitReadiness } from "../scores/unit-readiness";
 import { getUnitChangeability } from "../changeability/core";
 import { tab, notYetAvailable, type TabManifestEntry } from "./tabs";
 
@@ -49,7 +49,7 @@ export interface Unit360View {
   areas: { carpet_sqft: number | null; built_up_sqft: number | null; saleable_sqft: number | null; plot_sqyd: number | null };
   base_price_inr: number | null;
   current_booking: { id: string; booking_number: string; status: string } | null;
-  readiness: Awaited<ReturnType<typeof computeUnitReadiness>>;
+  readiness: Awaited<ReturnType<typeof explainUnitReadiness>>;
   flexibility: Awaited<ReturnType<typeof getUnitChangeability>>["flexibility"];
   tabs: TabManifestEntry[];
 }
@@ -78,7 +78,7 @@ export async function getUnit360(unitId: string, ctx: Ctx): Promise<Unit360View>
   );
   const [hierarchy_path, readiness, changeability] = await Promise.all([
     hierarchyPath(row.project_id, row.hierarchy_node_id),
-    computeUnitReadiness(unitId),
+    explainUnitReadiness(unitId),
     getUnitChangeability(unitId, ctx),
   ]);
 

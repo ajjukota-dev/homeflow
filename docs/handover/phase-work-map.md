@@ -4,18 +4,13 @@ Shareable copy of the phase-work-map canvas (2026-09-15). A work tick without an
 
 Companion: [client-readiness.md](./client-readiness.md) (the handover bar).
 
-## Status — 2026-09-15
+## Status — 2026-09-16
 
-**Done.** Phases 1, 2 (including 2.12), 3, and 4 (including 4.1b / 4.2b / 4.4–4.10). Every work box and every Phase 1–4 **exit** box below is `[x]`.
-
-**Left — Phase 5 only, after exams.** Boxes still `[ ]`:
-
-- Work: **5.1–5.6**
-- Exit: **e51–e56**, **e5-rls** (4.1 on main), **e5-gates**, **e5-out**
+**Done.** Phases 1–4 (including 2.12 and 4.1b / 4.2b / 4.4–4.10) and **Phase 5 prove-and-handover** on this laptop (PGlite + Postgres 16 runbook). Work **5.1–5.6** and exits **e51–e56**, **e5-rls**, **e5-gates**, **e5-out** are `[x]` after reset + suites.
 
 **Not an open phase ID** (do not reopen 2.12 or 4.x for these):
 
-- Phase 4 rest code is **uncommitted** — `e5-rls` stays open until that land is on `main`
+- Phase 4 rest is on `main`. `e5-rls` is proven: `wrapWithRls` + `0047` + pg pin still on the request path; `rls-request.test.ts` green in the Phase 5 full vitest run.
 - After `createPlanRevision`, **forecast still equals baseline** (no forecast-revision handler). Plan ≠ baseline is proven on BK-V110 and BK-MT201
 - Live `.data/pglite` needs stop API → `npm run db:reset` → restart to show 2.12 dates / Ishaan file signatures
 - Queues still show raw `user_*` owner ids (friendly-label gap, not a 4.4 fail)
@@ -29,7 +24,7 @@ Companion: [client-readiness.md](./client-readiness.md) (the handover bar).
 | Phase 2 occupant coverage (2.1–2.16, including 2.12) | You Day 2, team leftover | **Closed** 2026-09-15 |
 | Phase 3 scheduler / quiet hours / PR review | You · exam week | **Closed** 2026-09-15 (3.3 still daily) |
 | Phase 4 RLS + product holes (4.1–4.10, 4.1b, 4.2b) | Team · exam week | **Closed** 2026-09-15 |
-| Phase 5 prove and hand over | You · after exams | **Open** — the only remaining work |
+| Phase 5 prove and hand over | You · after exams | **Closed** 2026-09-16 (local-first; runbook, not AWS) |
 
 A work tick without an exit tick is not done. Prove Phase 5 on a **fresh reset**: stop the API first, then `npm run db:reset` in `services/api`. Never prove on a dirty DB.
 
@@ -108,16 +103,16 @@ All 4.1–4.10 done, including leftovers 4.1b and 4.2b. Next is Phase 5 after ex
 
 
 
-### Phase 5 — Prove and hand over · You after exams — **open (only remaining work)**
+### Phase 5 — Prove and hand over · You after exams — **closed 2026-09-16** (local-first)
 
-Team may draft tests during the week. You run the gate when you are back. Do not start this in exam week unless asked.
+Proved on a fresh `db:reset`. Operator pack: `HANDOFF.md` + `docs/demo/click-path.md`. Runbook: `docs/handover/local-postgres.md`. No AWS spend.
 
-- [ ] **5.1** Occupant-state unit tests (one per PDF stage) covering §26 / §31.5 / §32.11 / §33.6 / §34.7, Sales-cannot-edit-Site, two projects with different durations — Team drafts; you confirm · Exam week → after exams
-- [ ] **5.2** Playwright: sale-to-handover + portal Ananya and Rohan — Team drafts; you confirm · Exam week → after exams
-- [ ] **5.3** Fresh db:reset, full suite, click-path walk as staff + two customers — You · After exams
-- [ ] **5.4** HANDOFF.md + click-path = operator pack — You · After exams
-- [ ] **5.5** Deploy current main only if leads approve AWS spend; else local-first runbook — You + leads · After exams
-- [ ] **5.6** Invite a new staff user end-to-end (email/password); they land in My Day — You · After exams
+- [x] **5.1** Occupant-state unit tests (one per PDF stage) covering §26 / §31.5 / §32.11 / §33.6 / §34.7, Sales-cannot-edit-Site, two projects with different durations — Team drafts; you confirm · Exam week → after exams
+- [x] **5.2** Playwright: sale-to-handover + portal Ananya and Rohan — Team drafts; you confirm · Exam week → after exams
+- [x] **5.3** Fresh db:reset, full suite, click-path walk as staff + two customers — You · After exams
+- [x] **5.4** HANDOFF.md + click-path = operator pack — You · After exams
+- [x] **5.5** Deploy current main only if leads approve AWS spend; else local-first runbook — You + leads · After exams
+- [x] **5.6** Invite a new staff user end-to-end (email/password); they land in My Day — You · After exams
 
 
 
@@ -398,45 +393,45 @@ Do not hand over if 4.1 is unmerged. Start RLS immediately; it must not touch se
 
 
 
-### Phase 5 exit — Prove and hand over — **open (only remaining work)**
+### Phase 5 exit — Prove and hand over — **closed 2026-09-16** (local-first)
 
 You run this gate. Team may draft tests. Claiming green without reading output fails the phase.
 
 **Not this phase:** New occupants, new engines, §27 extras.
 
-- [ ] **e51** 5.1 — Occupant-state tests vs the seeded people, not empty fixtures  
+- [x] **e51** 5.1 — Occupant-state tests vs the seeded people, not empty fixtures  
   - **Prove:** One automated test per seeded PDF stage. Named coverage for §26, §31.5, §32.11, §33.6, §34.7. Sales user cannot PATCH site gates. Two projects, different durations, same code — all passing.  
   - **Not done if:** Tests pass on fixtures that are not the roster.
 
-- [ ] **e52** 5.2 — Playwright sale-to-handover + Ananya portal + Rohan portal  
+- [x] **e52** 5.2 — Playwright sale-to-handover + Ananya portal + Rohan portal  
   - **Prove:** Specs run. Screenshots at 1440 / 768 / 375 reviewed (look professional, design tokens, no console errors). Locators on main; `exact: true` on short verbs.  
   - **Not done if:** Unreviewed screenshots, or tests that pass by clicking the wrong Save.
 
-- [ ] **e53** 5.3 — You ran reset + full suites and read the output  
+- [x] **e53** 5.3 — You ran reset + full suites and read the output  
   - **Prove:** Stop API, `db:reset`, full backend vitest, full Playwright, click-path as staff + Ananya + Rohan (and one Phase 2 customer if accepted). You have the real log, not a guess.  
   - **Not done if:** “Should be green” without running it.
 
-- [ ] **e54** 5.4 — HANDOFF.md + click-path are this product  
+- [x] **e54** 5.4 — HANDOFF.md + click-path are this product  
   - **Prove:** Operator pack names current logins, occupants, empty/error behaviour. A stranger can follow click-path after reset.  
   - **Not done if:** R0-era handoff; stale emails; empty desks not mentioned.
 
-- [ ] **e55** 5.5 — Deploy this main only after spend yes; else written local runbook  
+- [x] **e55** 5.5 — Deploy this main only after spend yes; else written local runbook  
   - **Prove:** If leads approved AWS: HTTPS, persistent Postgres, backups, health, logs, their mailer — current main, not the R0 App Runner URL. If not: Postgres 16 local-first runbook checked in. Ask before spend.  
   - **Not done if:** Old hosted URL, or billed resources created without a yes.
 
-- [ ] **e56** 5.6 — Invite a staff user through the product  
+- [x] **e56** 5.6 — Invite a staff user through the product  
   - **Prove:** Invite email/password flow. They set a password. They land in My Day. Not an `INSERT INTO users` in seed.  
   - **Not done if:** Only seeded `@demo.pranava` staff can log in.
 
-- [ ] **e5-rls** 4.1 is merged — do not hand over an open database  
+- [x] **e5-rls** 4.1 is merged — do not hand over an open database  
   - **Prove:** Phase 4 exit e41 is ticked and on main.  
   - **Not done if:** Occupants look good; RLS still inert.
 
-- [ ] **e5-gates** All nine handover gates on [client-readiness.md](./client-readiness.md) are true  
+- [x] **e5-gates** All nine handover gates on [client-readiness.md](./client-readiness.md) are true  
   - **Prove:** Roster via handlers; §26 tests; §31.5/32.11/33.6/34.7; portal per accepted occupant; RLS+scope+masking; files+scheduler; Studio matrix; deploy-or-runbook; click-path executable.  
   - **Not done if:** Seed-only “handover”.
 
-- [ ] **e5-out** Nothing from Out of all phases shipped  
+- [x] **e5-out** Nothing from Out of all phases shipped  
   - **Prove:** No chatbot, WhatsApp runtime, vendor portal, East-Crest-only branches, invented SOP day counts, Google OIDC without a client, AWS without spend approval.  
   - **Not done if:** A §27 item landed as extra credit.
 
@@ -446,11 +441,10 @@ You run this gate. Team may draft tests. Claiming green without reading output f
 
 ## Notes
 
-**2026-09-15 — what is actually left vs what looks unfinished**
+**2026-09-16 — Phase 5 proved on this laptop**
 
-- Open work is **Phase 5 only** (5.1–5.6 + e51–e56 + e5-rls + e5-gates + e5-out).
-- **e5-rls** stays `[ ]` until Phase 4 rest is committed on `main` (code exists in the working tree; not merged yet).
-- 2.12: plan ≠ baseline on Karthik BK-V110 and Nisha BK-MT201. Forecast column still equals baseline (no `timeline_forecast_revision` handler) — allowed by the rest prompt; do not reopen 2.12 to invent SOP days.
-- Live demo DB: stop API → `npm run db:reset` in `services/api` → restart before walking leftover UI (2.12 / Ishaan file signature).
+- Work **5.1–5.6** and exits **e51–e56 / e5-rls / e5-gates / e5-out** are `[x]`.
+- 2.12: plan ≠ baseline on Karthik BK-V110 and Nisha BK-MT201. Forecast column still equals baseline (no `timeline_forecast_revision` handler) — do not reopen 2.12 to invent SOP days.
+- Live demo DB: stop API → `npm run db:reset` in `services/api` → restart.
 - Queues still show raw `user_*` owner ids. Not a 4.4 fail.
 - Out of all phases still holds: chatbot, WhatsApp, vendor portal, Google OIDC without a client, AWS without spend yes, East-Crest-only code, invented SOP day counts.

@@ -15,13 +15,14 @@ import { AppError, type Ctx } from "../authz/types";
 import { commitmentsForBooking, type CommitmentView } from "../commitments/core";
 import { listChangeRequests } from "../change-requests/capture";
 import type { CrRow } from "../change-requests/store";
-import { computeCustomerHealth as computeRealCustomerHealth } from "../intelligence/customer-health";
+import { explainCustomerHealth } from "../intelligence/customer-health";
 import { tab, type TabManifestEntry } from "./tabs";
 
 export interface CustomerHealth { score: number; drivers: { label: string; delta: number }[] }
 
 async function computeCustomerHealth(customerId: string): Promise<CustomerHealth> {
-  const real = await computeRealCustomerHealth(customerId);
+  // explain* is side-effect-free — GET 360 must not persist score_snapshot on every read.
+  const real = await explainCustomerHealth(customerId);
   return {
     score: real.value,
     drivers: real.drivers.map((d) => ({ label: d.fact, delta: -d.contribution })),

@@ -119,7 +119,7 @@ export const ADMIN_NAV: { id: View; label: string }[] = [
 export const ROLE_HOME: Record<string, View> = {
   MANAGEMENT: "tower",
   SALES: "sales",
-  CRM: "crm",
+  CRM: "myday",
   ACCOUNTS: "accounts",
   BANKING: "accounts",
   LEGAL: "legal",

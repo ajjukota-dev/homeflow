@@ -35,18 +35,18 @@ Target architecture: React SPAs + AWS (Cognito, API Gateway, Lambda, Aurora Post
 
 ## 2. What has been built
 
-A **demoable vertical slice** of the post-sales OS on a laptop. Staff can walk Site → Sales → CRM → Accounts → Legal → QA/handover → After keys → Management. The customer can open one home. Domain engines (gates, clearance, readiness, handover, control tower) are unit-tested. CDK **synths**; it has **not** been deployed.
+A **local, logged-in** post-sales OS. Staff sign in at `/login` on the workspace. Each accepted occupant signs in on the customer portal to **their** home — not a single hardcoded Karthik view. Domain engines (gates, clearance, readiness, handover, control tower, RLS) are unit-tested. CDK **synths**; it has **not** been deployed for this `main`. Do not treat `https://we947t2rq2.ap-south-1.awsapprunner.com` as this product.
 
-This is a working UI and domain core. It is **not** production.
+This is a working UI and domain core on a laptop. It is **not** production AWS.
 
 ### Two apps + one API + CDK (undeployed)
 
 | Piece | Path | Local URL | What you see |
 |---|---|---|---|
-| Staff workspace | `apps/workspace` | http://localhost:5173 | HomeFlow sidebar: Site, Sales, CRM, Accounts, Legal, QA / Handover, After keys, Management |
-| Customer portal | `apps/my-pranava-home` | http://localhost:5174 | **My Pranava Home** — one family, currently **Hello, Karthik** / Villa V110 |
-| Domain API | `services/api` | http://localhost:3001 | Express + **in-memory PGlite**. Restarting the API **wipes all data** and re-seeds |
-| AWS CDK | `infra/` | — | Platform (Cognito user pool, EventBridge, S3) + App (VPC, Aurora Serverless v2, Lambda, HTTP API). `npm run synth` works. **No `cdk deploy` yet** |
+| Staff workspace | `apps/workspace` | http://localhost:5173 | Sign in, then My Day / Site / Sales / CRM / Accounts / Legal / QA / After keys / Management / Policy Studio / Queues (role-gated) |
+| Customer portal | `apps/my-pranava-home` | http://localhost:5174 | **My Pranava Home** — session-scoped to the logged-in occupant (Ananya `customer@`, Rohan `rohan@`, Karthik `karthik@`, Nisha `nisha@`, …) |
+| Domain API | `services/api` | http://localhost:3001 | Express + **persisted PGlite** at `services/api/.data/pglite`. Restart **keeps** data. Reset is stop API → `npm run db:reset` → start |
+| AWS CDK | `infra/` | — | Synths. **No `cdk deploy` for this main.** Local Postgres 16 runbook: [`docs/handover/local-postgres.md`](docs/handover/local-postgres.md) |
 
 ### Domain slices that exist (vertical, not every acceptance test)
 
@@ -66,115 +66,77 @@ This is a working UI and domain core. It is **not** production.
 
 The UI in these two apps **is** the product look we are going with: Apple-homely tokens, no glassmorphism, no purple AI aesthetic. Design language: [`docs/spec/foundation/design-language.md`](docs/spec/foundation/design-language.md). Keep it. Do not restyle from scratch.
 
-Customer app is **read-only** today (no login, no actions). Workspace has no login — anyone on the laptop can click every role.
+Both apps **require login**. Password for every demo account: `Demo@2026`. Roster and landings: [`docs/demo/click-path.md`](docs/demo/click-path.md). CRM staff land on **My Day**. Super Admin invites new staff from Admin → Users; they set a password from the file-mailer `/invite/:token` link.
+
+Empty lists use an honest empty message + Retry where there is an error — not a spinner forever. Loading uses skeletons. Money the role cannot see renders as "—".
 
 ### Tests (local)
 
-- API unit/integration: `npm --prefix services/api test` (Vitest + real PGlite)
-- Workspace component tests: `npm --prefix apps/workspace test` (Vitest can hang after passing — known; do not treat hang as failure)
-- Playwright: `npm run test:e2e` from repo root / `npm run e2e` in `apps/workspace`
-- Frontend build: `npm run build` · CDK: `npm run synth`
+- API unit/integration: `cd services/api && npm test` (Vitest + PGlite). Unset `PLAYWRIGHT_BROWSERS_PATH` if Chromium is missing (PDF tests). Run unsandboxed on this machine.
+- Workspace component tests: `npm --prefix apps/workspace test`
+- Playwright: `npx playwright test` in `apps/workspace` (staff) and `apps/my-pranava-home` (portal). Dev servers must already be on :5173 / :5174 / :3001. Use `localhost`, not `127.0.0.1` (Vite listens on IPv6).
+- Frontend build: `npm run build` · CDK: `npm run synth` (no AWS bill)
 
 ---
 
 ## 3. Seeded data — this is not production data
 
-**Almost everything you see in the UI is fake demo data**, inserted on API boot from `services/api/src/seed.ts` and `services/api/src/seed-lifecycle.ts`.
+**Almost everything you see in the UI is fake demo data**, created on first boot of an empty DB via handlers (`createBooking` → accept → journey), not `INSERT INTO booking` for occupants. Config (roles, SLA, templates) seeds every empty environment; demo people seed only when `NODE_ENV` is not `production` (or `SEED_DEMO=1`).
 
-There is **no login**, so there are **no real registered users**. There is **no durable database**. PGlite lives in process memory. Playwright and browser click-throughs mutate that memory until the API process dies.
+There **is** login. Demo staff and customers are real `user` rows with passwords. PGlite is **on disk** (`services/api/.data/pglite`). Restarting the API does **not** wipe it. To get a clean roster: **stop the API first**, then `npm run db:reset` in `services/api`, then start the API again (first boot re-migrates and re-seeds).
 
-### Demo project: East Crest (`p_eastcrest`)
+Do **not** book V101 / V104 / V108 — they are the spare inventory pool.
 
-East Crest values (RERA number, DLP months, registration %, stage names) are **seed/config**, not to be hard-coded in engines. Production projects must come from Policy Studio / config tables.
+Full occupant roster (Karthik, Meera, Ananya, Rohan, Aditi, Harish, Nisha, Suresh, Kavya, Deepak, Ishaan, Leela, Farhan, Gita, Anjali, Vivek, Tanvi hold): [`docs/demo/click-path.md`](docs/demo/click-path.md).
 
-| Unit | Sale status in seed | Demo person | Why it exists |
-|---|---|---|---|
-| V101, V104, V108 | Available to book | — | Sales inventory |
-| V110 | Booked | **Karthik Iyer** | Overdue / true-risk collections; executed AOS; waiting on finance; customer portal “me” |
-| V111 | Booked | **Meera Krishnan** | Disputed dues + loan + **critical snag** (live wiring) |
-| V112 | Registered, keys-eligible | **Ananya Rao** | Happy-path H9 handover |
-| V113 | Already handed over | **Rohan Desai** | DLP, open warranty (guest-bath mixer), check-ins, service history |
+East Crest (`p_eastcrest`) and Pranava Meadows (`p_meadows`) are two projects with **different** durations in Studio/seed rows, same engines. Durations are not one in-code constant.
 
-RM in seed: **Priya Nair**. Org AOS template: `tpl_aos`. Customer portal `/api/me/home` currently returns the **first active booking by booking number** → Karthik / V110.
+**Production must not ship this cast.** Real customers, PAN, phones, consideration, RERA, and registration references come from Pranava’s live operations.
 
-**Production must not ship this cast.** Real customers, PAN, phones, consideration, RERA, and registration references come from Pranava’s live operations — KYC, bookings, receipts, SRO — not from `seed.ts`. Keep a **config seed** (component definitions, gate rules, payment-plan templates, overdue reasons). Separate **demo seed** so it never runs in prod.
+### Known gaps (do not “fix” by inventing engines)
+
+- After `createPlanRevision`, **forecast still equals baseline** (no `timeline_forecast_revision` handler). Plan ≠ baseline is real on BK-V110 / BK-MT201.
+- Queues may still show raw `user_*` owner ids.
+- Portal home journey strip can say “Your timeline will appear here once it’s set up” until CRM publishes customer-visible dates — staff 360 Journey is populated.
+- GitHub `ci` / `deploy` workflows have been red since before Phase 4; not a handover ID.
 
 ---
 
-## 4. What has to be built next
+## 4. What has to be built next (not a second OS)
 
-Priority order for the person taking this over:
+Email/password login, My Day, Policy Studio, files port, scheduler, and RLS are **already in this main**. Do not rebuild them.
 
-### 4.1 Login / logout + Google Sign-In (Rambabu Gauru)
+Parked until leads supply tokens / spend:
 
-Stakeholder **Rambabu Gauru** asked for **Google login**. That is an explicit product requirement for identity.
+- **Google OIDC** — only with a real OAuth client. Email/password is complete. Do not add `openid-client` without asking.
+- **AWS deploy** of this main — costs money. Ask first. Default path is [`docs/handover/local-postgres.md`](docs/handover/local-postgres.md).
+- Forecast-revision engine (do not invent SOP day counts to close the forecast=baseline gap).
+- Chatbot, WhatsApp runtime, vendor portal — out of spec (§27).
 
-Do it the spec way, not a one-off Google button in the SPA:
-
-- Auth is **Amazon Cognito** ([`docs/spec/foundation/architecture.md`](docs/spec/foundation/architecture.md) §3, §7). CDK already creates a User Pool with workspace + customer app clients (`infra/lib/platform-stack.ts`) — **email/password only, no Google IdP, not wired to the apps**.
-- Add **Google as a Cognito federated identity provider** (Hosted UI / OAuth). Workspace staff and My Pranava Home customers both get **Sign in with Google**, plus **logout** (Cognito global sign-out + clear local session).
-- JWTs must carry `user_id`, `role_ids`, `authorized_project_ids`. API Gateway (or the Express adapter locally) **must reject unauthenticated calls**. Today the API is **wide open**.
-- Map Google accounts to HomeFlow roles (Sales, CRM, Accounts, … vs customer). Self-sign-up stays **off** for staff (`selfSignUpEnabled: false`). Customers need a defined invite / booking-link path — do not let a random Google account see Karthik’s home.
-- Local parity: Cognito-local or LocalStack so Google/Cognito can be tested without making every laptop depend on live AWS ([architecture §6b](docs/spec/foundation/architecture.md)).
-
-Do **not** skip Cognito and talk to Google’s SDK only from the browser. Cognito is the identity kernel; Google is how the user signs in.
-
-### 4.2 Productionise (AWS CDK + real data) — follow the rules
-
-Read and obey [`CLAUDE.md`](CLAUDE.md), [`docs/spec/foundation/architecture.md`](docs/spec/foundation/architecture.md), [`docs/spec/foundation/build-conventions.md`](docs/spec/foundation/build-conventions.md).
-
-Minimum to call this production:
-
-1. **Durable Postgres** — Aurora (CDK app stack already sketches it). Same SQL as local. Versioned migrations. **RLS by `project_id`.**
-2. **Stop using in-memory PGlite in prod.** Local may keep PGlite or move to Docker Postgres; prod is Aurora.
-3. **Finish CDK for real deploy** (`infra/`):
-   - Bundle `services/api` handlers into the Lambda (replace `infra/lambda/index.mjs` shell)
-   - Cognito **authorizer** on the HTTP API
-   - Google IdP on the user pool
-   - Host both SPAs (S3 + CloudFront per architecture)
-   - Restrict CORS (today `allowOrigins: ["*"]` — dev only)
-   - **Harden:** `RemovalPolicy.RETAIN`, deletion protection, no `autoDeleteObjects` in prod
-   - Region **ap-south-1 (Mumbai)** unless the account standard says otherwise
-4. **Point apps at the deployed API** by env — same handlers, no rewrite.
-5. **Load real registrations** — projects, units, bookings, applicants, demands, receipts, legal docs — from Pranava source systems or a controlled migration. Demo people (Karthik, Meera, Ananya, Rohan) stay in **dev/demo only**.
-6. **CI:** typecheck, unit, contract, then `cdk deploy` via pipeline. No manual prod clicks.
-7. Extract shared UI/types to `packages/` when touching both apps (spec repo shape).
-
-**Deploying CDK / creating AWS resources costs money.** Do not deploy until Pranava explicitly approves the account, region, and budget. `cdk synth` is free; `cdk deploy` is not.
-
-### 4.3 Remaining product (after identity + persistence)
-
-The slices above are **demoable paths**, not the full role acceptance lists. Still to build, from the spec (do not invent extras):
-
-- Policy Studio (journey / SLA / gates / templates as data)
-- Employee **My Day**
-- Legal clause library, segregation of duties
-- Named handover **override** UI (safety gates still never overridable)
-- Management KPI explorer (Control Tower stays five interventions, not fifty charts)
-- Evidence / document **file upload** to S3 (signed URLs)
-- Notifications (H10 visibility filter — no AI auto-send of consequential customer comms)
-- OpenAPI `/api/v1`, docker-compose local mirror (Postgres + LocalStack)
-- Real “me” for the customer app (booking from the logged-in Google/Cognito user, not `ORDER BY booking_number`)
+Still product-shaped leftovers (not Phase 5): Cognito authorizer on a real HTTP API, Aurora instead of PGlite/local Postgres, their mailer instead of the file outbox, loading real registrations instead of demo people.
 
 ---
 
 ## 5. How to run what exists today
 
-```bash
-# API (required — seeds East Crest in memory)
-npm run dev:api          # http://localhost:3001
+Vite binds `localhost` (`[::1]`). Use `http://localhost:5173` — `127.0.0.1` will fail to connect.
 
-# Staff UI
+```bash
+# 1. Stop any API on :3001, then reset, then start API (seeds on empty DB)
+#    (if something is already listening, kill it first — reset while the API is up is a no-op against a live file)
+cd services/api && npm run db:reset && npm start   # http://localhost:3001  GET /health → {"ok":true,"db":true}
+
+# 2. Staff UI (new terminal)
 npm run dev:web          # http://localhost:5173
 
-# Customer UI
+# 3. Customer UI (new terminal)
 npm --prefix apps/my-pranava-home run dev   # http://localhost:5174
 ```
 
-If 5173 looks empty, wait for the API — the project dropdown is **East Crest**. Customer 5174 is a **different site** from the staff app.
+Log in as `crm@demo.pranava` / `Demo@2026` → **My Day**. Open CRM / RM → Karthik Iyer → View journey (not empty). Portal: `customer@demo.pranava` (Ananya V112), `rohan@demo.pranava` (Rohan V113), `nisha@demo.pranava` (Nisha MT1-201). Click-path: [`docs/demo/click-path.md`](docs/demo/click-path.md).
 
 ```bash
-npm --prefix services/api test
+cd services/api && npm test
 npm run build
 npm run synth            # CDK CloudFormation only — no AWS bill
 ```
@@ -187,7 +149,7 @@ npm run synth            # CDK CloudFormation only — no AWS bill
 - Do not hard-delete financial / legal / commitment / spec history.
 - Do not let Sales or CRM mutate unit physics or gates.
 - Do not leak internal collections language (`TRUE_RISK`, snag internals) to the customer app.
-- Do not commit secrets. Cognito Google client secret belongs in Secrets Manager / SSM, never in git.
+- Do not commit secrets. Do not deploy AWS without an explicit spend yes.
 - Schema/migrations, new dependencies, foundation spec edits, CI/infra, widening customer-visible data: **ask first**.
 
-When in doubt: read the spec, then `CLAUDE.md`. The UI you already have is the UI to productionise — add login, real data, and AWS around it.
+When in doubt: read the spec, then `CLAUDE.md`, then [`docs/demo/click-path.md`](docs/demo/click-path.md).

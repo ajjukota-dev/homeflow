@@ -34,7 +34,7 @@ const cell = async (unitId: string, component: string, asOf?: string) =>
   (await getUnitProgress(unitId, undefined, asOf)).components.find((c) => c.component_code === component)!;
 
 describe("updateProgress — rules 1, 2, 7 (who may write; source/who/when on every cell; before/after event)", () => {
-  it("refuses SALES at the authorize layer, stamps SITE_ENTRY + updated_by for SITE, and emits progress.updated with from/to", async () => {
+  it("p44-33.6-t3: refuses SALES at the authorize layer, stamps SITE_ENTRY + updated_by for SITE, and emits progress.updated with from/to", async () => {
     const unitId = await freshUnit();
     await expect(updateProgress(unitId, "mep_first_fix", { state_code: "IN_PROGRESS" }, sales())).rejects.toThrow(/WRITE/);
 

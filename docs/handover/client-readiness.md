@@ -6,14 +6,14 @@ Shareable copy of the client-readiness canvas (2026-09-15).
 
 | | |
 |---|---|
-| Ready to hand over | **No** |
+| Ready to hand over | **Yes (local-first)** — runbook `docs/handover/local-postgres.md`; not AWS |
 | Seeded families | Leftover + Day 2 + Phase 1 occupants (see click-path roster) |
 | RLS on the live request path | On (PGlite + pg Pool pin 4.1b) |
 | Customer portal logins | Phase 1 four + nisha@ suresh@ kavya@ deepak@ ishaan@ leela@ farhanq@ anjali@ vivek@ |
 
-Source: PDF §§24–27, §31.5, §32.11, §33.6, §34.7, Appendix A · main as of 2026-09-15.
+Source: PDF §§24–27, §31.5, §32.11, §33.6, §34.7, Appendix A · main as of 2026-09-16.
 
-**Not ready to hand over.** Occupant desks are seeded including 2.12 plan≠baseline. Phase 4 product holes closed. Remaining: Phase 5 proof (fresh `db:reset`, Playwright sale-to-handover, operator pack, invite a staff user). Do not schedule a handover until that work is true — after exams.
+**Ready to hand over locally.** Phase 5 proof ran (stop API → `db:reset` → 879/879 vitest, Playwright sale-to-handover + invite → My Day + Ananya/Rohan portals, walk crm@ + Ananya + Rohan + nisha@). Known leftovers: forecast still equals baseline after plan revision; Queues may show raw `user_*` ids; GitHub `ci`/`deploy` still red; no AWS of this main.
 
 ---
 
@@ -88,7 +88,7 @@ Interruptible work. **Not RLS.** Daily 15–30 min PR review (`docs/handover/pha
 
 ### 4. Product holes + hardening — Team, exam week (Phase 4)
 
-**Phase 4 closed 2026-09-15.** Do not hand over until Phase 5 proof is true. Live demo needs stop API → `db:reset` → restart to see 2.12 / Ishaan file signatures.
+**Phase 4 closed 2026-09-15.** Phase 5 proof closed 2026-09-16 (local runbook). Live demo: stop API → `db:reset` → restart.
 
 | Do this | Why handover fails without it | Phase |
 |---|---|---|
@@ -103,18 +103,16 @@ Interruptible work. **Not RLS.** Daily 15–30 min PR review (`docs/handover/pha
 | Document factory: draft v1/v2 + sale families (AOS, Sale Deed, addendum, demand, receipt, handover letter, variation, cancellation) | Done; LEASE unassigned | 4.9 |
 | Scorers read score_weight from Studio | Done | 4.10 |
 
-### 5. Prove and hand over — You after exams (Phase 5)
+### 5. Prove and hand over — You after exams (Phase 5) — **closed 2026-09-16** (local-first)
 
-Team may draft tests during the week. You run the gate. Deploy current main only if leads approve AWS spend — that costs money; ask first. Otherwise a local-first Postgres 16 runbook.
-
-| Do this | Done when | Phase |
+| Do this | Why handover fails without it | Phase |
 |---|---|---|
-| Occupant-state unit tests — one per PDF stage seeded | §26 / §31.5 / §32.11 / §33.6 / §34.7, Sales-cannot-edit-Site, two projects with different durations | 5.1 |
-| Playwright: sale-to-handover + portal as Ananya and as Rohan | No empty desks; no console errors on the click-path | 5.2 |
-| Fresh db:reset, full backend vitest + Playwright, walk as staff + two customers | You have read the real output. Do not claim green without that. | 5.3 |
-| Rewrite HANDOFF.md + click-path as the operator pack | A new operator can follow the roster without you | 5.4 |
-| Deploy current main only if leads approve AWS spend; else local-first Postgres 16 runbook | Either hosted this-main or a written runbook. Ask before spend. | 5.5 |
-| Invite a new staff user end-to-end (email/password) | They land in My Day without an engineer creating the row by hand | 5.6 |
+| Occupant-state unit tests vs seeded roster | Done (`occupant-states` / `occupant-pdf`; SALES 403 on V110; East Crest vs Meadows durations from rows) | 5.1 |
+| Playwright: sale-to-handover + portal Ananya and Rohan | Done (staff walk on `main` + `occupant-portals.spec.ts`) | 5.2 |
+| Fresh db:reset, full backend vitest + named Playwright, walk as staff + two customers | Done 2026-09-16 (879/879; crm@ + Ananya + Rohan + nisha@) | 5.3 |
+| Rewrite HANDOFF.md + click-path as the operator pack | Done | 5.4 |
+| Deploy this main only after spend yes; else local Postgres 16 runbook | Done: `docs/handover/local-postgres.md` (no AWS) | 5.5 |
+| Invite a new staff user; they land in My Day | Done (CRM invite Playwright) | 5.6 |
 
 ---
 

@@ -93,6 +93,7 @@ test("Policy Studio: create, submit and approve a template; guardrail blocks a s
   await crm.getByLabel("Email").fill("crm@demo.pranava");
   await crm.getByLabel("Password").fill("Demo@2026");
   await crm.getByRole("button", { name: "Sign in" }).click();
+  await crm.getByRole("button", { name: /^(CRM \/ RM|CRM)/ }).first().click();
   await expect(crm.getByRole("heading", { name: "CRM · Relationship" })).toBeVisible();
   await crm.getByRole("button", { name: /Rohan Desai/ }).click();
   await crm.getByRole("tab", { name: "Communications" }).click();

@@ -1,6 +1,27 @@
-# Demo click-path (reflects what is DEPLOYED — updated on every deploy)
+# Demo click-path (local operator pack — Phase 5)
 
-**URL:** not deployed yet
+**URLs (this laptop, after reset):** workspace http://localhost:5173 · portal http://localhost:5174 · API http://localhost:3001 (`GET /health` → `{"ok":true,"db":true}`).
+
+Use **`localhost`**, not `127.0.0.1` — Vite listens on IPv6 `[::1]`. There is no current AWS URL for this `main`. The old App Runner host is R0, not this product.
+
+## Reset (do this first)
+
+1. **Stop the API** on :3001 (reset while it is running does not replace a live PGlite file in use).
+2. `cd services/api && npm run db:reset` (deletes `./.data/pglite` only).
+3. `npm start` in `services/api` — wait for `HomeFlow API ready`.
+4. `npm run dev` in `apps/workspace` (:5173) and `apps/my-pranava-home` (:5174).
+
+A stranger can then follow the roster below. Do **not** book V101 / V104 / V108.
+
+## Empty / error behaviour
+
+Lists show a written empty state (e.g. “No files waiting”, “Nothing in this bucket right now.”). Fetch failures show a message + **Retry**, not a spinner. Loading uses skeletons (`aria-busy`). Masked money is "—". `crm@` is East Crest–assigned: Meadows people (Nisha, Aditi, …) do **not** appear on that login — switch project as `superadmin@` or use `nisha@` on the portal.
+
+## Known gaps
+
+- Forecast column still equals baseline after a plan revision (Karthik / Nisha). Plan ≠ baseline is real.
+- Queues may show raw `user_*` owner ids.
+- Portal Home may say the timeline is not set up until customer-visible dates are published; staff **View journey** for Karthik is populated.
 
 ## Logins
 Email/password, one seeded staff user per PDF §13 role plus one customer login, all password `Demo@2026`. Workspace app: `/login`. Portal app (My Pranava Home): `/login`.
@@ -8,7 +29,7 @@ Email/password, one seeded staff user per PDF §13 role plus one customer login,
 | Role | Email | Lands in |
 |---|---|---|
 | Management | `management@demo.pranava` | Control tower |
-| CRM | `crm@demo.pranava` | CRM / RM |
+| CRM | `crm@demo.pranava` | My Day |
 | Accounts | `accounts@demo.pranava` | Accounts |
 | Sales | `sales@demo.pranava` | Sales |
 | Legal | `legal@demo.pranava` | Legal |
@@ -46,7 +67,7 @@ Created by the same handlers the UI uses (`createBooking` → `submitHandover` �
 | READINESS_QA or HANDOVER (pre-keys, not completed) | Ananya Rao | V112 | BK-V112 | `customer@demo.pranava` | yes |
 | POST_HANDOVER (keys, DLP, passport, 7/30/90 check-ins) | Rohan Desai | V113 | BK-V113 | `rohan@demo.pranava` | yes |
 
-Staff proof login: `crm@demo.pranava` / `Demo@2026` on workspace `:5173` — open V110–V113; Journey tab is not empty.
+Staff proof login: `crm@demo.pranava` / `Demo@2026` on workspace `:5173` — lands on **My Day**, then CRM / RM → Karthik Iyer (V110) → **View journey** (not empty). Same desk lists Meera / Ananya / Rohan and leftover East Crest occupants.
 
 ## Occupant roster (Phase 2)
 
@@ -96,8 +117,13 @@ Row-level security is on the live request path (`homeflow_app` + `app.realm` / `
 - **File signatures:** handover case drawer Save signature PUTs PNG to `/api/files/...` and stores `project/...` (Ishaan BK-V114 already has a file id, not a data-URL).
 - **Delay catalog:** Policy Studio delay_reason rows exist; Karthik/Nisha journeys have a plan revision so planned_end ≠ baseline_end.
 
-## Walkthrough
-_Nothing on the URL yet._
+## Walkthrough (after reset)
 
-## Not yet on the URL
-Everything — see TODO.md §0.
+1. Workspace `crm@` / `Demo@2026` → My Day → CRM / RM → Karthik → View journey.
+2. Portal `customer@demo.pranava` → Hello, Ananya / V112. No vendor price, internal note, or TRUE_RISK.
+3. Portal `rohan@demo.pranava` → Hello, Rohan / V113.
+4. Portal `nisha@demo.pranava` → Hello, Nisha / MT1-201 (Meadows).
+5. Super Admin → Users → Invite user (CRM) → file mail under `services/api/.data/mail` → `/invite/:token` → password → **My Day**.
+
+## Not this product
+Chatbot, WhatsApp as a send runtime, vendor portal, Google OIDC without a client, AWS without spend yes. GitHub `ci`/`deploy` red is pre-existing — not a click-path step.

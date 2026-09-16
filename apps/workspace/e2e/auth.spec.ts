@@ -58,7 +58,7 @@ test("SITE lands on the Project / Site workspace", async ({ page }) => {
 // caught CUSTOMISATION landing on an empty-nav Control tower before the fix.
 const ROLE_LANDINGS: [string, string][] = [
   ["management@demo.pranava", "Control tower"],
-  ["crm@demo.pranava", "CRM · Relationship"],
+  ["crm@demo.pranava", "My Day"],
   ["accounts@demo.pranava", "Collections"],
   ["banking@demo.pranava", "Collections"],
   ["legal@demo.pranava", "Document factory"],
@@ -125,4 +125,30 @@ test("live invite: Admin invites a fresh email, mail arrives, link sets password
   await page.getByRole("button", { name: "Set password and continue" }).click();
 
   await expect(page.getByRole("heading", { name: "Control tower" })).toBeVisible(); // "lands in Management"
+});
+
+test("live invite: Admin invites a CRM email, mail arrives, link sets password, lands in My Day", async ({ page }) => {
+  await login(page, "superadmin@demo.pranava", "Demo@2026");
+  const users = page.locator("main");
+  await page.getByRole("button", { name: "Users" }).click();
+  await expect(users.getByRole("heading", { name: "Users", exact: true })).toBeVisible();
+
+  const email = `crm-invite-${Date.now()}@example.com`;
+  await page.getByRole("button", { name: "Invite user" }).click();
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Display name").fill("Invited CRM");
+  await page.getByRole("checkbox", { name: "CRM", exact: true }).check();
+  await page.getByRole("button", { name: "Send invite", exact: true }).click();
+  await expect(page.getByText(email)).toBeVisible();
+
+  const mail = await mailTo(email);
+  const token = mail.text.match(/\/invite\/([\w-]+)/)?.[1];
+  expect(token).toBeTruthy();
+
+  await page.goto(`/invite/${token}`);
+  await page.getByLabel("Password", { exact: true }).fill("Crm@2026Guest");
+  await page.getByLabel("Confirm password").fill("Crm@2026Guest");
+  await page.getByRole("button", { name: "Set password and continue" }).click();
+
+  await expect(page.locator("main").getByRole("heading", { name: "My Day" })).toBeVisible();
 });
