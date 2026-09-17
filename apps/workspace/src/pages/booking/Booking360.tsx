@@ -94,14 +94,18 @@ export function Booking360({
             <div>
               <h1 className="text-large font-bold">{view.booking_number}</h1>
               <p className="mt-1 text-subhead text-fg-muted">
+                {view.rm_owner ? `RM ${view.rm_owner}` : "No RM assigned"}
                 {view.unit && (
-                  onOpenUnit ? (
-                    <button className="text-accent hover:underline" onClick={() => onOpenUnit(view.unit!.id)}>
-                      Villa {view.unit.unit_number}
-                    </button>
-                  ) : (
-                    `Villa ${view.unit.unit_number}`
-                  )
+                  <>
+                    {" · "}
+                    {onOpenUnit ? (
+                      <button className="text-accent hover:underline" onClick={() => onOpenUnit(view.unit!.id)}>
+                        Villa {view.unit.unit_number}
+                      </button>
+                    ) : (
+                      `Villa ${view.unit.unit_number}`
+                    )}
+                  </>
                 )}
                 {view.customer && (
                   <>

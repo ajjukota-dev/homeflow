@@ -5,6 +5,7 @@ export interface BookingDetailRow {
   booking_number: string;
   status: string;
   total_consideration: number;
+  agreement_value_inr?: number;
   completeness_score: number;
   return_reason: string | null;
   rm_owner: string | null;
@@ -36,6 +37,7 @@ export interface CustomerListRow {
   kyc_status: string;
   booking_number: string;
   unit_number: string;
+  rm_owner?: string | null;
 }
 
 export interface CustomerRow {

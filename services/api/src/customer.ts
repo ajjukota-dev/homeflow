@@ -59,7 +59,7 @@ export async function getCustomerHome(bookingId: string, ctx: Ctx) {
   const b = await db.query<{
     unit_id: string;
     status: string;
-    total_consideration: number;
+    agreement_value_inr: number;
     unit_number: string;
     unit_type: string;
     facing: string;
@@ -67,7 +67,7 @@ export async function getCustomerHome(bookingId: string, ctx: Ctx) {
     project_id: string;
     project_name: string;
   }>(
-    `SELECT b.unit_id, b.status, b.total_consideration::float8 AS total_consideration,
+    `SELECT b.unit_id, b.status, b.agreement_value_inr::float8 AS agreement_value_inr,
             b.project_id, p.name AS project_name,
             u.unit_number, u.unit_type, u.facing, a.display_name AS customer_name
        FROM booking b JOIN unit u ON u.id = b.unit_id
@@ -117,7 +117,8 @@ export async function getCustomerHome(bookingId: string, ctx: Ctx) {
     unit_type: bk.unit_type,
     facing: bk.facing,
     booking_status: bk.status,
-    total_consideration: bk.total_consideration,
+    total_consideration: bk.agreement_value_inr,
+    agreement_value_inr: bk.agreement_value_inr,
     stages: stages.map((s, i) => ({
       label: s.label,
       state: s.done ? "done" : i === firstPending ? "current" : "upcoming",
@@ -133,7 +134,7 @@ export async function getCustomerHome(bookingId: string, ctx: Ctx) {
   if (ctx.actor.kind === "CUSTOMER") return home;
   const masked = await mask(ctx, "customer_financials", {
     ...home,
-    agreement_value_inr: home.total_consideration,
+    agreement_value_inr: home.agreement_value_inr,
   });
   return { ...masked, total_consideration: masked.agreement_value_inr ?? masked.total_consideration };
 }

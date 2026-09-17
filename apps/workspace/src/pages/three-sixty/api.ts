@@ -25,7 +25,7 @@ export interface Unit360View {
 
 export interface NextAction { id: string; title: string; status: string; priority: string; due_at: string | null; owner_role: string }
 export interface Booking360View {
-  booking_id: string; booking_number: string; status: string; project_id: string;
+  booking_id: string; booking_number: string; rm_owner?: string | null; status: string; project_id: string;
   unit: { id: string; unit_number: string; unit_type: string } | null;
   customer: { id: string; display_name: string } | null;
   booking_readiness: Score; handover_readiness: Score;

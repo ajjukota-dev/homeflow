@@ -74,7 +74,7 @@ export interface BookingCreated {
 }
 
 export interface ApplicantInput {
-  display_name: string; phone?: string | null; email?: string | null; pan?: string | null; residency: Residency; role?: "PRIMARY" | "CO_APPLICANT";
+  display_name: string; phone?: string | null; email?: string | null; pan?: string | null; residency: Residency; role?: "PRIMARY" | "CO_APPLICANT" | "POA" | "NOMINEE";
 }
 
 export interface PaymentPlan { id: string; project_id: string | null; name: string; basis: string }

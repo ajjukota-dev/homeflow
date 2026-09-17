@@ -23,23 +23,40 @@ async function crmSession(browser: Browser): Promise<Page> {
   return p;
 }
 
-async function bookVilla(page: Page, applicant: string, phone: string, pan: string): Promise<void> {
+async function bookFromSalesDesk(page: Page, applicant: string, phone: string): Promise<void> {
+  const spare = new Set(["V101", "V104", "V108"]);
   await page.goto("/");
-  await page.getByRole("button", { name: /^Sales/ }).first().click();
-  await expect(page.getByRole("heading", { name: "Inventory" })).toBeVisible();
-  await page.getByRole("button", { name: "Book this villa" }).first().click();
-  await expect(page.getByRole("heading", { name: /Book Villa/ })).toBeVisible();
-  await page.getByPlaceholder("e.g. Anita Sharma").fill(applicant);
-  await page.getByPlaceholder("10-digit mobile").fill(phone);
-  await page.getByPlaceholder("ABCDE1234F").fill(pan);
-  await page.getByPlaceholder(/00,000/).fill("8200000");
-  // docs starts as [] and only populates once api.bookingConfig() resolves (BookingWizard.tsx) —
-  // wait for the first checkbox to actually render before iterating, or this loop silently clicks
-  // nothing and the Submit button never enables (60c8b3d, found live 2026-09-07).
-  await page.getByRole("checkbox").first().waitFor();
-  for (const doc of await page.getByRole("checkbox").all()) await doc.click();
-  await page.getByRole("button", { name: "Submit to CRM" }).click();
-  await expect(page.getByRole("heading", { name: "CRM · Relationship" })).toBeVisible();
+  await page.getByRole("button", { name: /Sales Desk/ }).first().click();
+  const main = page.locator("main");
+  await expect(main.getByRole("heading", { name: "Sales Desk", exact: true })).toBeVisible();
+
+  await main.getByRole("tab", { name: "Prospects" }).click();
+  await main.getByRole("button", { name: "New prospect" }).click();
+  const prospectDialog = page.getByRole("dialog", { name: "New prospect" });
+  await prospectDialog.getByRole("textbox", { name: "Name" }).fill(applicant);
+  await prospectDialog.getByRole("textbox", { name: "Phone" }).fill(phone);
+  await prospectDialog.getByRole("button", { name: "Create prospect" }).click();
+  await expect(main.getByRole("button", { name: new RegExp(applicant) }).first()).toBeVisible();
+
+  await main.getByRole("tab", { name: "Inventory" }).click();
+  const projects = await (await page.request.get("/api/projects")).json();
+  const pid = projects.data[0].id;
+  const inv = await (await page.request.get(`/api/projects/${pid}/inventory`)).json();
+  const list = inv.data as { sale_status: string; unit_number: string; price_inr: number | null }[];
+  const availableUnit =
+    list.find((u) => u.sale_status === "AVAILABLE" && u.price_inr && spare.has(u.unit_number)) ??
+    list.find((u) => u.sale_status === "AVAILABLE" && u.price_inr);
+  if (!availableUnit) throw new Error("No AVAILABLE unit to book");
+
+  const villaCard = main.getByText(`Villa ${availableUnit.unit_number}`, { exact: true }).locator("../../..");
+  await villaCard.getByRole("button", { name: "Book", exact: true }).click();
+  const bookDialog = page.getByRole("dialog", { name: new RegExp(`^Book villa ${availableUnit.unit_number}$`) });
+  await bookDialog.getByRole("combobox", { name: "Prospect" }).click();
+  await page.getByRole("option", { name: new RegExp(applicant) }).click();
+  await bookDialog.getByRole("textbox", { name: "Name" }).fill(applicant);
+  await bookDialog.getByRole("button", { name: "Book unit", exact: true }).click();
+  await expect(bookDialog.getByText(/Booking BKG-\d+ created as DRAFT/)).toBeVisible();
+  await bookDialog.getByRole("button", { name: "Done" }).click();
 }
 
 async function openPacket(page: Page, applicant: string) {
@@ -73,8 +90,8 @@ async function fillConfirmations(drawer: ReturnType<Page["getByRole"]>) {
 
 test("submit blocked with missing list → complete → submit → CRM return → resubmit → accept", async ({ page, browser }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
-  const applicant = "Deepa Krishnan";
-  await bookVilla(page, applicant, "9845011223", "DEEPK1234N");
+  const applicant = `Deepa Krishnan ${Date.now()}`;
+  await bookFromSalesDesk(page, applicant, "9845011223");
 
   let drawer = await openPacket(page, applicant);
 

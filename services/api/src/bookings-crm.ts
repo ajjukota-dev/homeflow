@@ -17,9 +17,9 @@ export interface AcceptSeedIds {
   demand_ids?: string[];
 }
 
-/** CRM accepts → Customer Twin is created and linked; unit becomes booked.
- *  Emits sales_handover.accepted (Appendix B) plus the canonical-model events (04 rule 8). */
-export async function acceptBooking(id: string, ctx: Ctx, rm = "Priya Nair", seed?: AcceptSeedIds) {
+/** CRM accepts → Customer Twin is created (legacy) or linked (inventory); unit becomes booked.
+ *  `rmOwnerUserId` is a user FK — never a display name. */
+export async function acceptBooking(id: string, ctx: Ctx, rmOwnerUserId?: string, seed?: AcceptSeedIds) {
   await authorize(ctx, "sales_handover", "WRITE");
   await assertEntityScope(ctx, "booking", id, "write");
   const b = await db.query<{ unit_id: string; status: string; project_id: string }>(
@@ -30,31 +30,37 @@ export async function acceptBooking(id: string, ctx: Ctx, rm = "Priya Nair", see
   if (b.rows[0].status !== "submitted") throw new Error("not_submitted");
   const { unit_id: unitId, project_id: projectId } = b.rows[0];
 
-  const app = await db.query<{ id: string; display_name: string; phone: string }>(
-    `SELECT id, display_name, phone FROM booking_applicant WHERE booking_id = $1 AND role = 'primary'`,
+  const app = await db.query<{ id: string; display_name: string; phone: string; customer_id: string | null }>(
+    `SELECT id, display_name, phone, customer_id FROM booking_applicant WHERE booking_id = $1 AND role = 'primary'`,
     [id]
   );
   const a = app.rows[0];
-  const custId = seed?.customer_id ?? randomUUID();
+  const rm = rmOwnerUserId ?? ctx.actor.user_id;
+  let custId = a.customer_id ?? seed?.customer_id ?? randomUUID();
   await withTx(undefined, async (t) => {
-    const custCode = await nextCode(t, "CUS");
-    await t.query(
-      `INSERT INTO customer (id, display_name, primary_phone, kyc_status, code, primary_name)
-       VALUES ($1,$2,$3,'verified',$4,$2)`,
-      [custId, a.display_name, a.phone, custCode]
-    );
-    await appendEvent(t, {
-      type: "customer.created",
-      entity_type: "customer",
-      entity_id: custId,
-      project_id: projectId,
-      booking_id: id,
-      customer_id: custId,
-      payload: { display_name: a.display_name },
-      ...actorFields(ctx),
-    });
-    await t.query(`UPDATE booking_applicant SET customer_id = $1 WHERE id = $2`, [custId, a.id]);
-    await t.query(`UPDATE booking SET status = 'active', rm_owner = $1 WHERE id = $2`, [rm, id]);
+    if (!a.customer_id) {
+      const custCode = await nextCode(t, "CUS");
+      await t.query(
+        `INSERT INTO customer (id, display_name, primary_phone, kyc_status, code, primary_name)
+         VALUES ($1,$2,$3,'verified',$4,$2)`,
+        [custId, a.display_name, a.phone, custCode]
+      );
+      await appendEvent(t, {
+        type: "customer.created",
+        entity_type: "customer",
+        entity_id: custId,
+        project_id: projectId,
+        booking_id: id,
+        customer_id: custId,
+        payload: { display_name: a.display_name },
+        ...actorFields(ctx),
+      });
+      await t.query(`UPDATE booking_applicant SET customer_id = $1 WHERE id = $2`, [custId, a.id]);
+    } else {
+      custId = a.customer_id;
+      await t.query(`UPDATE customer SET kyc_status = 'verified' WHERE id = $1`, [custId]);
+    }
+    await t.query(`UPDATE booking SET status = 'active', rm_owner_user_id = $1 WHERE id = $2`, [rm, id]);
     await appendEvent(t, {
       type: "booking.status_changed",
       entity_type: "booking",
@@ -72,7 +78,7 @@ export async function acceptBooking(id: string, ctx: Ctx, rm = "Priya Nair", see
       project_id: projectId,
       booking_id: id,
       unit_id: unitId,
-      payload: { rm_owner: rm },
+      payload: { rm_owner_user_id: rm },
       ...actorFields(ctx),
     });
     await t.query(`UPDATE unit SET sale_status = 'booked' WHERE id = $1`, [unitId]);

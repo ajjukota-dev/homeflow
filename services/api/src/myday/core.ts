@@ -54,7 +54,7 @@ const ACTION_QUERY = `
          a.booking_id, a.project_id, a.customer_visible, COALESCE(a.due_at, c.due_at)::text AS due_at, a.sla_clock_id,
          (SELECT count(*)::int FROM action d WHERE d.depends_on_action_id = a.id) AS dependency_count,
          e.tier AS escalation_tier, e.status AS escalation_status,
-         COALESCE(b.total_consideration, 0)::float8 AS revenue_inr,
+         COALESCE(b.agreement_value_inr, 0)::float8 AS revenue_inr,
          COALESCE((SELECT count(*)::int FROM booking_applicant ba WHERE ba.booking_id = a.booking_id), 0) AS customer_count,
          COALESCE((SELECT MIN(occurred_at)::text FROM event WHERE entity_type = 'action' AND entity_id = a.id AND type = 'action.created'), now()::text) AS created_at
     FROM action a

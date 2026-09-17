@@ -15,11 +15,13 @@ export type Residency = "RESIDENT" | "NRI" | "OCI";
 export async function listCustomers(ctx: Ctx) {
   await authorize(ctx, "customer_overview", "READ");
   const r = await db.query<CustomerListRow>(
-    `SELECT c.id, c.display_name, c.primary_phone, c.kyc_status, b.booking_number, u.unit_number
+    `SELECT c.id, c.display_name, c.primary_phone, c.kyc_status, b.code AS booking_number, u.unit_number,
+            ru.display_name AS rm_owner
        FROM customer c
        JOIN booking_applicant a ON a.customer_id = c.id
        JOIN booking b ON b.id = a.booking_id
        JOIN unit u ON u.id = b.unit_id
+       LEFT JOIN "user" ru ON ru.id = b.rm_owner_user_id
       ORDER BY c.created_at DESC`
   );
   const aliased = r.rows.map((row) => ({ ...row, phone: row.primary_phone }));
@@ -40,11 +42,12 @@ export async function getCustomer(id: string, ctx?: Ctx) {
     booking_number: string;
     status: string;
     total_consideration: number | null;
+    agreement_value_inr?: number | null;
     unit_number: string;
     unit_type: string;
     facing: string;
   }>(
-    `SELECT b.id AS booking_id, b.booking_number, b.status, b.total_consideration::float8 AS total_consideration,
+    `SELECT b.id AS booking_id, b.code AS booking_number, b.status, b.agreement_value_inr::float8 AS agreement_value_inr,
             u.unit_number, u.unit_type, u.facing
        FROM booking b
        JOIN booking_applicant a ON a.booking_id = b.id
@@ -61,7 +64,7 @@ export async function getCustomer(id: string, ctx?: Ctx) {
   });
   const bookingsMasked = await Promise.all(
     bookings.rows.map(async (b) => {
-      const m = await mask(ctx, "customer_financials", { ...b, agreement_value_inr: b.total_consideration });
+      const m = await mask(ctx, "customer_financials", { ...b, agreement_value_inr: b.agreement_value_inr });
       return { ...b, total_consideration: (m.agreement_value_inr as number | null) ?? null };
     })
   );

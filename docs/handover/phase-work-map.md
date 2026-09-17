@@ -6,14 +6,14 @@ Companion: [client-readiness.md](./client-readiness.md) (the handover bar).
 
 ## Status — 2026-09-16
 
-**Done.** Phases 1–4 (including 2.12 and 4.1b / 4.2b / 4.4–4.10) and **Phase 5 prove-and-handover** on this laptop (PGlite + Postgres 16 runbook). Work **5.1–5.6** and exits **e51–e56**, **e5-rls**, **e5-gates**, **e5-out** are `[x]` after reset + suites.
+**Phases 1–6 closed** on this laptop. Checklist: [phase-6-canonical-booking-checklist.md](./phase-6-canonical-booking-checklist.md). Next: workflow artifacts W01–W14 (`docs/handover/workflow-artifacts.md`).
 
-**Not an open phase ID** (do not reopen 2.12 or 4.x for these):
+**Not an open phase ID** (do not reopen 2.12 or 4.x / 5.x for these):
 
-- Phase 4 rest is on `main`. `e5-rls` is proven: `wrapWithRls` + `0047` + pg pin still on the request path; `rls-request.test.ts` green in the Phase 5 full vitest run.
-- After `createPlanRevision`, **forecast still equals baseline** (no forecast-revision handler). Plan ≠ baseline is proven on BK-V110 and BK-MT201
-- Live `.data/pglite` needs stop API → `npm run db:reset` → restart to show 2.12 dates / Ishaan file signatures
-- Queues still show raw `user_*` owner ids (friendly-label gap, not a 4.4 fail)
+- Phase 4 rest + Phase 5 proof are done. `e5-rls` stays proven: do not strip RLS.
+- **6.6** (not 2.12): plan ≠ baseline is already proven; Phase 6 makes **forecast follow the new plan** via `timeline_forecast_revision`. Do not invent SOP days.
+- Live `.data/pglite` needs stop API → `npm run db:reset` → restart after Phase 6 lands
+- Queues still show raw `user_*` owner ids (friendly-label gap, not a 4.4 fail; not Phase 6)
 - Daily **3.3** PR review continues through exam week
 
 **You** = two working days then exams. **Team** = everyone else during exam week.
@@ -25,6 +25,7 @@ Companion: [client-readiness.md](./client-readiness.md) (the handover bar).
 | Phase 3 scheduler / quiet hours / PR review | You · exam week | **Closed** 2026-09-15 (3.3 still daily) |
 | Phase 4 RLS + product holes (4.1–4.10, 4.1b, 4.2b) | Team · exam week | **Closed** 2026-09-15 |
 | Phase 5 prove and hand over | You · after exams | **Closed** 2026-09-16 (local-first; runbook, not AWS) |
+| Phase 6 canonical booking shape | New chat · after Phase 5 | **Closed** 2026-09-16 |
 
 A work tick without an exit tick is not done. Prove Phase 5 on a **fresh reset**: stop the API first, then `npm run db:reset` in `services/api`. Never prove on a dirty DB.
 
@@ -115,6 +116,19 @@ Proved on a fresh `db:reset`. Operator pack: `HANDOFF.md` + `docs/demo/click-pat
 - [x] **5.6** Invite a new staff user end-to-end (email/password); they land in My Day — You · After exams
 
 
+
+### Phase 6 — Canonical booking shape · after Phase 5 — **closed 2026-09-16**
+
+Retire the 0000_init write path so the product matches the data-model artifact. Prove against [phase-6-canonical-booking-checklist.md](./phase-6-canonical-booking-checklist.md). Must-do **6.1 → 6.2 → 6.3** first.
+
+- [x] **6.1** Occupant seed + SALES home use `bookFromInventory`; wizard is not a live nav target
+- [x] **6.2** Packet/book residency is stored on `customer.residency` (Leela NRI at write time)
+- [x] **6.3** Demands / 360 / collections / portal / TDS read `agreement_value_inr`
+- [x] **6.4** Accept writes `rm_owner_user_id`; stop free-text `rm_owner`
+- [x] **6.5** New books: `booking_number = code`. Occupants: both equal click-path id
+- [x] **6.7** Applicant roles PRIMARY / CO_APPLICANT / POA / NOMINEE only
+- [x] **6.6** `createPlanRevision` writes `timeline_forecast_revision` and sets forecast = new planned (no SOP engine)
+- [x] **6.8** `completeHandover` / `completeRegistration` call spec `completeCase`; case id stable
 
 ### Out of all phases
 
@@ -435,6 +449,53 @@ You run this gate. Team may draft tests. Claiming green without reading output f
   - **Prove:** No chatbot, WhatsApp runtime, vendor portal, East-Crest-only branches, invented SOP day counts, Google OIDC without a client, AWS without spend approval.  
   - **Not done if:** A §27 item landed as extra credit.
 
+### Phase 6 exit — Canonical booking shape — **closed 2026-09-16**
+
+Tick only from [phase-6-canonical-booking-checklist.md](./phase-6-canonical-booking-checklist.md) after reset + SQL pack + suites. If 6.1 or 6.3 is no, the phase is **not finished**.
+
+**Not this phase:** Full forecast engine, Queues raw ids, chatbot, AWS.
+
+- [x] **e61** 6.1 — One write path  
+  - **Prove:** No `createBooking(` in `seed/`. SALES home is Sales Desk. After reset Karthik `applicant.customer_id = c_karthik`. Aditi has a customer_id before accept. Same roster ids.  
+  - **Not done if:** Wizard still routed; seed still `createBooking`; new UUIDs; V101 booked.
+
+- [x] **e62** 6.2 — Residency on the customer twin  
+  - **Prove:** `c_leela.residency = NRI` without post-accept patch as the only writer. Test: packet NRI → accept → customer NRI.  
+  - **Not done if:** Packet says NRI, `customer.residency` is RESIDENT.
+
+- [x] **e63** 6.3 — `agreement_value_inr` is the money  
+  - **Prove:** Handler SELECTs do not use `total_consideration` as source of truth. Karthik demands sum to `agreement_value_inr` (1.2 Cr). TDS still uses that column.  
+  - **Not done if:** `setupFunding` still splits `total_consideration`.
+
+- [x] **e64** 6.4 — RM is a user id  
+  - **Prove:** After reset `b_v110.rm_owner_user_id` is a CRM user. No `SET rm_owner`. 360 label is joined `user.display_name`.  
+  - **Not done if:** Only a free-text name is stored.
+
+- [x] **e65** 6.5 — One human booking id  
+  - **Prove:** Occupant `code = booking_number = BK-V110` (click-path). New book: both columns the same minted `code`. UI shows `code`.  
+  - **Not done if:** Two different strings on one booking.
+
+- [x] **e67** 6.7 — Applicant role CHECK set  
+  - **Prove:** UI can save CO_APPLICANT / POA / NOMINEE. PRIMARY stores as `primary`. No co_owner/guarantor writes.  
+  - **Not done if:** Wizard-only one applicant; CHECK violated.
+
+- [x] **e66** 6.6 — Forecast follows plan revision  
+  - **Prove:** BK-V110 and BK-MT201 have `timeline_forecast_revision` rows; `forecast_end = planned_end ≠ baseline_end`.  
+  - **Not done if:** Forecast still equals baseline. SOP days invented.
+
+- [x] **e68** 6.8 — One writer per case  
+  - **Prove:** `completeHandover` / `completeRegistration` call spec `completeCase`. Ishaan case id stable through complete. No second `INSERT ON CONFLICT` producer in `qa.ts` / `legal-docs.ts`.  
+  - **Not done if:** New UUID on complete; appointment orphaned.
+
+- [x] **e6-tests** Full API vitest + touched Playwright green after reset; real counts in the Phase 6 report  
+  - **Not done if:** “Should be green.”
+
+- [x] **e6-seed** Roster ids + portal logins intact; spare pool unbooked; no raw `INSERT INTO booking` for occupants  
+  - **Not done if:** Journeys/logins dropped.
+
+- [x] **e6-out** Nothing from Out of all phases; no full forecast engine  
+  - **Not done if:** §27 extra credit.
+
 ---
 
 
@@ -444,7 +505,8 @@ You run this gate. Team may draft tests. Claiming green without reading output f
 **2026-09-16 — Phase 5 proved on this laptop**
 
 - Work **5.1–5.6** and exits **e51–e56 / e5-rls / e5-gates / e5-out** are `[x]`.
-- 2.12: plan ≠ baseline on Karthik BK-V110 and Nisha BK-MT201. Forecast column still equals baseline (no `timeline_forecast_revision` handler) — do not reopen 2.12 to invent SOP days.
-- Live demo DB: stop API → `npm run db:reset` in `services/api` → restart.
+- 2.12: plan ≠ baseline on Karthik BK-V110 and Nisha BK-MT201. **Phase 6.6 closed:** `createPlanRevision` writes `timeline_forecast_revision` and sets forecast = new planned (POST_HANDOVER 2027-04-01 ≠ baseline 2027-03-31). Full progress/SLA engine still out of scope.
+- Live demo DB: stop API → `npm run db:reset` in `services/api` → restart (Playwright books spare villas).
 - Queues still show raw `user_*` owner ids. Not a 4.4 fail.
+- Phase 6 leftovers (not fails): unused `BookingWizard.tsx`; old Sales tab still routes to read-only `SalesInventory`; `createBooking` test helper still INSERTs (does not delegate); portal does not render the word NRI; concatenated 53/53 Playwright after AOS Meera scope was not re-run on a fresh reset.
 - Out of all phases still holds: chatbot, WhatsApp, vendor portal, Google OIDC without a client, AWS without spend yes, East-Crest-only code, invented SOP day counts.

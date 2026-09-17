@@ -41,7 +41,7 @@ for (const s of sizes) {
   test(`SALES sees the Sales workspace and no Site write controls @ ${s.name}`, async ({ page }) => {
     await page.setViewportSize({ width: s.width, height: s.height });
     await login(page, "sales@demo.pranava", "Demo@2026");
-    await expect(page.getByRole("heading", { name: "Inventory" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Sales Desk" })).toBeVisible();
     await expect(page.getByRole("button", { name: /Project \/ Site/ })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /^Site$/ })).toHaveCount(0);
     await page.screenshot({ path: shot(`auth-sales-${s.name}`), fullPage: true });

@@ -5,8 +5,8 @@ import { listDemands } from "./demands";
 // H7 loader — policy threshold from collection_policy, never a hard-coded %.
 
 export async function bookingFinance(bookingId: string) {
-  const b = await db.query<{ project_id: string; total_consideration: number }>(
-    `SELECT project_id, total_consideration::float8 AS total_consideration FROM booking WHERE id = $1`,
+  const b = await db.query<{ project_id: string; agreement_value_inr: number }>(
+    `SELECT project_id, agreement_value_inr::float8 AS agreement_value_inr FROM booking WHERE id = $1`,
     [bookingId]
   );
   if (b.rows.length === 0) throw new Error("booking_not_found");
@@ -26,7 +26,7 @@ export async function bookingFinance(bookingId: string) {
   const paid = Number(paidRow.rows[0]?.paid ?? 0);
   const clearance = financialClearance({
     paid,
-    consideration: b.rows[0].total_consideration,
+    consideration: b.rows[0].agreement_value_inr,
     threshold_pct: policy.rows[0]?.registration_min_pct ?? 0.7,
     disputed,
   });
@@ -34,7 +34,7 @@ export async function bookingFinance(bookingId: string) {
     ...clearance,
     paid,
     disputed,
-    consideration: b.rows[0].total_consideration,
+    consideration: b.rows[0].agreement_value_inr,
     project_id: b.rows[0].project_id,
   };
 }

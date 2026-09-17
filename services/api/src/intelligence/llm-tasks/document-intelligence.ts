@@ -46,8 +46,8 @@ export async function createInconsistencySuggestion(docFactoryDocumentId: string
   );
   if (!doc.rows[0]) throw new AppError("not_found", "document not found");
 
-  const source = await db.query<{ display_name: string | null; primary_phone: string | null; total_consideration: number | null }>(
-    `SELECT c.display_name, c.primary_phone, b.total_consideration::float8 AS total_consideration
+  const source = await db.query<{ display_name: string | null; primary_phone: string | null; agreement_value_inr: number | null }>(
+    `SELECT c.display_name, c.primary_phone, b.agreement_value_inr::float8 AS agreement_value_inr
        FROM booking b LEFT JOIN customer c ON c.id = $2 WHERE b.id = $1`,
     [doc.rows[0].booking_id, doc.rows[0].customer_id]
   );

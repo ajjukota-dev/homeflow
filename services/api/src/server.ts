@@ -6,7 +6,6 @@ import { registerLocalFileRoutes } from "./ports/files";
 import { listUnits, getUnit, setProgress } from "./handlers";
 import {
   MANDATORY_DOCS,
-  createBooking,
   listBookings,
   acceptBooking,
   returnBooking,
@@ -137,16 +136,6 @@ app.put("/api/units/:id/progress", async (req: AuthedRequest, res) => {
 
 // --- Bookings + CRM handoff (H2) ---
 app.get("/api/booking-config", (_req, res) => res.json({ data: { mandatory_docs: MANDATORY_DOCS } }));
-
-app.post("/api/units/:id/book", async (req: AuthedRequest, res) => {
-  try {
-    res.json({ data: await createBooking(req.params.id, req.body, { actor: req.actor! }) });
-  } catch (e) {
-    const err = e as Error & { missing?: string[] };
-    if (err.missing) return res.status(400).json({ errors: [{ code: "incomplete", missing: err.missing }] });
-    failHttp(res, e);
-  }
-});
 
 app.get("/api/bookings", async (req: AuthedRequest, res) => {
   try {

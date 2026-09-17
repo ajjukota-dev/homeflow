@@ -5,7 +5,6 @@ import { MyDay } from "./pages/myday/MyDay";
 import { SiteProgress } from "./pages/SiteProgress";
 import { SalesInventory } from "./pages/SalesInventory";
 import { CrmQueue } from "./pages/CrmQueue";
-import { BookingWizard } from "./pages/BookingWizard";
 import { Collections } from "./pages/Collections";
 import { LegalWorkspace } from "./pages/LegalWorkspace";
 import { QaHandover } from "./pages/QaHandover";
@@ -30,7 +29,7 @@ import { SalesDesk } from "./pages/sales/SalesDesk";
 import { Suggestions } from "./pages/suggestions/Suggestions";
 import type { useAuth } from "./auth/AuthContext";
 import { NAV, ADMIN_NAV, defaultViewFor, type View } from "./nav";
-import { api, type Project, type Unit } from "./api";
+import { api, type Project } from "./api";
 import { Button } from "@homeflow/ui";
 import { cn } from "./lib/utils";
 
@@ -43,7 +42,6 @@ export function Workspace({ me, onLogout }: { me: NonNullable<ReturnType<typeof 
   const visibleNav = NAV.filter((n) => n.roles.some((r) => roles.includes(r)));
 
   const [view, setView] = useState<View>(defaultViewFor(roles, visibleNav.map((n) => n.id)));
-  const [bookingUnit, setBookingUnit] = useState<Unit | null>(null);
   const [dark, setDark] = useState(false);
 
   const [projects, setProjects] = useState<Project[]>([]);
@@ -75,7 +73,6 @@ export function Workspace({ me, onLogout }: { me: NonNullable<ReturnType<typeof 
   }
 
   function go(v: View) {
-    setBookingUnit(null);
     setView(v);
   }
 
@@ -105,7 +102,7 @@ export function Workspace({ me, onLogout }: { me: NonNullable<ReturnType<typeof 
   const pages: Partial<Record<View, ReactNode>> = {
     myday: <MyDay projectId={projectId} isTeamHead={isAdmin} />,
     site: <SiteProgress projectId={projectId} roles={roles} />,
-    sales: <SalesInventory projectId={projectId} onBook={setBookingUnit} />,
+    sales: <SalesInventory projectId={projectId} />,
     crm: <CrmQueue roles={roles} projectId={projectId} />,
     accounts: <Collections projectId={projectId} />,
     legal: <LegalWorkspace projectId={projectId} roles={roles} />,
@@ -138,11 +135,7 @@ export function Workspace({ me, onLogout }: { me: NonNullable<ReturnType<typeof 
     suggestions: <Suggestions roles={roles} />,
   };
 
-  const content = bookingUnit ? (
-    <BookingWizard unit={bookingUnit} onCancel={() => setBookingUnit(null)} onBooked={() => { setBookingUnit(null); setView("crm"); }} />
-  ) : (
-    pages[view]
-  );
+  const content = pages[view];
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">

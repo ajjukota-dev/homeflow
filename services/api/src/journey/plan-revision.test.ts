@@ -80,14 +80,22 @@ describe("createPlanRevision", () => {
     expect(rev.note).toBe("client asked to push");
     expect(rev.changes[0]).toMatchObject({ stage_code: "PRESALES", new_planned_start: "2026-03-01", new_planned_end: "2026-03-10" });
 
-    const after = await db.query<{ baseline_start: string | Date; baseline_end: string | Date; planned_start: string | Date; planned_end: string | Date }>(
-      `SELECT baseline_start, baseline_end, planned_start, planned_end FROM stage_instance WHERE journey_id = $1 AND stage_code = 'PRESALES'`,
+    const after = await db.query<{ baseline_start: string | Date; baseline_end: string | Date; planned_start: string | Date; planned_end: string | Date; forecast_start: string | Date; forecast_end: string | Date }>(
+      `SELECT baseline_start, baseline_end, planned_start, planned_end, forecast_start, forecast_end FROM stage_instance WHERE journey_id = $1 AND stage_code = 'PRESALES'`,
       [journeyId]
     );
     expect(asDateStr(after.rows[0].baseline_start)).toBe(asDateStr(before.rows[0].baseline_start));
     expect(asDateStr(after.rows[0].baseline_end)).toBe(asDateStr(before.rows[0].baseline_end));
     expect(asDateStr(after.rows[0].planned_start)).toBe("2026-03-01");
     expect(asDateStr(after.rows[0].planned_end)).toBe("2026-03-10");
+    expect(asDateStr(after.rows[0].forecast_start)).toBe("2026-03-01");
+    expect(asDateStr(after.rows[0].forecast_end)).toBe("2026-03-10");
+    expect(asDateStr(after.rows[0].forecast_end)).not.toBe(asDateStr(after.rows[0].baseline_end));
+    const forecastRev = await db.query<{ source: string; confidence: number }>(
+      `SELECT source, confidence::float8 AS confidence FROM timeline_forecast_revision WHERE journey_id = $1`,
+      [journeyId]
+    );
+    expect(forecastRev.rows[0]).toMatchObject({ source: "SYSTEM", confidence: 1 });
 
     const journey = await getJourneyForBooking((await db.query<{ booking_id: string }>(`SELECT booking_id FROM journey_instance WHERE id = $1`, [journeyId])).rows[0].booking_id, superAdminCtx);
     const presales = journey!.stages.find((s) => s.stage_code === "PRESALES")!;

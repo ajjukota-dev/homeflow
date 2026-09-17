@@ -13,7 +13,7 @@ const AOS_FIELDS = JSON.stringify([
   { key: "applicant_name", label: "Applicant name", source_ref: "booking_applicant.display_name", mandatory: true },
   { key: "pan", label: "PAN", source_ref: "booking_applicant.pan", mandatory: true },
   { key: "unit_number", label: "Unit number", source_ref: "unit.unit_number", mandatory: true },
-  { key: "consideration", label: "Consideration", source_ref: "booking.total_consideration", mandatory: true },
+  { key: "consideration", label: "Consideration", source_ref: "booking.agreement_value_inr", mandatory: true },
 ]);
 
 /** Config + QA fixtures. Bookings/demands/AOS/handover for V110–V113 are created by handlers. */

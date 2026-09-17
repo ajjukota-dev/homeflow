@@ -152,7 +152,7 @@ describe("rule 3 — data_snapshot frozen; regenerating creates version+1, a red
     const v1 = await generateDocument(bookingId, "ALLOTMENT_LETTER", {}, legal());
     expect(v1.data_snapshot.consideration_words).toBe("Eighty Lakh Rupees Only");
 
-    await db.query(`UPDATE booking SET total_consideration = 9000000 WHERE id = $1`, [bookingId]);
+    await db.query(`UPDATE booking SET agreement_value_inr = 9000000, total_consideration = 9000000 WHERE id = $1`, [bookingId]);
     const v2 = await generateDocument(bookingId, "ALLOTMENT_LETTER", {}, legal());
     expect(v2.version).toBe(2);
     expect(v2.redline_summary!.fields_changed).toContain("consideration_words");

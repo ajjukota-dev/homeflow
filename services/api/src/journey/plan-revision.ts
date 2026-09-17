@@ -69,8 +69,12 @@ export async function createPlanRevision(journeyId: string, input: PlanRevisionI
       if (!existing.rows[0]) throw new AppError("not_found", `no stage ${c.stage_code} on this journey`);
       const old = existing.rows[0];
       await tx.query(
-        `UPDATE stage_instance SET planned_start = $1, planned_end = $2 WHERE id = $3`,
+        `UPDATE stage_instance SET planned_start = $1, planned_end = $2, forecast_start = $1, forecast_end = $2 WHERE id = $3`,
         [c.new_planned_start, c.new_planned_end, old.id]
+      );
+      await tx.query(
+        `UPDATE task_instance SET forecast_start = planned_start, forecast_end = planned_end WHERE stage_instance_id = $1`,
+        [old.id]
       );
       diff.push({
         stage_code: c.stage_code,
@@ -85,6 +89,11 @@ export async function createPlanRevision(journeyId: string, input: PlanRevisionI
       `INSERT INTO timeline_plan_revision (id, journey_id, revised_by, reason_code, note, changes)
        VALUES ($1,$2,$3,$4,$5,$6::jsonb)`,
       [id, journeyId, ctx.actor.user_id, input.reason_code, input.note ?? null, JSON.stringify(diff)]
+    );
+    await tx.query(
+      `INSERT INTO timeline_forecast_revision (id, journey_id, source, changes, confidence)
+       VALUES ($1,$2,'SYSTEM',$3::jsonb,1)`,
+      ["tfr_" + randomUUID().slice(0, 8), journeyId, JSON.stringify(diff)]
     );
     await appendEvent(tx, {
       type: "plan.revised",

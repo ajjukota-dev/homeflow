@@ -5,7 +5,8 @@ export type SourceRow = {
   project_id: string;
   unit_id: string;
   booking_number: string;
-  total_consideration: number;
+  agreement_value_inr: number;
+  total_consideration?: number;
   unit_number: string;
   unit_type: string;
   facing: string;

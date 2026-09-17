@@ -55,7 +55,7 @@ describe("Legal factory (H4)", () => {
     expect(v1.status).toBe("draft");
     expect(v1.body_rendered).toContain("Ravi Menon");
     expect(v1.body_rendered).not.toMatch(/\{\{/);
-    await db.query(`UPDATE booking SET total_consideration = 8800000 WHERE id = $1`, [b.id]);
+    await db.query(`UPDATE booking SET agreement_value_inr = 8800000, total_consideration = 8800000 WHERE id = $1`, [b.id]);
     const v2 = await generateDocument(b.id, "AOS", superAdminCtx);
     expect(v2.version).toBe(2);
     const snap1 = typeof v1.snapshot === "string" ? JSON.parse(v1.snapshot) : v1.snapshot;

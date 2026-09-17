@@ -10,6 +10,12 @@ describe("defaultViewFor", () => {
     expect(defaultViewFor(["SUPER_ADMIN"], visible)).toBe("site");
   });
 
+  it("lands SALES on Sales Desk", () => {
+    expect(ROLE_HOME.SALES).toBe("sales-desk");
+    const visibleForSales = NAV.filter((n) => n.roles.includes("SALES")).map((n) => n.id);
+    expect(defaultViewFor(["SALES"], visibleForSales)).toBe("sales-desk");
+  });
+
   // The previous version of this test used the full unfiltered NAV.map(n => n.id) list for
   // `visible`, which every role can see by construction — expect(visible).toContain(home) could
   // never fail. Real coverage requires the visible set a role would ACTUALLY have (its own

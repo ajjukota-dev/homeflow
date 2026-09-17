@@ -61,6 +61,7 @@ export interface CustomerRow {
   kyc_status: string;
   booking_number: string;
   unit_number: string;
+  rm_owner?: string | null;
 }
 export interface Customer {
   id: string;

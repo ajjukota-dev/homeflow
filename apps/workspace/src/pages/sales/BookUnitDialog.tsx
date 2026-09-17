@@ -9,13 +9,22 @@ const RESIDENCIES: { value: Residency; label: string }[] = [
   { value: "NRI", label: "NRI" },
   { value: "OCI", label: "OCI" },
 ];
+type ApplicantRole = NonNullable<ApplicantInput["role"]>;
+const ROLES: { value: ApplicantRole; label: string }[] = [
+  { value: "PRIMARY", label: "Primary" },
+  { value: "CO_APPLICANT", label: "Co-applicant" },
+  { value: "POA", label: "POA" },
+  { value: "NOMINEE", label: "Nominee" },
+];
 
-function blankApplicant(role: "PRIMARY" | "CO_APPLICANT"): ApplicantInput {
+function blankApplicant(role: ApplicantRole): ApplicantInput {
   return { display_name: "", phone: "", email: "", residency: "RESIDENT", role };
 }
 
-/** 24-sales-inventory-discovery.md rule 8 Screen "Book unit" — the highest-priority action in
- *  this spec. Real applicants/discount/payment-plan capture against sales/booking.ts::bookFromInventory. */
+function roleLabel(role: ApplicantInput["role"]): string {
+  return ROLES.find((r) => r.value === (role ?? "PRIMARY"))?.label ?? "Primary";
+}
+
 export function BookUnitDialog({
   unit,
   prospects,
@@ -110,18 +119,26 @@ export function BookUnitDialog({
             </Field>
 
             <div>
-              <div className="mb-1.5 flex items-center justify-between">
+              <div className="mb-1.5 flex items-center justify-between gap-2">
                 <span className="text-subhead font-medium text-fg">Applicants</span>
-                <Button variant="secondary" size="sm" onClick={() => setApplicants((cur) => [...cur, blankApplicant("CO_APPLICANT")])}>
-                  <Plus className="h-3.5 w-3.5" /> Add co-applicant
-                </Button>
+                <div className="flex flex-wrap gap-1">
+                  <Button variant="secondary" size="sm" onClick={() => setApplicants((cur) => [...cur, blankApplicant("CO_APPLICANT")])}>
+                    <Plus className="h-3.5 w-3.5" /> Co-applicant
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={() => setApplicants((cur) => [...cur, blankApplicant("POA")])}>
+                    <Plus className="h-3.5 w-3.5" /> POA
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={() => setApplicants((cur) => [...cur, blankApplicant("NOMINEE")])}>
+                    <Plus className="h-3.5 w-3.5" /> Nominee
+                  </Button>
+                </div>
               </div>
               <div className="flex flex-col gap-3">
                 {applicants.map((a, i) => (
                   <div key={i} className="rounded-lg border border-line p-3">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-2">
                       <span className="text-caption font-semibold uppercase tracking-wide text-fg-subtle">
-                        {(a.role ?? "PRIMARY") === "PRIMARY" ? "Primary applicant" : "Co-applicant"}
+                        {roleLabel(a.role)}
                       </span>
                       {applicants.length > 1 && (a.role ?? "PRIMARY") !== "PRIMARY" && (
                         <button type="button" onClick={() => setApplicants((cur) => cur.filter((_, idx) => idx !== i))} aria-label="Remove applicant">
@@ -129,6 +146,14 @@ export function BookUnitDialog({
                         </button>
                       )}
                     </div>
+                    {(a.role ?? "PRIMARY") !== "PRIMARY" && (
+                      <Field label="Role" htmlFor={`ap-role-${i}`} className="mt-2">
+                        <Select value={a.role ?? "CO_APPLICANT"} onValueChange={(v) => updateApplicant(i, { role: v as ApplicantRole })}>
+                          <SelectTrigger id={`ap-role-${i}`} />
+                          <SelectOptions options={ROLES.filter((r) => r.value !== "PRIMARY").map((r) => ({ value: r.value, label: r.label }))} />
+                        </Select>
+                      </Field>
+                    )}
                     <div className="mt-2 grid grid-cols-2 gap-2">
                       <Field label="Name" htmlFor={`ap-name-${i}`} required>
                         <Input id={`ap-name-${i}`} value={a.display_name} onChange={(e) => updateApplicant(i, { display_name: e.target.value })} />

@@ -60,13 +60,13 @@ export async function getCustomer360(customerId: string, ctx: Ctx): Promise<Cust
   if (!c.rows[0]) throw new AppError("not_found", "not_found");
 
   const bookings = await db.query<{ id: string; booking_number: string; status: string; unit_number: string }>(
-    `SELECT b.id, b.booking_number, b.status, u.unit_number
+    `SELECT b.id, b.code AS booking_number, b.status, u.unit_number
        FROM booking b JOIN booking_applicant a ON a.booking_id = b.id JOIN unit u ON u.id = b.unit_id
       WHERE a.customer_id = $1`,
     [customerId]
   );
   const applicants = await db.query<{ display_name: string; role: string; booking_number: string }>(
-    `SELECT a.display_name, a.role, b.booking_number FROM booking_applicant a JOIN booking b ON b.id = a.booking_id WHERE a.customer_id = $1`,
+    `SELECT a.display_name, a.role, b.code AS booking_number FROM booking_applicant a JOIN booking b ON b.id = a.booking_id WHERE a.customer_id = $1`,
     [customerId]
   );
   const mergedFrom = await db.query<{ id: string; display_name: string }>(

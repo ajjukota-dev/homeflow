@@ -7,8 +7,7 @@ import { requestHold, approveHold, rejectHold, releaseHold, listHolds } from "./
 import { bookFromInventory, confirmInventoryBooking } from "./sales/booking";
 import { getHoldPolicy, putHoldPolicy } from "./sales/policy";
 
-// 24-sales-inventory-discovery.md's API list. The pre-24 GET /api/units (handlers.ts) and
-// POST /api/units/:id/book (bookings.ts) stay for the existing console.
+// 24-sales-inventory-discovery.md's API list. Live book is POST /api/prospects/:id/book → bookFromInventory.
 
 const list = (v: unknown): string[] | undefined => (Array.isArray(v) ? (v as string[]) : typeof v === "string" ? v.split(",").filter(Boolean) : undefined);
 

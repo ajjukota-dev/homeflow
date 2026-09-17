@@ -79,7 +79,7 @@ export function autoValidate(input: {
     errors.push({
       field: "consideration",
       message: "Consideration does not match the booking",
-      source_ref: "booking.total_consideration",
+      source_ref: "booking.agreement_value_inr",
     });
   }
   return { ok: errors.length === 0, errors };

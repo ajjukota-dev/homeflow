@@ -38,10 +38,10 @@ export async function getProspect(id: string, ctx: Ctx): Promise<ProspectRow & {
   return { ...p, needs: await needsForProspect(id) };
 }
 
-export async function createProspect(input: { project_id: string; name: string; phone?: string | null; email?: string | null; source?: string | null }, ctx: Ctx): Promise<ProspectRow> {
+export async function createProspect(input: { project_id: string; name: string; phone?: string | null; email?: string | null; source?: string | null; id?: string }, ctx: Ctx): Promise<ProspectRow> {
   requireRole(ctx, SALES_WRITE_ROLES);
   if (!input.project_id || !input.name?.trim()) throw new AppError("validation", "project_id and name are required");
-  const id = "prs_" + randomUUID().slice(0, 8);
+  const id = input.id ?? "prs_" + randomUUID().slice(0, 8);
   await withTx(undefined, async (tx) => {
     const code = await nextCode(tx, "PRS");
     await tx.query(

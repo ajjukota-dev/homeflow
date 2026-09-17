@@ -14,8 +14,8 @@ function pitchAngle(score: number): string {
   return "Move-in ready";
 }
 
-/** Sales — inventory with live changeability. Read-only: Sales never edits physics. */
-export function SalesInventory({ projectId, onBook }: { projectId: string; onBook: (u: Unit) => void }) {
+/** Sales — inventory with live changeability. Read-only: Sales never edits physics. Booking is Sales Desk. */
+export function SalesInventory({ projectId }: { projectId: string }) {
   const [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -85,9 +85,9 @@ export function SalesInventory({ projectId, onBook }: { projectId: string; onBoo
                     </div>
                     <div className="mt-4">
                       {u.sale_status === "available" ? (
-                        <Button size="sm" className="w-full" onClick={() => onBook(u)}>
-                          Book this villa
-                        </Button>
+                        <span className="inline-block rounded-full bg-surface-2 px-3 py-1 text-footnote font-medium text-fg-muted">
+                          Book from Sales Desk
+                        </span>
                       ) : (
                         <span className="inline-block rounded-full bg-surface-2 px-3 py-1 text-footnote font-medium text-fg-muted">
                           {saleStatusLabel(u.sale_status)}

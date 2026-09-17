@@ -1,6 +1,7 @@
 import type { Ctx } from "../authz/types";
 import { MANDATORY_DOCS, type BookingSeedIds } from "../bookings";
 import type { AcceptSeedIds } from "../bookings-crm";
+import type { Residency } from "../model/customers";
 import { PROJECT_ID } from "./users";
 
 // Staff ctxs for the handler-based occupant seed. user_* ids match seed/users.ts.
@@ -54,6 +55,8 @@ export interface OccupantSpec {
   pan: string;
   consideration: number;
   demand_ids: string[];
+  residency?: Residency;
+  prospect_id?: string;
 }
 
 export const KARTHIK: OccupantSpec = {

@@ -1,6 +1,44 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 
 const shot = (name: string) => `e2e/__screenshots__/${name}.png`;
+
+const SPARE = new Set(["V101", "V104", "V108"]);
+
+async function bookFromSalesDesk(page: Page, applicant: string, phone: string): Promise<void> {
+  await page.goto("/");
+  await page.getByRole("button", { name: /Sales Desk/ }).first().click();
+  const main = page.locator("main");
+  await expect(main.getByRole("heading", { name: "Sales Desk", exact: true })).toBeVisible();
+
+  await main.getByRole("tab", { name: "Prospects" }).click();
+  await main.getByRole("button", { name: "New prospect" }).click();
+  const prospectDialog = page.getByRole("dialog", { name: "New prospect" });
+  await prospectDialog.getByRole("textbox", { name: "Name" }).fill(applicant);
+  await prospectDialog.getByRole("textbox", { name: "Phone" }).fill(phone);
+  await prospectDialog.getByRole("button", { name: "Create prospect" }).click();
+  await expect(main.getByRole("button", { name: new RegExp(applicant) }).first()).toBeVisible();
+
+  await main.getByRole("tab", { name: "Inventory" }).click();
+  const projects = await (await page.request.get("/api/projects")).json();
+  const pid = projects.data[0].id;
+  const inv = await (await page.request.get(`/api/projects/${pid}/inventory`)).json();
+  const list = inv.data as { sale_status: string; unit_number: string; price_inr: number | null }[];
+  const availableUnit =
+    list.find((u) => u.sale_status === "AVAILABLE" && u.price_inr && SPARE.has(u.unit_number)) ??
+    list.find((u) => u.sale_status === "AVAILABLE" && u.price_inr);
+  if (!availableUnit) throw new Error("No AVAILABLE unit to book");
+
+  const villaCard = main.getByText(`Villa ${availableUnit.unit_number}`, { exact: true }).locator("../../..");
+  await villaCard.getByRole("button", { name: "Book", exact: true }).click();
+  const bookDialog = page.getByRole("dialog", { name: new RegExp(`^Book villa ${availableUnit.unit_number}$`) });
+  await bookDialog.getByRole("combobox", { name: "Prospect" }).click();
+  await page.getByRole("option", { name: new RegExp(applicant) }).click();
+  await bookDialog.getByRole("textbox", { name: "Name" }).fill(applicant);
+  await bookDialog.getByRole("button", { name: "Book unit", exact: true }).click();
+  await expect(bookDialog.getByText(/Booking BKG-\d+ created as DRAFT/)).toBeVisible();
+  await page.screenshot({ path: shot("booking-wizard"), fullPage: true });
+  await bookDialog.getByRole("button", { name: "Done" }).click();
+}
 
 // --- Responsive screenshots of the read-only screens (run first) ---
 const sizes = [
@@ -34,41 +72,20 @@ for (const s of sizes) {
 // --- The H2 flow: book → CRM accept → Customer 360 (desktop) ---
 test("Booking → CRM handoff → Customer 360", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.goto("/");
+  const applicant = `Anita Sharma ${Date.now()}`;
+  await bookFromSalesDesk(page, applicant, "9876543210");
 
-  await page.getByRole("button", { name: /Sales/ }).first().click();
-  await page.getByRole("button", { name: "Book this villa" }).first().click();
-
-  await expect(page.getByRole("heading", { name: /Book Villa/ })).toBeVisible();
-  await page.getByPlaceholder("e.g. Anita Sharma").fill("Anita Sharma");
-  await page.getByPlaceholder("10-digit mobile").fill("9876543210");
-  await page.getByPlaceholder("ABCDE1234F").fill("ABCDE1234F");
-  await page.getByPlaceholder(/00,000/).fill("12500000");
-  for (const doc of await page.getByRole("checkbox").all()) await doc.click();
-  await page.screenshot({ path: shot("booking-wizard"), fullPage: true });
-
-  await page.getByRole("button", { name: "Submit to CRM" }).click();
-
-  // Lands on CRM with the file in the acceptance queue
+  await page.getByRole("button", { name: /^CRM/ }).first().click();
   await expect(page.getByRole("heading", { name: "CRM · Relationship" })).toBeVisible();
-  await expect(page.getByText("Anita Sharma")).toBeVisible();
+  await expect(page.getByText(applicant)).toBeVisible();
   await page.screenshot({ path: shot("crm-queue"), fullPage: true });
 
-  // Accept the file. NOTE: headless Chromium's synthetic click is flaky on this one
-  // filled button (verified un-covered; native click + real users work fine). We drive
-  // the accept through the same API the button calls, then verify the resulting UI.
-  await page.evaluate(async () => {
-    const q = await (await fetch("/api/bookings?status=submitted")).json();
-    await fetch(`/api/bookings/${q.data[0].id}/accept`, { method: "POST" });
-  });
-  await page.reload();
-  await page.getByRole("button", { name: /CRM/ }).first().click();
-  const customerRow = page.getByRole("button", { name: /Anita Sharma/ });
-  await expect(customerRow).toBeVisible();
+  const customerRow = page.getByRole("button", { name: new RegExp(applicant) });
+  await expect(customerRow.first()).toBeVisible();
   await page.screenshot({ path: shot("crm-customers"), fullPage: true });
 
   await customerRow.first().click();
-  await expect(page.getByRole("heading", { name: "Anita Sharma" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: applicant })).toBeVisible();
   await page.screenshot({ path: shot("customer-360"), fullPage: true });
 });
 
@@ -127,12 +144,14 @@ test("Legal factory generates an AOS", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Document factory" })).toBeVisible();
   await expect(page.getByText("Karthik Iyer")).toBeVisible();
   await page.screenshot({ path: shot("legal-factory"), fullPage: true });
-  await page.getByRole("button", { name: "Generate AOS" }).first().click();
-  await expect(page.getByText("Draft")).toBeVisible();
-  await page.getByRole("button", { name: "Approve" }).click();
-  await expect(page.getByRole("button", { name: "Execute" })).toBeVisible();
-  await page.getByRole("button", { name: "Execute" }).click();
-  await expect(page.getByText("Executed").first()).toBeVisible();
+  // Shared-DB: earlier specs book extra AVAILABLE villas, so `.first()` Generate AOS is no longer Karthik.
+  const card = page.locator("main").locator("div.rounded-card").filter({ hasText: "Meera Krishnan" }).first();
+  await card.getByRole("button", { name: "Generate AOS" }).click();
+  await expect(card.getByText("Draft")).toBeVisible();
+  await card.getByRole("button", { name: "Approve" }).click();
+  await expect(card.getByRole("button", { name: "Execute" })).toBeVisible();
+  await card.getByRole("button", { name: "Execute" }).click();
+  await expect(card.getByText("Executed")).toBeVisible();
 });
 
 test("QA handover completes keys for an eligible villa", async ({ page }) => {
@@ -189,17 +208,12 @@ test("QA handover completes keys for an eligible villa", async ({ page }) => {
   await expect(keysCheckbox).toBeChecked();
   for (const who of ["Customer", "Company"]) {
     const pad = dialog.getByRole("img", { name: new RegExp(`^${who} signature signature pad`) });
-    const box = (await pad.boundingBox())!;
-    // A same-point dragTo() can produce zero intermediate pointermove events (the canvas only
-    // marks itself non-empty on a move while drawing), so draw a real stroke with distinct
-    // start/end coordinates instead.
-    await page.mouse.move(box.x + 20, box.y + box.height / 2);
-    await page.mouse.down();
-    await page.mouse.move(box.x + box.width - 20, box.y + box.height / 2, { steps: 5 });
-    await page.mouse.up();
-    // Scope to this pad's own button row (its next sibling), not "Save signature" globally —
-    // both signature panes render one each, and only one becomes enabled per iteration.
-    await pad.locator("xpath=following-sibling::div[1]").getByRole("button", { name: "Save signature" }).click();
+    await pad.scrollIntoViewIfNeeded();
+    // Distinct start/end — a same-point dragTo produces no pointermove, so the canvas stays empty.
+    await pad.dragTo(pad, { sourcePosition: { x: 24, y: 40 }, targetPosition: { x: 220, y: 55 } });
+    const saveSig = pad.locator("xpath=following-sibling::div[1]").getByRole("button", { name: "Save signature" });
+    await expect(saveSig).toBeEnabled({ timeout: 10_000 });
+    await saveSig.click();
     await expect(dialog.getByText("Signed").nth(who === "Customer" ? 0 : 1)).toBeVisible({ timeout: 15_000 });
   }
 

@@ -119,8 +119,8 @@ export async function listOverdueReasons(ctx: Ctx) {
 }
 
 export async function t2Payments(bookingId: string, progress: Record<string, ProgressState>) {
-  const b = await db.query<{ total_consideration: number }>(
-    `SELECT total_consideration::float8 AS total_consideration FROM booking WHERE id = $1`,
+  const b = await db.query<{ agreement_value_inr: number }>(
+    `SELECT agreement_value_inr::float8 AS agreement_value_inr FROM booking WHERE id = $1`,
     [bookingId]
   );
   if (b.rows.length === 0) return null;
@@ -155,7 +155,7 @@ export async function t2Payments(bookingId: string, progress: Record<string, Pro
       }),
     })),
     paid_total,
-    remaining_total: b.rows[0].total_consideration - paid_total,
+    remaining_total: b.rows[0].agreement_value_inr - paid_total,
     receipts: receipts.rows.map((r) => ({
       receipt_id: r.id,
       amount: Number(r.amount),

@@ -118,7 +118,7 @@ export const ADMIN_NAV: { id: View; label: string }[] = [
 // entry; a role with none falls through to the first visible tab.
 export const ROLE_HOME: Record<string, View> = {
   MANAGEMENT: "tower",
-  SALES: "sales",
+  SALES: "sales-desk",
   CRM: "myday",
   ACCOUNTS: "accounts",
   BANKING: "accounts",

@@ -162,7 +162,7 @@ interface BookingFacts {
   status: string;
   unit_id: string;
   booking_number: string;
-  total_consideration: number;
+  agreement_value_inr: number;
   booking_amount_inr: number | null;
   docs: { type: string; received: boolean }[];
   applicant_name: string | null;
@@ -177,11 +177,11 @@ interface BookingFacts {
 async function loadBookingFacts(bookingId: string, tx: DbLike): Promise<BookingFacts> {
   const r = await tx.query<{
     project_id: string; status: string; unit_id: string; booking_number: string;
-    total_consideration: number; booking_amount_inr: number | null; docs: unknown;
+    agreement_value_inr: number; booking_amount_inr: number | null; docs: unknown;
     applicant_name: string | null; applicant_phone: string | null; applicant_pan: string | null;
     unit_number: string | null; unit_type: string | null; facing: string | null; product_type: string | null;
   }>(
-    `SELECT b.project_id, b.status, b.unit_id, b.booking_number, b.total_consideration::float8 AS total_consideration,
+    `SELECT b.project_id, b.status, b.unit_id, b.code AS booking_number, b.agreement_value_inr::float8 AS agreement_value_inr,
             b.booking_amount_inr::float8 AS booking_amount_inr, b.docs,
             a.display_name AS applicant_name, a.phone AS applicant_phone, a.pan AS applicant_pan,
             u.unit_number, u.unit_type, u.facing, u.product_type
@@ -210,11 +210,11 @@ function buildPacket(facts: BookingFacts, input: SubmitHandoverInput, existing: 
       communication_pref_confirmed: c.communication_pref_confirmed ?? existing?.customer_section.communication_pref_confirmed ?? false,
     },
     commercial_section: {
-      final_price_inr: facts.total_consideration,
+      final_price_inr: facts.agreement_value_inr,
       discount_inr: input.commercial?.discount_inr ?? existing?.commercial_section.discount_inr ?? 0,
       brokerage: input.commercial?.brokerage ?? existing?.commercial_section.brokerage ?? 0,
       payment_plan_ref: input.commercial?.payment_plan_ref ?? existing?.commercial_section.payment_plan_ref ?? null,
-      booking_amount_inr: facts.booking_amount_inr ?? facts.total_consideration,
+      booking_amount_inr: facts.booking_amount_inr ?? facts.agreement_value_inr,
       approved_deviations: existing?.commercial_section.approved_deviations ?? [],
     },
     unit_section: {
@@ -400,11 +400,11 @@ export async function submitHandover(bookingId: string, input: SubmitHandoverInp
     // at 'submitted' for the existing, unchanged `acceptBooking`/`returnBooking` (bookings-crm.ts)
     // to accept it again — those two are the only writers of booking.status and neither one else
     // reverses a 'returned' booking.
-    if (facts.status === "returned") {
+    if (facts.status === "returned" || facts.status === "draft" || facts.status === "confirmed") {
       await tx.query(`UPDATE booking SET status = 'submitted' WHERE id = $1`, [bookingId]);
       await appendEvent(tx, {
         type: "booking.status_changed", entity_type: "booking", entity_id: bookingId, project_id: facts.project_id,
-        booking_id: bookingId, unit_id: facts.unit_id, payload: { from: "returned", to: "submitted" },
+        booking_id: bookingId, unit_id: facts.unit_id, payload: { from: facts.status, to: "submitted" },
         ...actorFields(ctx),
       });
     }
@@ -439,6 +439,21 @@ export async function submitHandover(bookingId: string, input: SubmitHandoverInp
 
     return requireHandoverByBooking(bookingId, tx);
   });
+}
+
+async function applyPacketResidency(bookingId: string, packetResidency: string, tx: DbLike): Promise<void> {
+  const row = await tx.query<{ customer_id: string; residency: string }>(
+    `SELECT c.id AS customer_id, c.residency FROM booking_applicant ba
+       JOIN customer c ON c.id = ba.customer_id
+      WHERE ba.booking_id = $1 AND ba.role = 'primary'`,
+    [bookingId]
+  );
+  const c = row.rows[0];
+  if (!c) return;
+  const specific = (r: string) => r === "NRI" || r === "OCI";
+  if (specific(c.residency) && !specific(packetResidency)) return;
+  if (c.residency === packetResidency) return;
+  await tx.query(`UPDATE customer SET residency = $1 WHERE id = $2`, [packetResidency, c.customer_id]);
 }
 
 /** Least-loaded round robin (rule 5) among the project's CRM team assignments — real, computed
@@ -484,12 +499,12 @@ export async function acceptHandover(bookingId: string, ctx: Ctx, seed?: AcceptS
   await authorize(ctx, "sales_handover", "WRITE");
 
   const rm = await withTx(undefined, (tx) => assignRmOwner(h.project_id, tx));
-  await acceptBookingLegacy(bookingId, ctx, rm?.display_name, seed);
+  await acceptBookingLegacy(bookingId, ctx, rm?.user_id, seed);
 
   await withTx(undefined, async (tx) => {
     const unit = await tx.query<{ unit_id: string }>(`SELECT unit_id FROM booking WHERE id = $1`, [bookingId]);
     const unitId = unit.rows[0]!.unit_id;
-    if (rm) await tx.query(`UPDATE booking SET rm_owner_user_id = $1 WHERE id = $2`, [rm.user_id, bookingId]);
+    await applyPacketResidency(bookingId, h.packet.customer_section.residency, tx);
 
     for (const onboarding of ONBOARDING_ACTIONS) {
       await createAction(
@@ -626,7 +641,7 @@ export interface HandoverQueueRow {
 export async function getHandoverQueue(projectId: string, ctx: Ctx): Promise<HandoverQueueRow[]> {
   await authorize(ctx, "sales_handover", "READ");
   const r = await db.query<{ booking_id: string; booking_number: string; completeness_score: number | null; submitted_at: string; sales_owner: string | null }>(
-    `SELECT sh.booking_id, b.booking_number, sh.completeness_score, sh.submitted_at, u.display_name AS sales_owner
+    `SELECT sh.booking_id, b.code AS booking_number, sh.completeness_score, sh.submitted_at, u.display_name AS sales_owner
        FROM sales_handover sh
        JOIN booking b ON b.id = sh.booking_id
        LEFT JOIN "user" u ON u.id = b.sales_owner_user_id

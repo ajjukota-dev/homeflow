@@ -55,7 +55,7 @@ describe("H2 booking → CRM handoff", () => {
     expect(b.status).toBe("submitted");
     expect(b.completeness_score).toBe(100);
     expect(b.id).not.toBe("b_v110");
-    expect(b.booking_number).toMatch(/^BK-[0-9A-F]{8}$/i);
+    expect(b.booking_number).toMatch(/^BKG-\d{6}$/);
     const queue = await listBookings("submitted", superAdminCtx);
     expect(queue.find((x) => x.id === b.id)).toBeTruthy();
   });

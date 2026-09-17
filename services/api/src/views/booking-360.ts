@@ -16,6 +16,7 @@ export interface NextAction { id: string; title: string; status: string; priorit
 export interface Booking360View {
   booking_id: string;
   booking_number: string;
+  rm_owner: string | null;
   status: string;
   project_id: string;
   unit: { id: string; unit_number: string; unit_type: string } | null;
@@ -29,9 +30,12 @@ export interface Booking360View {
 export async function getBooking360(bookingId: string, ctx: Ctx): Promise<Booking360View> {
   requireRole(ctx, STAFF_ROLES);
   await assertEntityScope(ctx, "booking", bookingId, "read");
-  const b = await db.query<{ booking_number: string; status: string; project_id: string; unit_id: string; unit_number: string; unit_type: string }>(
-    `SELECT b.booking_number, b.status, b.project_id, u.id AS unit_id, u.unit_number, u.unit_type
-       FROM booking b JOIN unit u ON u.id = b.unit_id WHERE b.id = $1`,
+  const b = await db.query<{ booking_number: string; status: string; project_id: string; unit_id: string; unit_number: string; unit_type: string; rm_owner: string | null }>(
+    `SELECT b.code AS booking_number, b.status, b.project_id, u.id AS unit_id, u.unit_number, u.unit_type,
+            ru.display_name AS rm_owner
+       FROM booking b JOIN unit u ON u.id = b.unit_id
+       LEFT JOIN "user" ru ON ru.id = b.rm_owner_user_id
+      WHERE b.id = $1`,
     [bookingId]
   );
   if (!b.rows[0]) throw new AppError("not_found", "not_found");
@@ -58,6 +62,7 @@ export async function getBooking360(bookingId: string, ctx: Ctx): Promise<Bookin
   return {
     booking_id: bookingId,
     booking_number: row.booking_number,
+    rm_owner: row.rm_owner,
     status: row.status,
     project_id: row.project_id,
     unit: { id: row.unit_id, unit_number: row.unit_number, unit_type: row.unit_type },

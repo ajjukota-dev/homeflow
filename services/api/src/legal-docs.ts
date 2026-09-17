@@ -12,7 +12,8 @@ import { checksum, getDocument, liveSnapshot, source } from "./legal-docs-source
 import { appendEvent, withTx, actorFields } from "./events";
 import { authorize } from "./authz/authorize";
 import type { Ctx } from "./authz/types";
-import { nextCode } from "./model/codes";
+import { completeCase as completeRegistrationCase } from "./registration/core";
+import { loadOrCreateCase as loadOrCreateRegistration } from "./registration/store";
 
 // Appendix B names only agreement.generated/executed for this factory. AOS is the only
 // template that exists today (seed-lifecycle.ts); once spec 22's Document Factory lands with
@@ -46,7 +47,7 @@ export async function generateDocument(bookingId: string, documentFamily: string
   const valid = autoValidate({
     body: rendered.body,
     snapshot,
-    consideration: row.total_consideration,
+    consideration: row.agreement_value_inr,
   });
   if (!valid.ok) {
     const err = new Error("validation_failed") as Error & { errors: typeof valid.errors };
@@ -146,7 +147,7 @@ export async function executeDocument(id: string, ctx: Ctx) {
   return getDocument(id);
 }
 
-/** Emits registration.completed (02 Appendix B). */
+/** Emits registration.completed (02 Appendix B). Spec `completeCase` first; same-row fallback. */
 export async function completeRegistration(bookingId: string, sroReference: string, ctx: Ctx) {
   await authorize(ctx, "registrations", "WRITE");
   const finance = await bookingFinance(bookingId);
@@ -157,31 +158,41 @@ export async function completeRegistration(bookingId: string, sroReference: stri
   );
   if (executed.rows.length === 0) throw new Error("executed_agreement_missing");
   const row = await source(bookingId);
-  await withTx(undefined, async (t) => {
-    // code/unit_id are real NOT NULL columns since 23-registration.md's migration (0038) — a
-    // fresh INSERT here (no prior registration/core.ts case) needs both, same as any other
-    // producer of this row.
-    const code = await nextCode(t, "REG");
-    await t.query(
-      `INSERT INTO registration_case (id, code, booking_id, unit_id, project_id, status, sro_reference, completed_at)
-       VALUES ($1,$2,$3,$4,$5,'completed',$6, now())
-       ON CONFLICT (booking_id) DO UPDATE SET status = 'completed', sro_reference = $6, completed_at = now()`,
-      [randomUUID(), code, bookingId, row.unit_id, row.project_id, sroReference]
+  const existing = await loadOrCreateRegistration(bookingId);
+  let specCompleted = false;
+  try {
+    await completeRegistrationCase(
+      bookingId,
+      { deed_document_id: executed.rows[0].id, sro_reference: sroReference },
+      ctx
     );
-    await t.query(`UPDATE unit SET sale_status = 'registered' WHERE id = $1 AND sale_status <> 'handed_over'`, [
-      row.unit_id,
-    ]);
+    specCompleted = true;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "";
+    if (/already completed/i.test(msg)) specCompleted = true;
+    else if (!/gate_blocked|not_found|validation|requires one of/i.test(msg)) throw e;
+  }
+  await withTx(undefined, async (t) => {
+    if (!specCompleted) {
+      await t.query(
+        `UPDATE registration_case SET status = 'completed', sro_reference = $2, completed_at = now() WHERE id = $1`,
+        [existing.id, sroReference]
+      );
+      await t.query(`UPDATE unit SET sale_status = 'registered' WHERE id = $1 AND sale_status <> 'handed_over'`, [
+        row.unit_id,
+      ]);
+      await appendEvent(t, {
+        type: "registration.completed",
+        entity_type: "booking",
+        entity_id: bookingId,
+        project_id: row.project_id,
+        booking_id: bookingId,
+        unit_id: row.unit_id,
+        payload: { sro_reference: sroReference },
+        ...actorFields(ctx),
+      });
+    }
     await t.query(`UPDATE generated_document SET status = 'archived' WHERE id = $1`, [executed.rows[0].id]);
-    await appendEvent(t, {
-      type: "registration.completed",
-      entity_type: "booking",
-      entity_id: bookingId,
-      project_id: row.project_id,
-      booking_id: bookingId,
-      unit_id: row.unit_id,
-      payload: { sro_reference: sroReference },
-      ...actorFields(ctx),
-    });
   });
   return { booking_id: bookingId, status: "completed", sro_reference: sroReference };
 }

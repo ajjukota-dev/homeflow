@@ -19,7 +19,6 @@ Lists show a written empty state (e.g. “No files waiting”, “Nothing in thi
 
 ## Known gaps
 
-- Forecast column still equals baseline after a plan revision (Karthik / Nisha). Plan ≠ baseline is real.
 - Queues may show raw `user_*` owner ids.
 - Portal Home may say the timeline is not set up until customer-visible dates are published; staff **View journey** for Karthik is populated.
 
@@ -31,7 +30,7 @@ Email/password, one seeded staff user per PDF §13 role plus one customer login,
 | Management | `management@demo.pranava` | Control tower |
 | CRM | `crm@demo.pranava` | My Day |
 | Accounts | `accounts@demo.pranava` | Accounts |
-| Sales | `sales@demo.pranava` | Sales |
+| Sales | `sales@demo.pranava` | Sales Desk |
 | Legal | `legal@demo.pranava` | Legal |
 | Registration | `registration@demo.pranava` | Legal |
 | Site | `site@demo.pranava` | Project / Site |
@@ -58,7 +57,7 @@ Forgot password → `/reset/:token` (1h link, emailed via the file-mailer adapte
 
 ## Occupant roster (Phase 1)
 
-Created by the same handlers the UI uses (`createBooking` → `submitHandover` → `acceptHandover` → `completeTaskInstance`), not `INSERT INTO booking`. Copy this pattern for Phase 2. Password for every portal login: `Demo@2026`.
+Created by the same handlers the UI uses (`bookFromInventory` → `confirmInventoryBooking` → `submitHandover` → `acceptHandover` → `completeTaskInstance`), not `INSERT INTO booking`. Copy this pattern for Phase 2. Password for every portal login: `Demo@2026`.
 
 | Stage (current, parallel streams may also be open) | Person | Unit | booking_number | Portal login | Done |
 |---|---|---|---|---|---|
@@ -98,7 +97,7 @@ Same handler pattern. Password `Demo@2026`. Do not book V101 / V104 / V108.
 | Registration — blocked (docs/clearance/AOS) | Anjali Bhat | V118 | BK-V118 | `anjali@demo.pranava` | yes |
 | Handover — CRITICAL snag hard-gate | Vivek Sharma | V119 | BK-V119 | `vivek@demo.pranava` | yes |
 | Overdue reason + next action on every overdue (incl. Karthik) | — | — | — | — | yes |
-| Plan vs forecast vs actual date drift | Karthik Iyer / Nisha Verma | V110 / MT1-201 | BK-V110 / BK-MT201 | `karthik@` / `nisha@` | yes (plan ≠ baseline via `createPlanRevision` + delay_reason catalog; forecast column still original/baseline — no forecast-revision handler) |
+| Plan vs forecast vs actual date drift | Karthik Iyer / Nisha Verma | V110 / MT1-201 | BK-V110 / BK-MT201 | `karthik@` / `nisha@` | yes (plan ≠ baseline via `createPlanRevision`; forecast copies the new planned dates via `timeline_forecast_revision`, source SYSTEM) |
 
 Staff proof: `legal@` Kavya BK-MT502 AOS draft; `registration@` Deepak BK-MP02 slot booked (Ananya still completed); `qa@` Ishaan BK-V114 scheduled appointment, Vivek BK-V119 blocked by critical snag; `banking@` Leela BK-V115 DOCS_PENDING; `accounts@` Farhan BK-V116 cheque_bounce plus Karthik overdue reasons. Portal `:5174` kavya@ / deepak@ / ishaan@ / leela@ / farhanq@ / anjali@ / vivek@ / `Demo@2026`.
 

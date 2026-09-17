@@ -17,11 +17,11 @@ export interface DocSourceContext {
 
 export async function buildSourceContext(bookingId: string, tx: DbLike = db): Promise<DocSourceContext> {
   const b = await tx.query<{
-    id: string; project_id: string; unit_id: string; booking_number: string; total_consideration: number; discount_inr: number | null;
+    id: string; project_id: string; unit_id: string; booking_number: string; agreement_value_inr: number; discount_inr: number | null;
     project_name: string; rera_reg_no: string | null; unit_code: string; unit_number: string; unit_type: string; product_type: string;
     carpet_area_sqft: number | null; built_up_area_sqft: number | null;
   }>(
-    `SELECT b.id, b.project_id, b.unit_id, b.booking_number, b.total_consideration::float8 AS total_consideration, b.discount_inr::float8 AS discount_inr,
+    `SELECT b.id, b.project_id, b.unit_id, b.code AS booking_number, b.agreement_value_inr::float8 AS agreement_value_inr, b.discount_inr::float8 AS discount_inr,
             p.name AS project_name, p.rera_reg_no,
             u.code AS unit_code, u.unit_number, u.unit_type, u.product_type, u.carpet_area_sqft::float8 AS carpet_area_sqft, u.built_up_area_sqft::float8 AS built_up_area_sqft
        FROM booking b JOIN unit u ON u.id = b.unit_id JOIN project p ON p.id = b.project_id
@@ -43,7 +43,7 @@ export async function buildSourceContext(bookingId: string, tx: DbLike = db): Pr
     : {};
 
   return {
-    booking: { id: row.id, code: row.booking_number, total_consideration: row.total_consideration, discount_inr: row.discount_inr },
+    booking: { id: row.id, code: row.booking_number, agreement_value_inr: row.agreement_value_inr, total_consideration: row.agreement_value_inr, discount_inr: row.discount_inr },
     unit: { code: row.unit_code, number: row.unit_number, type: row.unit_type, product_type: row.product_type, carpet_area_sqft: row.carpet_area_sqft, built_up_area_sqft: row.built_up_area_sqft },
     project: { id: row.project_id, name: row.project_name, rera_reg_no: row.rera_reg_no },
     customer,

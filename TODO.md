@@ -10,11 +10,15 @@ Rewritten 2026-09-05 04:20 IST (Amarsh: "the technical specs were vibecoded; mov
 
 ## CONTINUE HERE (session handoff, 2026-09-16)
 
-**If your first message in this repo is just "continue":** Phase 1–5 are closed on this laptop (`docs/handover/phase-work-map.md`). Operator pack: `HANDOFF.md` + `docs/demo/click-path.md`. Local Postgres 16: `docs/handover/local-postgres.md`. Stop API → `npm run db:reset` in `services/api` → restart before a clean walk. Do not book V101/V104/V108. Ask before AWS.
+**If your first message in this repo is just "continue":** Phases 1–6 are closed. **Next is workflow artifacts W01–W14** — `docs/handover/workflow-artifacts.md`; each artifact must include live UI screenshots, not diagrams only. Operator pack: `HANDOFF.md` + `docs/demo/click-path.md`. Local Postgres 16: `docs/handover/local-postgres.md`. Stop API → `npm run db:reset` in `services/api` → restart before a clean walk (Playwright books spare villas). Do not book V101/V104/V108 in seed. Ask before AWS.
 
-**Parked (not cancelled):** P3 Google OIDC. GitHub `ci`/`deploy` workflows (pre-existing red; not Phase 5). Forecast-revision engine (forecast still equals baseline after plan revision). Queues raw `user_*` owner ids.
+**Parked (not cancelled):** P3 Google OIDC. GitHub `ci`/`deploy` workflows (pre-existing red). Full forecast engine (progress/SLA recompute) — Phase 6.6 only copies planned → forecast on plan revision. Queues raw `user_*` owner ids. `BookingWizard.tsx` is unused (SALES home is Sales Desk); old Sales tab is read-only inventory.
 
 **Phase map (share with the team):** `docs/handover/phase-work-map.md` and `docs/handover/client-readiness.md`. Cursor canvases remain local-only.
+
+**Found while building (Phase 6, 2026-09-16):** `bookFromInventory` creates customers with `kyc_status=pending`, so leftover Deepak `confirmAvailability` blocked until `acceptBooking` SET `kyc_status=verified` when linking the existing customer. Playwright `exact: true` on nav "Sales Desk" never matches (accessible name includes the subtitle). Spare villas V101/V104/V108 are the e2e book pool — excluding them starved later specs. Legal factory `.first()` Generate AOS hits the newest e2e booking, not Karthik.
+
+**Verified in planning chat (2026-09-16):** All 6.1–6.8 / e61–e68 / e6-tests / e6-seed / e6-out pass. Independent re-run: `phase6-canonical.test.ts` + `plan-revision.test.ts` 20/20. `createBooking` still INSERTs (test helper, not a delegate). Concatenated 53/53 Playwright after AOS Meera scope was not re-run on a fresh reset.
 
 **Found while building (Phase 5, 2026-09-16):** GET 360 used `compute*` scorers that inserted UNIT_READINESS/CUSTOMER_HEALTH snapshots on every read — swapped to `explainUnitReadiness` / `explainCustomerHealth`. CRM invite landed on the CRM desk until `ROLE_HOME.CRM = "myday"`. Collections e2e screenshot raced skeletons; wait for Karthik Iyer. Vite binds `[::1]` so `127.0.0.1:5173` fails. Unset `PLAYWRIGHT_BROWSERS_PATH` (sandbox cache) or PDF vitest cannot find Chromium.
 

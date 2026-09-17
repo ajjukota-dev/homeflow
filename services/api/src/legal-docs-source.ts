@@ -11,8 +11,8 @@ export function checksum(text: string) {
 
 export async function source(bookingId: string): Promise<SourceRow> {
   const r = await db.query<SourceRow>(
-    `SELECT b.id, b.project_id, b.unit_id, b.booking_number,
-            b.total_consideration::float8 AS total_consideration,
+    `SELECT b.id, b.project_id, b.unit_id, b.code AS booking_number,
+            b.agreement_value_inr::float8 AS agreement_value_inr,
             u.unit_number, u.unit_type, u.facing, p.name AS project_name,
             a.display_name, a.pan
        FROM booking b
@@ -35,7 +35,7 @@ export function liveSnapshot(row: SourceRow): Record<string, string | null> {
     facing: row.facing,
     project_name: row.project_name,
     booking_number: row.booking_number,
-    consideration: String(row.total_consideration),
+    consideration: String(row.agreement_value_inr),
   };
 }
 

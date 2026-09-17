@@ -32,6 +32,7 @@ export const LEELA: LeftoverPerson = {
   customer_id: "c_leela", applicant_id: "a_v115", name: "Leela Fernandes",
   phone: "9845088809", pan: "LEELF3456Q",
   demand_ids: ["d_v115_1", "d_v115_2", "d_v115_3", "d_v115_4", "d_v115_5"],
+  residency: "NRI",
 };
 export const FARHANQ: LeftoverPerson = {
   unit_number: "V116", booking_id: "b_v116", booking_number: "BK-V116",
@@ -102,5 +103,6 @@ export async function resolveOccupant(p: LeftoverPerson): Promise<OccupantSpec> 
     pan: p.pan,
     consideration: Number(r.rows[0].base_price_inr),
     demand_ids: p.demand_ids,
+    residency: p.residency,
   };
 }

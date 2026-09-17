@@ -73,7 +73,7 @@ export async function getUnit360(unitId: string, ctx: Ctx): Promise<Unit360View>
   const row = u.rows[0];
 
   const booking = await db.query<{ id: string; booking_number: string; status: string }>(
-    `SELECT id, booking_number, status FROM booking WHERE unit_id = $1 ORDER BY (status = 'active') DESC, created_at DESC LIMIT 1`,
+    `SELECT id, code AS booking_number, status FROM booking WHERE unit_id = $1 ORDER BY (status = 'active') DESC, created_at DESC LIMIT 1`,
     [unitId]
   );
   const [hierarchy_path, readiness, changeability] = await Promise.all([

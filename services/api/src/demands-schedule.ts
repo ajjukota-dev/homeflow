@@ -22,10 +22,10 @@ export async function setupFunding(bookingId: string, ctx: Ctx, tx?: DbLike, see
     const b = await t.query<{
       project_id: string;
       unit_id: string;
-      total_consideration: number;
+      agreement_value_inr: number;
       payment_plan_id: string | null;
     }>(
-      `SELECT project_id, unit_id, total_consideration::float8 AS total_consideration, payment_plan_id
+      `SELECT project_id, unit_id, agreement_value_inr::float8 AS agreement_value_inr, payment_plan_id
          FROM booking WHERE id = $1`,
       [bookingId]
     );
@@ -63,7 +63,7 @@ export async function setupFunding(bookingId: string, ctx: Ctx, tx?: DbLike, see
     const progressMap: Record<string, ProgressState> = {};
     for (const row of progress.rows) progressMap[row.component_code] = row.state_code;
 
-    const consideration = booking.total_consideration;
+    const consideration = booking.agreement_value_inr;
     let allocated = 0;
     for (let i = 0; i < ms.rows.length; i++) {
       const m = ms.rows[i];

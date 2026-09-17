@@ -13,7 +13,7 @@ Shareable copy of the client-readiness canvas (2026-09-15).
 
 Source: PDF §§24–27, §31.5, §32.11, §33.6, §34.7, Appendix A · main as of 2026-09-16.
 
-**Ready to hand over locally.** Phase 5 proof ran (stop API → `db:reset` → 879/879 vitest, Playwright sale-to-handover + invite → My Day + Ananya/Rohan portals, walk crm@ + Ananya + Rohan + nisha@). Known leftovers: forecast still equals baseline after plan revision; Queues may show raw `user_*` ids; GitHub `ci`/`deploy` still red; no AWS of this main.
+**Ready to hand over locally** after Phase 6 proof (stop API → `db:reset` → SQL pack + vitest 893/893). Canonical book path is `bookFromInventory`. Also leftover: unused `BookingWizard.tsx`; old Sales tab is read-only inventory; Queues raw `user_*` ids; GitHub `ci`/`deploy` red; no AWS of this main.
 
 ---
 
@@ -52,7 +52,7 @@ Cut seed off raw `INSERT INTO booking` / demand / handover / AOS. Recreate the f
 
 One named occupant per PDF §34.2 state (and the extras). Same story on staff 360 and that customer’s portal. Go down the list; do not start a new occupant at end of Day 2. Standing rule **2.14:** every accepted booking added here gets a portal login, not only the Day 1 four.
 
-**Day 2 (2.1–2.5 + 2.14) closed 2026-09-15.** Leftover 2.6–2.16 closed (2.12 plan≠baseline; forecast still equals baseline). Workspace shows leftover people only after stop API → `db:reset` → restart.
+**Day 2 (2.1–2.5 + 2.14) closed 2026-09-15.** Leftover 2.6–2.16 closed (2.12 plan≠baseline). Phase 6.6 copies planned → forecast on plan revision. Workspace shows leftover people only after stop API → `db:reset` → restart.
 
 | Stage | Who / unit today | What is wrong today | Build this | Phase |
 |---|---|---|---|---|
@@ -73,7 +73,7 @@ One named occupant per PDF §34.2 state (and the extras). Same story on staff 36
 | CR in flight | Nisha Verma BK-MT201 Kitchen island AWAITING_CUSTOMER | Meadows Customisation Desk (`superadmin@`) | Keep | 2.3 |
 | Cancel / transfer | Gita Reddy V117 cancelled; unit remains | Done | Keep | 2.11 |
 | Meadows apt + plot | Nisha MT1-201 · Suresh MP-01 · Kavya MT1-502 · Deepak MP-02 | Done | Keep | 2.5 |
-| Plan vs forecast vs actual | Karthik BK-V110 · Nisha BK-MT201 | Done: plan ≠ baseline via catalog delay_reason. Forecast still equals baseline (no forecast-revision handler). | Keep | 2.12 |
+| Plan vs forecast vs actual | Karthik BK-V110 · Nisha BK-MT201 | Done: plan ≠ baseline via catalog delay_reason. Forecast follows plan revision (Phase 6.6). | Keep | 2.12 |
 | Portal on every accepted Phase 2 booking | kavya@ deepak@ ishaan@ leela@ farhanq@ anjali@ vivek@ + nisha@ suresh@ | Gita/V117 closed, no login (allowed) | Standing if more accepted bookings are added | 2.14 |
 
 ### 3. Exam week — You (Phase 3 only) — **code closed 2026-09-15**
@@ -113,6 +113,21 @@ Interruptible work. **Not RLS.** Daily 15–30 min PR review (`docs/handover/pha
 | Rewrite HANDOFF.md + click-path as the operator pack | Done | 5.4 |
 | Deploy this main only after spend yes; else local Postgres 16 runbook | Done: `docs/handover/local-postgres.md` (no AWS) | 5.5 |
 | Invite a new staff user; they land in My Day | Done (CRM invite Playwright) | 5.6 |
+
+### 6. Canonical booking shape — after Phase 5 (Phase 6) — **closed 2026-09-16**
+
+Proved against [phase-6-canonical-booking-checklist.md](./phase-6-canonical-booking-checklist.md).
+
+| Do this | Done when | Phase |
+|---|---|---|
+| Seed + SALES home use `bookFromInventory`; wizard not live | Done: Karthik `c_karthik`; Aditi customer at book; SALES lands on Sales Desk | 6.1 |
+| Residency on the customer twin | Done: packet NRI → customer; Leela NRI at write time | 6.2 |
+| `agreement_value_inr` is the money | Done: Karthik 1.2 Cr; reads use `agreement_value_inr` | 6.3 |
+| RM is `rm_owner_user_id` | Done: `user_crm`; 360 joins `user.display_name` (Priya Nair) | 6.4 |
+| One human booking id | Done: occupants `code = booking_number`; new books mint `BKG-######` on both | 6.5 |
+| Applicant roles = CHECK set | Done: PRIMARY / CO_APPLICANT / POA / NOMINEE | 6.7 |
+| Forecast follows plan revision | Done: `timeline_forecast_revision` SYSTEM/1; forecast = new planned | 6.6 |
+| One writer per keys / registration case | Done: spec `completeCase`; Ishaan `ho_b_v114` one row | 6.8 |
 
 ---
 
@@ -160,3 +175,4 @@ Handover is a **gate, not a date**. Occupant seed does not finish the product by
 | 7 | Policy Studio can set durations, gates, templates, matrix bands. Empty-matrix fail-closed and in-code ₹200k fallback are gone. |
 | 8 | Either: production deploy of this main (HTTPS, Postgres, backups, health, logs, their mailer) after spend approval — or a written local-first Postgres 16 runbook (5.5). Invite a new staff user end-to-end; they land in My Day (5.6). |
 | 9 | Click-path names the occupants and is executable without an engineer. No empty desks on a fresh reset. |
+| 10 | Canonical booking shape (Phase 6): one write path, `agreement_value_inr`, residency on customer, RM user id, one human code, forecast follows plan revision, one writer per keys/registration case. |

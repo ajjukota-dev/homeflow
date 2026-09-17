@@ -38,16 +38,19 @@ export function assessCompleteness(input: BookingInput): { score: number; missin
 
 export async function getBooking(id: string) {
   const r = await db.query<BookingDetailRow>(
-    `SELECT b.id, b.booking_number, b.status, b.total_consideration::float8 AS total_consideration,
-            b.completeness_score, b.return_reason, b.rm_owner,
+    `SELECT b.id, b.code AS booking_number, b.status, b.agreement_value_inr::float8 AS agreement_value_inr,
+            b.completeness_score, b.return_reason, ru.display_name AS rm_owner,
             u.unit_number, u.unit_type, u.facing,
             a.display_name AS applicant_name, a.phone AS applicant_phone, a.pan AS applicant_pan
        FROM booking b JOIN unit u ON u.id = b.unit_id
        LEFT JOIN booking_applicant a ON a.booking_id = b.id AND a.role = 'primary'
+       LEFT JOIN "user" ru ON ru.id = b.rm_owner_user_id
       WHERE b.id = $1`,
     [id]
   );
-  return r.rows[0] ?? null;
+  const row = r.rows[0];
+  if (!row) return null;
+  return { ...row, total_consideration: row.agreement_value_inr ?? row.total_consideration };
 }
 
 /** Sales creates the booking; blocked unless the completeness gate is satisfied.
@@ -77,15 +80,15 @@ export async function createBooking(unitId: string, input: BookingInput, ctx: Ct
   }
 
   const bookingId = seed?.booking_id ?? randomUUID();
-  const number = seed?.booking_number ?? "BK-" + bookingId.slice(0, 8).toUpperCase();
+  const number = seed?.booking_number ?? null;
   await withTx(undefined, async (t) => {
-    const code = await nextCode(t, "BKG");
+    const code = number ?? (await nextCode(t, "BKG"));
     await t.query(
       `INSERT INTO booking
         (id, project_id, unit_id, booking_number, status, total_consideration, completeness_score, docs,
          code, agreement_value_inr, sales_owner_user_id)
-       VALUES ($1,$2,$3,$4,'submitted',$5,$6,$7,$8,$5,$9)`,
-      [bookingId, u.rows[0].project_id, unitId, number, input.total_consideration, score, JSON.stringify(input.docs), code, ctx.actor.user_id]
+       VALUES ($1,$2,$3,$4,'submitted',$5,$6,$7,$4,$5,$8)`,
+      [bookingId, u.rows[0].project_id, unitId, code, input.total_consideration, score, JSON.stringify(input.docs), ctx.actor.user_id]
     );
     await t.query(
       `INSERT INTO booking_applicant (id, booking_id, display_name, role, phone, pan)
@@ -100,7 +103,7 @@ export async function createBooking(unitId: string, input: BookingInput, ctx: Ct
       project_id: u.rows[0].project_id,
       booking_id: bookingId,
       unit_id: unitId,
-      payload: { booking_number: number, total_consideration: input.total_consideration },
+      payload: { booking_number: code, code, agreement_value_inr: input.total_consideration, total_consideration: input.total_consideration },
       ...actorFields(ctx),
     });
     await appendEvent(t, {
@@ -128,8 +131,8 @@ export async function createBooking(unitId: string, input: BookingInput, ctx: Ct
 
 export async function listBookings(status: string | undefined, ctx: Ctx) {
   await authorize(ctx, "sales_handover", "READ");
-  const r = await db.query<BookingListRow>(
-    `SELECT b.id, b.booking_number, b.status, b.total_consideration::float8 AS total_consideration,
+  const r = await db.query<BookingListRow & { agreement_value_inr: number }>(
+    `SELECT b.id, b.code AS booking_number, b.status, b.agreement_value_inr::float8 AS agreement_value_inr,
             b.completeness_score, b.return_reason,
             u.unit_number, u.unit_type,
             a.display_name AS applicant_name, a.phone AS applicant_phone
@@ -139,7 +142,7 @@ export async function listBookings(status: string | undefined, ctx: Ctx) {
       ORDER BY b.created_at DESC`,
     status ? [status] : []
   );
-  return r.rows;
+  return r.rows.map((row) => ({ ...row, total_consideration: row.agreement_value_inr }));
 }
 
 // CRM accept/return moved to bookings-crm.ts, and the customer directory to

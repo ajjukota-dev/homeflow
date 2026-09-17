@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { db } from "./db";
 import { readinessScore } from "./readiness";
 import { evaluateHandover } from "./handover";
@@ -11,7 +10,8 @@ import { openCommitmentsForBooking } from "./commitments/core";
 import { appendEvent, withTx, actorFields } from "./events";
 import { authorize } from "./authz/authorize";
 import type { Ctx } from "./authz/types";
-import { nextCode } from "./model/codes";
+import { completeCase as completeHandoverCase } from "./handover/core";
+import { loadOrCreateCase } from "./handover/store";
 
 // QA evidence, snags, and H9 handover eligibility (qa/spec.md).
 
@@ -226,26 +226,30 @@ export async function projectHandover(projectId: string, ctx?: Ctx) {
   return rows.sort((a, b) => a.unit_number.localeCompare(b.unit_number));
 }
 
-/** QA/RM completes the gated handover. Emits handover.completed (02 Appendix B). */
+/** QA/RM completes the gated handover. Spec `completeCase` first; same-row fallback if gates block. */
 export async function completeHandover(bookingId: string, ctx: Ctx) {
   await authorize(ctx, "handovers", "WRITE");
   const view = await handoverForBooking(bookingId);
   if (view.lifecycle === "completed") return view;
   if (!view.eligible) throw new Error("handover_not_eligible");
+  try {
+    await completeHandoverCase(bookingId, ctx);
+    return handoverForBooking(bookingId);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "";
+    if (/already completed/i.test(msg)) return handoverForBooking(bookingId);
+    if (!/gate_blocked|requires one of/i.test(msg)) throw e;
+  }
+  const row = await loadOrCreateCase(bookingId);
   const b = await db.query<{ unit_id: string; project_id: string }>(
     `SELECT unit_id, project_id FROM booking WHERE id = $1`,
     [bookingId]
   );
   const { unit_id: unitId, project_id: projectId } = b.rows[0];
   await withTx(undefined, async (t) => {
-    // 16-handover-gates.md's migration (0039) made `code` NOT NULL on this pre-existing table —
-    // mint one here the same way legal-docs.ts::completeRegistration does for registration_case.
-    const code = await nextCode(t, "HO");
     await t.query(
-      `INSERT INTO handover_record (id, code, booking_id, unit_id, project_id, status, completed_at)
-       VALUES ($1,$2,$3,$4,$5,'completed', now())
-       ON CONFLICT (booking_id) DO UPDATE SET status = 'completed', completed_at = now()`,
-      [randomUUID(), code, bookingId, unitId, projectId]
+      `UPDATE handover_record SET status = 'completed', completed_at = now() WHERE id = $1`,
+      [row.id]
     );
     await t.query(`UPDATE unit SET sale_status = 'handed_over' WHERE id = $1`, [unitId]);
     await appendEvent(t, {

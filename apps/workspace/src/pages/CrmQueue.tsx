@@ -220,6 +220,7 @@ export function CrmQueue({ roles, projectId }: { roles: string[]; projectId: str
                   <div className="text-headline font-semibold">{c.display_name}</div>
                   <div className="text-footnote text-fg-muted">
                     Villa {c.unit_number} · {c.booking_number}
+                    {c.rm_owner ? ` · RM ${c.rm_owner}` : ""}
                   </div>
                 </div>
                 <ChevronRight className="ml-auto h-4 w-4 text-fg-subtle" />

@@ -53,7 +53,7 @@ This is a working UI and domain core on a laptop. It is **not** production AWS.
 | Slice | Staff screen | Behaviour you can click |
 |---|---|---|
 | Site | Unit Progress Control | Record structure / MEP / flooring / finishing; changeability gates re-derive |
-| Sales | Inventory + book | Book a villa; CRM receives the file |
+| Sales | Sales Desk | Inventory discovery, holds, `bookFromInventory` |
 | CRM | Queue + Customer 360 | Accept booking; RM owns the customer |
 | Accounts | Collections | True-risk / due / overdue / disputed; post a receipt |
 | Legal | Document factory | Generate → approve → execute AOS; registration blocked until H7 financial clearance |
@@ -81,7 +81,7 @@ Empty lists use an honest empty message + Retry where there is an error — not 
 
 ## 3. Seeded data — this is not production data
 
-**Almost everything you see in the UI is fake demo data**, created on first boot of an empty DB via handlers (`createBooking` → accept → journey), not `INSERT INTO booking` for occupants. Config (roles, SLA, templates) seeds every empty environment; demo people seed only when `NODE_ENV` is not `production` (or `SEED_DEMO=1`).
+**Almost everything you see in the UI is fake demo data**, created on first boot of an empty DB via handlers (`bookFromInventory` → confirm → submitHandover → acceptHandover → journey), not `INSERT INTO booking` for occupants. Config (roles, SLA, templates) seeds every empty environment; demo people seed only when `NODE_ENV` is not `production` (or `SEED_DEMO=1`). Canonical book path is Sales Desk `BookUnitDialog` → `bookFromInventory`. Plan revisions also write `timeline_forecast_revision` (forecast dates copy the new planned dates; no SOP engine).
 
 There **is** login. Demo staff and customers are real `user` rows with passwords. PGlite is **on disk** (`services/api/.data/pglite`). Restarting the API does **not** wipe it. To get a clean roster: **stop the API first**, then `npm run db:reset` in `services/api`, then start the API again (first boot re-migrates and re-seeds).
 
@@ -95,10 +95,13 @@ East Crest (`p_eastcrest`) and Pranava Meadows (`p_meadows`) are two projects wi
 
 ### Known gaps (do not “fix” by inventing engines)
 
-- After `createPlanRevision`, **forecast still equals baseline** (no `timeline_forecast_revision` handler). Plan ≠ baseline is real on BK-V110 / BK-MT201.
+- Plan ≠ baseline is real on BK-V110 / BK-MT201. A plan revision also writes `timeline_forecast_revision` (SYSTEM, confidence 1) and copies the new planned dates onto forecast. There is still **no** progress/SLA forecast engine — do not invent SOP day counts.
+- `BookingWizard.tsx` is unused dead code (SALES home is Sales Desk). The old **Sales** nav tab still opens read-only `SalesInventory` (no book). Portal screens do not label Leela as NRI (residency lives on `customer.residency`).
+- `createBooking` remains a test helper that still `INSERT`s directly (HTTP `POST /api/units/:id/book` is gone; seed and Sales Desk use `bookFromInventory`).
 - Queues may still show raw `user_*` owner ids.
 - Portal home journey strip can say “Your timeline will appear here once it’s set up” until CRM publishes customer-visible dates — staff 360 Journey is populated.
 - GitHub `ci` / `deploy` workflows have been red since before Phase 4; not a handover ID.
+- Live `.data/pglite` is dirty after Playwright — stop API → `npm run db:reset` in `services/api` → restart before a clean demo walk.
 
 ---
 
@@ -110,7 +113,7 @@ Parked until leads supply tokens / spend:
 
 - **Google OIDC** — only with a real OAuth client. Email/password is complete. Do not add `openid-client` without asking.
 - **AWS deploy** of this main — costs money. Ask first. Default path is [`docs/handover/local-postgres.md`](docs/handover/local-postgres.md).
-- Forecast-revision engine (do not invent SOP day counts to close the forecast=baseline gap).
+- Full forecast engine (recompute on progress/SLA). Phase 6.6 only copies planned → forecast on `createPlanRevision`.
 - Chatbot, WhatsApp runtime, vendor portal — out of spec (§27).
 
 Still product-shaped leftovers (not Phase 5): Cognito authorizer on a real HTTP API, Aurora instead of PGlite/local Postgres, their mailer instead of the file outbox, loading real registrations instead of demo people.

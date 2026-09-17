@@ -93,9 +93,9 @@ export async function transferBooking(bookingId: string, reason: string, ctx: Ct
     status: string;
     project_id: string;
     unit_id: string;
-    total_consideration: string;
+    agreement_value_inr: string;
     payment_plan_id: string | null;
-  }>(`SELECT status, project_id, unit_id, total_consideration, payment_plan_id FROM booking WHERE id = $1`, [
+  }>(`SELECT status, project_id, unit_id, agreement_value_inr, payment_plan_id FROM booking WHERE id = $1`, [
     bookingId,
   ]);
   if (b.rows.length === 0) throw new ValidationError("booking_not_found");
@@ -121,22 +121,20 @@ export async function transferBooking(bookingId: string, reason: string, ctx: Ct
     });
 
     const code = await nextCode(t, "BKG");
-    const number = "BK-" + successorId.slice(0, 8).toUpperCase();
     await t.query(
       `INSERT INTO booking
         (id, project_id, unit_id, booking_number, status, total_consideration, completeness_score,
          payment_plan_id, predecessor_booking_id, code, agreement_value_inr)
-       VALUES ($1,$2,$3,$4,$5,$6,0,$7,$8,$9,$6)`,
+       VALUES ($1,$2,$3,$4,$5,$6,0,$7,$8,$4,$6)`,
       [
         successorId,
         projectId,
         unitId,
-        number,
+        code,
         toDbBookingStatus("ACTIVE"),
-        b.rows[0].total_consideration,
+        b.rows[0].agreement_value_inr,
         b.rows[0].payment_plan_id,
         bookingId,
-        code,
       ]
     );
     await appendEvent(t, {
@@ -146,7 +144,7 @@ export async function transferBooking(bookingId: string, reason: string, ctx: Ct
       project_id: projectId,
       booking_id: successorId,
       unit_id: unitId,
-      payload: { booking_number: number, predecessor_booking_id: bookingId },
+      payload: { booking_number: code, predecessor_booking_id: bookingId },
       ...actorFields(ctx),
     });
     await appendEvent(t, {

@@ -269,12 +269,19 @@ describe("Phase 2 leftover occupants via handlers (seed)", () => {
         [bookingId]
       );
       expect(stages.rows.length, bookingId).toBeGreaterThan(0);
+      expect(String(stages.rows[0]!.forecast_end)).toBe(String(stages.rows[0]!.planned_end));
       const rev = await db.query<{ reason_code: string }>(
         `SELECT r.reason_code FROM timeline_plan_revision r
            JOIN journey_instance j ON j.id = r.journey_id WHERE j.booking_id = $1`,
         [bookingId]
       );
       expect(rev.rows[0]?.reason_code).toBeTruthy();
+      const forecastRev = await db.query<{ n: number }>(
+        `SELECT count(*)::int AS n FROM timeline_forecast_revision r
+           JOIN journey_instance j ON j.id = r.journey_id WHERE j.booking_id = $1`,
+        [bookingId]
+      );
+      expect(forecastRev.rows[0]!.n, bookingId).toBeGreaterThan(0);
     }
   });
 

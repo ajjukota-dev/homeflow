@@ -50,18 +50,19 @@ async function progressFor(unitId: string): Promise<Record<string, ProgressState
   return map;
 }
 
-interface BookingHeader { id: string; unit_id: string; project_id: string; project_name: string; unit_number: string; unit_type: string; facing: string; status: string; total_consideration: number }
+interface BookingHeader { id: string; unit_id: string; project_id: string; project_name: string; unit_number: string; unit_type: string; facing: string; status: string; total_consideration: number; agreement_value_inr: number }
 
 async function bookingHeader(bookingId: string, handle: DbLike = db): Promise<BookingHeader> {
   const r = await handle.query<BookingHeader>(
     `SELECT b.id, b.unit_id, b.project_id, p.name AS project_name, u.unit_number, u.unit_type, u.facing, b.status,
-            b.total_consideration::float8 AS total_consideration
+            b.agreement_value_inr::float8 AS agreement_value_inr
        FROM booking b JOIN unit u ON u.id = b.unit_id JOIN project p ON p.id = b.project_id
       WHERE b.id = $1`,
     [bookingId]
   );
   if (!r.rows[0]) throw new AppError("not_found", "booking not found");
-  return r.rows[0];
+  const row = r.rows[0];
+  return { ...row, total_consideration: row.agreement_value_inr };
 }
 
 // --- Studio: visibility & wording (rule 1's Policy Studio "customer visibility & wording" tab) ---
