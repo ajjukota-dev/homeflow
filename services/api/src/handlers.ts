@@ -3,7 +3,7 @@ import type { ProgressState } from "./gates";
 import type { DbLike } from "./events";
 import { requireRole, STAFF_ROLES } from "./authz/requireRole";
 import { assertEntityScope } from "./authz/entity-scope";
-import { assertProjectScope } from "./authz/scope";
+import { assertProjectScope, rowsInProjectScope } from "./authz/scope";
 import type { Ctx } from "./authz/types";
 import { loadGateCategories, loadGateRules, loadProgressMap, gatesFromProgress } from "./progress/gate-inputs";
 import { updateProgress } from "./progress/core";
@@ -27,15 +27,17 @@ export async function listUnits(projectId: string | undefined, ctx: Ctx) {
     unit_type: string;
     facing: string;
     sale_status: string;
+    project_id: string;
   }>(
-    `SELECT id, unit_number, unit_type, facing, sale_status FROM unit
+    `SELECT id, unit_number, unit_type, facing, sale_status, project_id FROM unit
      ${projectId ? "WHERE project_id = $1" : ""} ORDER BY unit_number`,
     projectId ? [projectId] : []
   );
+  const visible = rowsInProjectScope(ctx.actor, units.rows, (row) => row.project_id);
   const out = [];
-  for (const u of units.rows) {
+  for (const u of visible) {
     const { gates, score } = await gatesForUnit(u.id);
-    out.push({ ...u, score, gates });
+    out.push({ id: u.id, unit_number: u.unit_number, unit_type: u.unit_type, facing: u.facing, sale_status: u.sale_status, score, gates });
   }
   return out;
 }

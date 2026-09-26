@@ -24,7 +24,8 @@ export interface ActionDetail {
   id: string; code: string; type: string; family: ActionFamily; title: string; description: string | null;
   project_id: string | null; source_module: string; source_entity_type: string; source_entity_id: string;
   booking_id: string | null; unit_id: string | null; customer_id: string | null;
-  owner_user_id: string | null; owner_role: string; backup_owner_user_id: string | null;
+  owner_user_id: string | null; owner_name: string | null; owner_role: string;
+  backup_owner_user_id: string | null; backup_owner_name: string | null;
   due_at: string | null; priority: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL"; status: ActionStatus; sla_state: SlaState | null;
   blocking_reason: string | null; depends_on_action_id: string | null;
   customer_visible: boolean; customer_title: string | null;

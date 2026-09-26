@@ -49,17 +49,17 @@ function maskFieldsInPlace(row: Record<string, unknown>, sensitivity: Sensitivit
   }
 }
 
-export async function maskAll<T extends Record<string, unknown>>(ctx: Ctx, module: string, rows: T[]): Promise<T[]> {
+export async function maskAll<T extends object>(ctx: Ctx, module: string, rows: T[]): Promise<T[]> {
   return Promise.all(rows.map((row) => mask(ctx, module, row)));
 }
 
 /** Rule 6: mask financial/PII fields on `row` for `module` per the actor's effective level. */
-export async function mask<T extends Record<string, unknown>>(ctx: Ctx, module: string, row: T): Promise<T> {
+export async function mask<T extends object>(ctx: Ctx, module: string, row: T): Promise<T> {
   const [actorLevel, sensRows] = await Promise.all([
     effectiveLevel(ctx.actor.roles, module),
     query<SensitivityRow>(`SELECT field, min_level FROM field_sensitivity WHERE module = $1`, [module]),
   ]);
-  const copy: Record<string, unknown> = { ...row };
+  const copy = { ...row } as Record<string, unknown>;
   maskFieldsInPlace(copy, sensRows.rows, actorLevel);
   return copy as T;
 }

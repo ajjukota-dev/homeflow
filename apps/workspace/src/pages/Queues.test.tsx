@@ -14,6 +14,7 @@ const ROW = {
   status: "New",
   priority: "HIGH",
   owner_user_id: null,
+  owner_name: null,
   owner_role: "CRM",
   due_at: null,
   customer_visible: true,
@@ -38,6 +39,19 @@ function mockFetch(opts: { rows?: unknown[]; usersOk?: boolean; queueFails?: boo
 }
 
 describe("Queues", () => {
+  it("shows the owner's display name, and Unknown when the name is missing", async () => {
+    mockFetch({
+      rows: [
+        { ...ROW, id: "act-named", code: "ACT-000010", title: "Collect KYC", owner_user_id: "user_48291", owner_name: "Kabir Shah" },
+        { ...ROW, id: "act-blank", code: "ACT-000011", title: "Chase the bank", owner_user_id: "user_48291", owner_name: null },
+      ],
+    });
+    render(<Queues projectId="p1" roles={["CRM"]} />);
+    await waitFor(() => expect(screen.getByText("Owned by Kabir Shah")).toBeInTheDocument());
+    expect(screen.getByText("Owned by Unknown")).toBeInTheDocument();
+    expect(screen.queryByText(/user_48291/)).not.toBeInTheDocument();
+  });
+
   it("shows real rows with claim available for an unassigned action", async () => {
     mockFetch({});
     render(<Queues projectId="p1" roles={["CRM"]} />);

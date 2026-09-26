@@ -6,6 +6,7 @@ import { defaultPortfolioId } from "./model/projects";
 import { defaultHierarchyNodeId, insertUnit, type UnitInput } from "./model/units";
 import { requireRole, SITE_SETUP_ROLES, STAFF_ROLES } from "./authz/requireRole";
 import { assertEntityScope } from "./authz/entity-scope";
+import { rowsInProjectScope } from "./authz/scope";
 import type { Ctx } from "./authz/types";
 
 // Project/Site master-data creation. Project owns unit creation (data-model.md §2).
@@ -16,7 +17,7 @@ export async function listProjects(ctx: Ctx) {
   const r = await db.query<{ id: string; code: string; name: string }>(
     `SELECT id, code, name FROM project ORDER BY name`
   );
-  return r.rows;
+  return rowsInProjectScope(ctx.actor, r.rows, (row) => row.id);
 }
 
 export async function createProject(input: { code: string; name: string }, ctx: Ctx) {

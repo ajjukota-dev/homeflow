@@ -2,6 +2,7 @@ import { db } from "../db";
 import { authorize } from "../authz/authorize";
 import { AppError, type Ctx } from "../authz/types";
 import type { DbLike } from "../events";
+import { rowsInProjectScope } from "../authz/scope";
 
 // Shared row shape + loader for doc_factory_document, split out from generate.ts so
 // deviations.ts (which validates against a document's selected_clauses) and generate.ts (which
@@ -48,7 +49,7 @@ export async function listDocuments(filter: { project_id?: string; booking_id?: 
       ORDER BY d.generated_at DESC`,
     [filter.project_id ?? null, filter.booking_id ?? null, filter.status ?? null, filter.family_code ?? null]
   );
-  return r.rows;
+  return rowsInProjectScope(ctx.actor, r.rows, (row) => row.project_id);
 }
 
 // Real gap found live (MCP browser test): every route that returns a single DocumentRow (generate,
@@ -78,8 +79,8 @@ export interface BookingPickerRow { id: string; unit_number: string; booking_num
 
 export async function listBookingsForDocuments(projectId: string | undefined, ctx: Ctx): Promise<BookingPickerRow[]> {
   await authorize(ctx, "documents", "READ");
-  const r = await db.query<BookingPickerRow>(
-    `SELECT b.id, u.unit_number, b.booking_number, a.display_name AS applicant_name
+  const r = await db.query<BookingPickerRow & { project_id: string }>(
+    `SELECT b.id, u.unit_number, b.booking_number, a.display_name AS applicant_name, b.project_id
        FROM booking b
        JOIN unit u ON u.id = b.unit_id
        LEFT JOIN booking_applicant a ON a.booking_id = b.id AND a.role = 'primary'
@@ -87,5 +88,5 @@ export async function listBookingsForDocuments(projectId: string | undefined, ct
       ORDER BY u.unit_number`,
     [projectId ?? null]
   );
-  return r.rows;
+  return rowsInProjectScope(ctx.actor, r.rows, (row) => row.project_id).map(({ project_id: _projectId, ...row }) => row);
 }

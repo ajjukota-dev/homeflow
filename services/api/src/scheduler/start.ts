@@ -18,15 +18,32 @@ export function schedulerIntervalMs(env: Env = process.env): number {
   return Number.isFinite(n) && n > 0 ? n : 60_000;
 }
 
-/** Starts the interval after listen. Vitest never reaches setInterval. */
-export function startScheduler(env: Env = process.env): ReturnType<typeof setInterval> | null {
-  if (!schedulerEnabled(env)) return null;
-  const tick = () => {
-    void runOnce().catch((err) => {
-      const message = err instanceof Error ? err.message : String(err);
-      console.error(`[scheduler] runOnce failed: ${message}`);
-    });
+/** One in-flight runOnce. A tick that arrives while it is still going is dropped, not queued. */
+function createSchedulerTick(run: () => Promise<unknown> = () => runOnce()): () => void {
+  let inFlight = false;
+  return () => {
+    if (inFlight) return;
+    inFlight = true;
+    void (async () => {
+      try {
+        await run();
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(`[scheduler] runOnce failed: ${message}`);
+      } finally {
+        inFlight = false;
+      }
+    })();
   };
+}
+
+/** Starts the interval after listen. Vitest never reaches setInterval. */
+export function startScheduler(
+  env: Env = process.env,
+  run?: () => Promise<unknown>
+): ReturnType<typeof setInterval> | null {
+  if (!schedulerEnabled(env)) return null;
+  const tick = createSchedulerTick(run);
   tick();
   return setInterval(tick, schedulerIntervalMs(env));
 }

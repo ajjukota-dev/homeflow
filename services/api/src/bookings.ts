@@ -5,6 +5,7 @@ import { appendEvent, withTx, actorFields } from "./events";
 import { nextCode } from "./model/codes";
 import { authorize } from "./authz/authorize";
 import { assertEntityScope } from "./authz/entity-scope";
+import { rowsInProjectScope } from "./authz/scope";
 import type { Ctx } from "./authz/types";
 
 // Sales → CRM handoff (handshakes.md H2). Completeness gate → accept births a Customer Twin.
@@ -51,6 +52,12 @@ export async function getBooking(id: string) {
   const row = r.rows[0];
   if (!row) return null;
   return { ...row, total_consideration: row.agreement_value_inr ?? row.total_consideration };
+}
+
+async function requireBooking(id: string) {
+  const row = await getBooking(id);
+  if (!row) throw new Error("not_found");
+  return row;
 }
 
 /** Sales creates the booking; blocked unless the completeness gate is satisfied.
@@ -126,14 +133,14 @@ export async function createBooking(unitId: string, input: BookingInput, ctx: Ct
       ...actorFields(ctx),
     });
   });
-  return getBooking(bookingId);
+  return requireBooking(bookingId);
 }
 
 export async function listBookings(status: string | undefined, ctx: Ctx) {
   await authorize(ctx, "sales_handover", "READ");
-  const r = await db.query<BookingListRow & { agreement_value_inr: number }>(
+  const r = await db.query<BookingListRow & { agreement_value_inr: number; project_id: string }>(
     `SELECT b.id, b.code AS booking_number, b.status, b.agreement_value_inr::float8 AS agreement_value_inr,
-            b.completeness_score, b.return_reason,
+            b.completeness_score, b.return_reason, b.project_id,
             u.unit_number, u.unit_type,
             a.display_name AS applicant_name, a.phone AS applicant_phone
        FROM booking b JOIN unit u ON u.id = b.unit_id
@@ -142,7 +149,12 @@ export async function listBookings(status: string | undefined, ctx: Ctx) {
       ORDER BY b.created_at DESC`,
     status ? [status] : []
   );
-  return r.rows.map((row) => ({ ...row, total_consideration: row.agreement_value_inr }));
+  const visible = rowsInProjectScope(ctx.actor, r.rows, (row) => row.project_id);
+  return visible.map(({ project_id: _projectId, agreement_value_inr, ...row }) => ({
+    ...row,
+    agreement_value_inr,
+    total_consideration: agreement_value_inr,
+  }));
 }
 
 // CRM accept/return moved to bookings-crm.ts, and the customer directory to

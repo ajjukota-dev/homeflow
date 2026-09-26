@@ -43,9 +43,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
+      # Frontends share the root lockfile + @homeflow/ui workspace. Isolated
+      # `npm ci --prefix apps/*` has no per-app lockfile and cannot resolve
+      # the private workspace package on a clean checkout.
+      - run: npm ci
       - run: npm ci --prefix services/api
-      - run: npm ci --prefix apps/workspace
-      - run: npm ci --prefix apps/my-pranava-home
       - run: npm run typecheck
 
   test:
@@ -54,8 +56,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
+      - run: npm ci
       - run: npm ci --prefix services/api
-      - run: npm ci --prefix apps/workspace
       # pdf port tests need a real Chromium (rule 2's PGlite parity tests
       # need nothing extra — DATABASE_URL is unset here, so they run
       # against pglite; the RDS/pg parity run is the nightly job below).
@@ -63,11 +65,20 @@ jobs:
       - run: npm --prefix services/api test
       - run: npm --prefix apps/workspace test
 
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm ci
+      - run: npm run build
+
   docker-build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: docker build -t homeflow-api:ci .
+      - run: docker build --build-arg GIT_SHA=${{ github.sha }} -t homeflow-api:ci .
 
   # Nightly / manual: proves the same SQL runs on real Postgres, not just
   # pglite (rule 2). One test file at a time against a fresh schema — a

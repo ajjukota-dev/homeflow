@@ -2,6 +2,7 @@
 // where/before-after for Booking, Unit, Customer, Document, Commitment, Change Request, Gate.
 import { db } from "../db";
 import { authorize } from "../authz/authorize";
+import { projectScopeSql, rowsInProjectScope } from "../authz/scope";
 import type { Ctx } from "../authz/types";
 
 export interface AuditQuery {
@@ -61,6 +62,8 @@ export async function getAudit(
     params.push(q.to);
     conditions.push(`occurred_at <= $${params.length}`);
   }
+  const scope = projectScopeSql(ctx.actor, "project_id", params);
+  if (scope) conditions.push(scope);
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
 
   const total = await db.query<{ n: number }>(`SELECT COUNT(*)::int AS n FROM event ${where}`, params);
@@ -74,7 +77,7 @@ export async function getAudit(
     params
   );
   return {
-    data: rows.rows.map((r) => ({ ...r, payload: mask(r.payload) })),
+    data: rowsInProjectScope(ctx.actor, rows.rows, (row) => row.project_id).map((r) => ({ ...r, payload: mask(r.payload) })),
     page,
     page_size: pageSize,
     total: total.rows[0]?.n ?? 0,

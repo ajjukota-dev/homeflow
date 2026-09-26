@@ -4,6 +4,7 @@ import { AppError, type Ctx } from "../authz/types";
 import { deriveStatus, type ClockStatus } from "./engine";
 import { readVersionContent } from "./templates";
 import { asDateStr } from "./calendar";
+import { atRiskForClock } from "./at-risk";
 
 // Stage/Task detail screen (06-timeline-sla-engine.md Screens: "dates, clock with pause history,
 // dependencies, evidence link to the Action"). A dedicated read model rather than folding this
@@ -87,11 +88,13 @@ export async function getTaskInstanceDetail(taskInstanceId: string, ctx: Ctx): P
       [row.sla_clock_id]
     );
     const cr = c.rows[0];
+    const now = new Date().toISOString();
+    const atRisk = await atRiskForClock(row.sla_clock_id, now);
     clock = {
       due_at: new Date(cr.due_at).toISOString(),
       stopped_at: cr.stopped_at ? new Date(cr.stopped_at).toISOString() : null,
       outcome: cr.outcome,
-      status: deriveStatus({ now: new Date().toISOString(), dueAt: cr.due_at, stoppedAt: cr.stopped_at, outcome: cr.outcome, dueSoonLeadDays: cr.due_soon_lead_days, atRisk: false }),
+      status: deriveStatus({ now, dueAt: cr.due_at, stoppedAt: cr.stopped_at, outcome: cr.outcome, dueSoonLeadDays: cr.due_soon_lead_days, atRisk }),
       total_paused_seconds: cr.total_paused_seconds,
       events: events.rows.map((e) => ({ at: new Date(e.at).toISOString(), kind: e.kind, reason: e.reason })),
     };

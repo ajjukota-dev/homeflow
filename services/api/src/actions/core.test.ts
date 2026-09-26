@@ -277,6 +277,29 @@ describe("actions/core: rule 4 — APPROVAL family (self-approve guard)", () => 
 });
 
 describe("actions/core: reads", () => {
+  it("listActions and getAction return the owner display name, and a blank name as null", async () => {
+    await db.query(
+      `INSERT INTO "user" (id, email, display_name, status, kind) VALUES
+         ('user_48291','kabir@test.local','Kabir Shah','ACTIVE','STAFF'),
+         ('user_noname','noname@test.local','','ACTIVE','STAFF')
+       ON CONFLICT (id) DO UPDATE SET display_name = EXCLUDED.display_name`
+    );
+    const namedId = await makeAction("exec_simple", { owner_user_id: "user_48291", owner_role: "CRM", title: "Named owner action" });
+    const blankId = await makeAction("exec_simple", { owner_user_id: "user_noname", owner_role: "CRM", title: "Nameless owner action" });
+
+    const named = (await listActions({ owner_user_id: "user_48291" }, crmA())).find((a) => a.id === namedId);
+    expect(named?.owner_user_id).toBe("user_48291");
+    expect(named?.owner_name).toBe("Kabir Shah");
+
+    const blank = (await listActions({ owner_user_id: "user_noname" }, crmA())).find((a) => a.id === blankId);
+    expect(blank?.owner_user_id).toBe("user_noname");
+    expect(blank?.owner_name).toBeNull();
+
+    const detail = await getAction(namedId, crmA());
+    expect(detail.owner_name).toBe("Kabir Shah");
+    expect(detail.owner_name).not.toBe(detail.owner_user_id);
+  });
+
   it("listActions filters by owner_role/status, getQueue reads the departmental_queue view", async () => {
     await makeAction("exec_simple", { owner_role: "CUSTOMISATION" });
     const list = await listActions({ owner_role: "CUSTOMISATION", status: "New" }, crmA());

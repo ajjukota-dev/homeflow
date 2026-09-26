@@ -37,7 +37,7 @@ export async function cancelChangeRequest(crId: string, input: { reason: string;
   let refundRaised = false;
   if (cr.payment_demand_id) {
     const d = (await mapDemands(`${DEMAND_SELECT} WHERE d.id = $1`, [cr.payment_demand_id]))[0];
-    const paid = d ? d.amount - d.remaining : 0;
+    const paid = d ? (d.amount ?? 0) - d.remaining : 0;
     if (paid > 0) {
       try {
         await requestWaiver({ booking_id: cr.booking_id, demand_id: cr.payment_demand_id, kind: "OTHER_CHARGE", amount: paid, reason: `Refund — ${cr.code} cancelled: ${input.reason.trim()}` }, ctx);

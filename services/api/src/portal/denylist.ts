@@ -31,8 +31,15 @@ export const CUSTOMER_DENYLIST = [
 // (this codebase has no such path yet, so today it's a flat ban within portal responses).
 const FORECAST_PREFIX = "forecast_";
 
+// Exact names miss close spellings (`vendor` does not stop `vendor_contact`,
+// `internal_notes` does not stop `internal_notes_v2`). A key is blocked when it
+// equals a denylisted name or continues it with `_…`, plus the forecast_ prefix.
 function isDenylisted(key: string): boolean {
-  return (CUSTOMER_DENYLIST as readonly string[]).includes(key) || key.startsWith(FORECAST_PREFIX);
+  const normalized = key.toLowerCase();
+  if (normalized.startsWith(FORECAST_PREFIX)) return true;
+  return (CUSTOMER_DENYLIST as readonly string[]).some(
+    (name) => normalized === name || normalized.startsWith(`${name}_`)
+  );
 }
 
 /** Walks `value` recursively (objects, arrays) and throws on the first denylisted key found
@@ -48,6 +55,18 @@ export function assertNoDenylistedKeys(value: unknown, path = "$"): void {
     if (isDenylisted(key)) throw new Error(`denylisted key "${key}" found at ${path}.${key}`);
     assertNoDenylistedKeys(v, `${path}.${key}`);
   }
+}
+
+/** Drop denylisted keys anywhere in a customer payload. Safe fields are kept. */
+export function redactDenylisted<T>(value: T): T {
+  if (value === null || value === undefined || typeof value !== "object") return value;
+  if (Array.isArray(value)) return value.map((item) => redactDenylisted(item)) as T;
+  const out: Record<string, unknown> = {};
+  for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+    if (isDenylisted(key)) continue;
+    out[key] = redactDenylisted(child);
+  }
+  return out as T;
 }
 
 export function hasDenylistedKeys(value: unknown): boolean {

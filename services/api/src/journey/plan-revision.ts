@@ -72,9 +72,13 @@ export async function createPlanRevision(journeyId: string, input: PlanRevisionI
         `UPDATE stage_instance SET planned_start = $1, planned_end = $2, forecast_start = $1, forecast_end = $2 WHERE id = $3`,
         [c.new_planned_start, c.new_planned_end, old.id]
       );
+      // Copy the new stage dates onto every task. Copying from the task's own
+      // planned_* leaves forecast on the old dates (those columns are not
+      // updated above). Baseline on the task stays put — the original plan
+      // is stored there and in timeline_plan_revision.
       await tx.query(
-        `UPDATE task_instance SET forecast_start = planned_start, forecast_end = planned_end WHERE stage_instance_id = $1`,
-        [old.id]
+        `UPDATE task_instance SET planned_start = $1, planned_end = $2, forecast_start = $1, forecast_end = $2 WHERE stage_instance_id = $3`,
+        [c.new_planned_start, c.new_planned_end, old.id]
       );
       diff.push({
         stage_code: c.stage_code,

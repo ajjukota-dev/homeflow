@@ -1,5 +1,6 @@
 import { db } from "../db";
 import { deriveStatus } from "../journey/engine";
+import { atRiskForClock } from "../journey/at-risk";
 import { createClock } from "../ports/clock";
 import { rankActions, whyNow, DEFAULT_WEIGHTS, type RankInput, type RankedAction } from "./rank";
 import { buildActor } from "../authz/buildActor";
@@ -81,7 +82,8 @@ async function clockStatusFor(slaClockId: string | null, asOf: string): Promise<
     [slaClockId]
   );
   if (!c.rows[0]) return null;
-  return deriveStatus({ now: asOf, dueAt: c.rows[0].due_at, stoppedAt: c.rows[0].stopped_at, outcome: c.rows[0].outcome as "ON_TIME" | "LATE" | null, dueSoonLeadDays: c.rows[0].due_soon_lead_days, atRisk: false });
+  const atRisk = await atRiskForClock(slaClockId, asOf);
+  return deriveStatus({ now: asOf, dueAt: c.rows[0].due_at, stoppedAt: c.rows[0].stopped_at, outcome: c.rows[0].outcome as "ON_TIME" | "LATE" | null, dueSoonLeadDays: c.rows[0].due_soon_lead_days, atRisk });
 }
 
 export interface MyDaySection {

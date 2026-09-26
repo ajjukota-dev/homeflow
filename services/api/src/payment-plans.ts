@@ -3,6 +3,7 @@ import { db } from "./db";
 import { withTx, type DbLike } from "./events";
 import { requireRole, STAFF_ROLES } from "./authz/requireRole";
 import { AppError, type Ctx } from "./authz/types";
+import { rowsInProjectScope } from "./authz/scope";
 
 // 19-collections-true-risk.md Screens: "Studio: Payment plans" — bespoke, not the generic
 // /studio/:table envelope (studio/core.ts's TABLE_REGISTRY assumes one row per primaryKey; a
@@ -77,7 +78,8 @@ async function loadPlan(id: string): Promise<PaymentPlan> {
 export async function listPaymentPlans(ctx: Ctx): Promise<PaymentPlan[]> {
   requireRole(ctx, STAFF_ROLES);
   const plans = await db.query<{ id: string }>(`SELECT id FROM payment_plan ORDER BY id`);
-  return Promise.all(plans.rows.map((p) => loadPlan(p.id)));
+  const loaded = await Promise.all(plans.rows.map((p) => loadPlan(p.id)));
+  return rowsInProjectScope(ctx.actor, loaded, (plan) => plan.project_id);
 }
 
 export async function getPaymentPlan(id: string, ctx: Ctx): Promise<PaymentPlan> {

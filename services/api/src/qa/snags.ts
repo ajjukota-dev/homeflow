@@ -5,6 +5,7 @@ import { authorize } from "../authz/authorize";
 import { requireRole } from "../authz/requireRole";
 import { AppError, type Ctx } from "../authz/types";
 import { assertEntityScope } from "../authz/entity-scope";
+import { rowsInProjectScope } from "../authz/scope";
 import { nextCode } from "../model/codes";
 import { createAction } from "../actions/core";
 import { startClock, stopClock } from "../journey/sla";
@@ -99,7 +100,7 @@ export async function listSnags(filters: SnagFilters, ctx: Ctx): Promise<SnagVie
   if (filters.severity) add("severity =", toDbSeverity(filters.severity));
   if (filters.contractor_id) add("contractor_id =", filters.contractor_id);
   const r = await db.query<Raw>(`${SELECT} ${conds.length ? "WHERE " + conds.join(" AND ") : ""} ORDER BY created_at DESC`, params);
-  return r.rows.map(view);
+  return rowsInProjectScope(ctx.actor, r.rows, (row) => row.project_id).map(view);
 }
 
 async function isRepeat(unitId: string, room: string, category: string, excludeId: string | null, tx: DbLike): Promise<boolean> {
@@ -297,7 +298,6 @@ export async function closeSnagLifecycle(id: string, ctx: Ctx): Promise<SnagView
       const c = await tx.query<{ stopped_at: string | null }>(`SELECT stopped_at FROM sla_clock WHERE id = $1`, [snag.sla_clock_id]);
       if (c.rows[0] && !c.rows[0].stopped_at) await stopClock(snag.sla_clock_id, tx);
     }
-    if (snag.action_id) await tx.query(`UPDATE action SET status = 'Closed', closed_at = now() WHERE id = $1 AND status <> 'Closed'`, [snag.action_id]);
     await appendEvent(tx, {
       type: "snag.closed", entity_type: "snag", entity_id: id, project_id: snag.project_id, unit_id: snag.unit_id, booking_id: snag.booking_id,
       payload: { code: snag.code, severity: snag.severity, reopen_count: snag.reopen_count }, ...actorFields(ctx),

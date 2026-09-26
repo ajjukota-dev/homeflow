@@ -3,6 +3,7 @@ import { db } from "../db";
 import { appendEvent, withTx, actorFields } from "../events";
 import { requireRole, STAFF_ROLES, POLICY_STUDIO_ROLES } from "../authz/requireRole";
 import { AppError, type Ctx } from "../authz/types";
+import { rowsInProjectScope } from "../authz/scope";
 
 // Generic Studio draft/publish/history envelope (25-policy-studio.md rules 1 + Data's
 // `policy_version`). Only for flat config tables that carry NO versioning columns of their
@@ -138,7 +139,9 @@ export async function listStudioTable(tableName: string, ctx: Ctx): Promise<Stud
   const entry = requireTable(tableName);
   const cols = [entry.primaryKey, ...entry.columns].join(", ");
   const r = await db.query<StudioRow>(`SELECT ${cols} FROM ${tableName} ORDER BY ${entry.primaryKey}`);
-  return r.rows;
+  const projectKeyed = entry.primaryKey === "project_id" || entry.columns.includes("project_id");
+  if (!projectKeyed) return r.rows;
+  return rowsInProjectScope(ctx.actor, r.rows, (row) => (typeof row.project_id === "string" ? row.project_id : null));
 }
 
 /** POST /studio/:table — stage a draft (rowId null = new row, PK must be in `values`).

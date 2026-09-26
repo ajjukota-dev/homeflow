@@ -1,11 +1,5 @@
 import type { Express } from "express";
-import {
-  listLegalQueue,
-  generateDocument,
-  approveDocument,
-  executeDocument,
-  completeRegistration,
-} from "./legal-docs";
+import { listLegalQueue, executeDocument, completeRegistration } from "./legal-docs";
 import {
   projectReadiness,
   verifyComponent,
@@ -14,7 +8,7 @@ import {
   completeHandover,
 } from "./qa";
 import { closeSnagLifecycle } from "./qa/snags";
-import { projectWarranty, serviceHistory, closeWarranty, captureCheckin } from "./warranty";
+import { projectWarranty, serviceHistory, captureCheckin } from "./warranty";
 import { controlTower, actIntervention } from "./management/interventions";
 import type { AuthedRequest } from "./auth/middleware";
 import { failHttp } from "./authz/httpError";
@@ -36,22 +30,6 @@ export function registerLifecycleRoutes(app: Express) {
   app.get("/api/projects/:id/legal", async (req: AuthedRequest, res) => {
     try {
       res.json({ data: await listLegalQueue(req.params.id, { actor: req.actor! }) });
-    } catch (e) {
-      fail(res, e);
-    }
-  });
-  app.post("/api/bookings/:id/documents/generate", async (req: AuthedRequest, res) => {
-    try {
-      res.json({
-        data: await generateDocument(req.params.id, req.body?.document_family ?? "AOS", { actor: req.actor! }),
-      });
-    } catch (e) {
-      fail(res, e);
-    }
-  });
-  app.post("/api/documents/:id/approve", async (req: AuthedRequest, res) => {
-    try {
-      res.json({ data: await approveDocument(req.params.id, { actor: req.actor! }) });
     } catch (e) {
       fail(res, e);
     }
@@ -132,13 +110,6 @@ export function registerLifecycleRoutes(app: Express) {
   app.get("/api/units/:id/service-history", async (req: AuthedRequest, res) => {
     try {
       res.json({ data: await serviceHistory(req.params.id, { actor: req.actor! }) });
-    } catch (e) {
-      fail(res, e);
-    }
-  });
-  app.post("/api/warranty-cases/:id/close", async (req: AuthedRequest, res) => {
-    try {
-      res.json({ data: await closeWarranty(req.params.id, { actor: req.actor! }) });
     } catch (e) {
       fail(res, e);
     }

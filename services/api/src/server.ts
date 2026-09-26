@@ -1,5 +1,6 @@
 import express from "express";
-import cors from "cors";
+import { apiCors } from "./http/cors-policy";
+import { healthPayload, liveCommitSha } from "./http/build-info";
 import { initDb, checkHealth } from "./db";
 import { registerStaticRoutes } from "./static";
 import { registerLocalFileRoutes } from "./ports/files";
@@ -55,28 +56,34 @@ import { registerPostHandoverRoutes } from "./routes-post-handover";
 import { registerIntelligenceRoutes } from "./routes-intelligence";
 import { getAudit } from "./events";
 import { failHttp } from "./authz/httpError";
+import { projectScopeGate } from "./authz/route-scope";
+import { redactDenylisted } from "./portal/denylist";
 import { startScheduler } from "./scheduler/start";
 
 // Local API gateway. Handlers are Lambda-portable; this Express wrapper is the local
 // mirror (architecture.md §6b) — the same handlers run behind API Gateway on AWS.
 const app = express();
-app.use(cors({ origin: true, credentials: true }));
+app.use(apiCors());
 app.use(express.json());
 
-app.get("/api/health", (_req, res) => res.json({ ok: true }));
+app.get("/api/health", (_req, res) => res.json({ ok: true, commit: liveCommitSha() }));
 
 // Container health check (03-platform-deploy.md) — checks the DB, used by App
 // Runner and the deploy smoke test. Registered before requireSession: App
-// Runner's health probe carries no session cookie.
+// Runner's health probe carries no session cookie. `commit` is the image/CI
+// sha when GIT_SHA or GITHUB_SHA is set — not invented locally.
 app.get("/health", async (_req, res) => {
   const dbOk = await checkHealth();
-  res.status(dbOk ? 200 : 503).json({ ok: dbOk, db: dbOk });
+  res.status(dbOk ? 200 : 503).json(healthPayload(dbOk));
 });
 
 // 01-identity-access.md API: auth routes are public/self-gated; requireSession
 // below covers every other route ("on every non-auth route").
 registerAuthRoutes(app);
 app.use(requireSession);
+// Role checks inside handlers are not enough: a guessed id in another project
+// is not_found on read and forbidden on write. ALL (Management, Super Admin) passes.
+app.use(projectScopeGate);
 
 app.get("/api/units", async (req: AuthedRequest, res) => {
   try {
@@ -176,7 +183,7 @@ app.get("/api/me/home", async (req: AuthedRequest, res) => {
   try {
     const home = await getCustomerHome(bookingId, { actor });
     if (!home) return res.status(404).json({ errors: [{ code: "not_found" }] });
-    res.json({ data: home });
+    res.json({ data: redactDenylisted(home) });
   } catch (e) {
     failHttp(res, e);
   }
@@ -290,20 +297,10 @@ app.get("/api/audit", async (req: AuthedRequest, res) => {
   }
 });
 
-// registerDocumentRoutes before registerLifecycleRoutes: both register POST
-// /api/bookings/:id/documents/generate and POST /api/documents/:id/approve (spec 22's API list
-// reuses the legacy legal-docs.ts paths verbatim) — the doc-factory handlers call next() to fall
-// through to the legacy ones when the request doesn't look like theirs (see routes-documents.ts).
+// Document generate/approve have one owner in registerDocumentRoutes (factory body, or the
+// legacy legal-docs body when `family` / `stage` is absent). Warranty close has one owner:
+// spec 30 closeWarrantyCase. closeWarranty() stays for direct unit tests, not as an HTTP route.
 registerDocumentRoutes(app);
-// registerPostHandoverRoutes before registerLifecycleRoutes: both register POST
-// /api/warranty-cases/:id/close — unlike the documents pair above, neither handler here calls
-// next() to fall through (both always try to fully handle the request), so whichever registers
-// first wins unconditionally. Registering spec 30's richer closeWarrantyCase (customer-verification
-// gate, in_coverage-based chargeable_amount) first means the legacy warranty.ts::closeWarranty
-// (routes-lifecycle.ts) is now permanently unreachable via HTTP on this path — it stays exported
-// and covered by lifecycle.test.ts's own direct function-level tests, just no longer reachable as
-// a route. Found while building spec 30's UI: without this reorder, every "Close case" click from
-// the new Post-handover screen would silently hit the legacy handler and skip customer verification.
 registerPostHandoverRoutes(app);
 registerLifecycleRoutes(app);
 registerModelRoutes(app);

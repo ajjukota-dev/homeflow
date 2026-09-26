@@ -3,8 +3,10 @@ import { db } from "../db";
 import { appendEvent, withTx, actorFields, type DbLike } from "../events";
 import { authorize } from "../authz/authorize";
 import { AppError, type Ctx } from "../authz/types";
+import { rowsInProjectScope } from "../authz/scope";
 import { nextCode } from "../model/codes";
 import { deriveStatus, type ClockStatus } from "../journey/engine";
+import { atRiskForClock } from "../journey/at-risk";
 
 export type { ClockStatus } from "../journey/engine";
 
@@ -237,7 +239,8 @@ export async function scanEscalations(asOf: string = new Date().toISOString(), t
       const existing = await t.query<EscalationRow>(`${ESCALATION_SELECT} WHERE action_id = $1 AND status NOT IN ('RESOLVED','CLOSED') LIMIT 1`, [action.id]);
       const open = existing.rows[0] ?? null;
 
-      const status: ClockStatus = deriveStatus({ now: asOf, dueAt, stoppedAt: c.stopped_at, outcome: c.outcome as "ON_TIME" | "LATE" | null, dueSoonLeadDays: c.due_soon_lead_days, atRisk: false });
+      const atRisk = await atRiskForClock(action.sla_clock_id, asOf, t);
+      const status: ClockStatus = deriveStatus({ now: asOf, dueAt, stoppedAt: c.stopped_at, outcome: c.outcome as "ON_TIME" | "LATE" | null, dueSoonLeadDays: c.due_soon_lead_days, atRisk });
 
       if (status !== "DUE_SOON" && status !== "OVERDUE") {
         // Rule 3: auto-close when the condition clears.
@@ -338,15 +341,16 @@ export async function listEscalations(
   if (filters.category) { params.push(filters.category); conds.push(`category = $${params.length}`); }
   const where = conds.length ? `WHERE ${conds.join(" AND ")}` : "";
   const r = await db.query<EscalationRow>(`${ESCALATION_SELECT} ${where} ORDER BY raised_at DESC`, params);
+  const visible = rowsInProjectScope(ctx.actor, r.rows, (row) => row.project_id);
   // Rule 4: MANAGEMENT (and only MANAGEMENT/SUPER_ADMIN, since materiality is a management-alert
   // concept) sees only escalations above the configured threshold; everyone else (department
   // heads/owners with plain READ/WRITE) sees the full list scoped by their own filters above.
-  if (!ctx.actor.roles.includes("MANAGEMENT") && !ctx.actor.roles.includes("SUPER_ADMIN")) return r.rows;
+  if (!ctx.actor.roles.includes("MANAGEMENT") && !ctx.actor.roles.includes("SUPER_ADMIN")) return visible;
   const threshold = await db.query<{ metric: string; value: number }>(`SELECT metric, value FROM materiality_threshold WHERE scope = 'MANAGEMENT_ALERT'`);
-  if (threshold.rows.length === 0) return r.rows; // no threshold configured — nothing to filter against
+  if (threshold.rows.length === 0) return visible; // no threshold configured — nothing to filter against
   const inrThreshold = threshold.rows.find((t) => t.metric === "INR_EXPOSURE")?.value;
   const custThreshold = threshold.rows.find((t) => t.metric === "CUSTOMER_COUNT")?.value;
-  return r.rows.filter((e) => {
+  return visible.filter((e) => {
     const impact = (e.decision_pack as { impact?: { inr_exposure?: number | null; customer_count?: number | null } })?.impact;
     const inrOk = inrThreshold !== undefined && (impact?.inr_exposure ?? 0) >= inrThreshold;
     const custOk = custThreshold !== undefined && (impact?.customer_count ?? 0) >= custThreshold;

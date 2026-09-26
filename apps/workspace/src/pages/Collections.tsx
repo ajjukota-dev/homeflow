@@ -44,6 +44,7 @@ export function Collections({ projectId }: { projectId: string }) {
       : view.buckets[selected].items;
 
   async function receive(row: CollectionItem) {
+    if (row.amount == null) return;
     setBusy(row.demand_id);
     await api.postReceipt(row.demand_id, row.amount, crypto.randomUUID());
     await load();
@@ -51,6 +52,7 @@ export function Collections({ projectId }: { projectId: string }) {
   }
 
   async function promise(row: CollectionItem) {
+    if (row.amount == null) return;
     const when = new Date();
     when.setDate(when.getDate() + 7);
     setBusy(row.demand_id);

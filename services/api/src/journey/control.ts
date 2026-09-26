@@ -69,8 +69,8 @@ export async function getProjectJourneyControl(projectId: string, ctx: Ctx): Pro
   const rows: JourneyControlRow[] = [];
   for (const j of journeys.rows) {
     const labels = await stageLabelsFor(j.template_version_id);
-    const stages = await db.query<{ stage_code: string; status: string; baseline_start: string | Date; planned_end: string | Date; forecast_end: string | Date }>(
-      `SELECT stage_code, status, baseline_start, planned_end, forecast_end FROM stage_instance WHERE journey_id = $1 ORDER BY baseline_start`,
+    const stages = await db.query<{ stage_code: string; status: string; baseline_start: string | Date; baseline_end: string | Date; planned_end: string | Date; forecast_end: string | Date }>(
+      `SELECT stage_code, status, baseline_start, baseline_end, planned_end, forecast_end FROM stage_instance WHERE journey_id = $1 ORDER BY baseline_start`,
       [j.id]
     );
 
@@ -89,6 +89,7 @@ export async function getProjectJourneyControl(projectId: string, ctx: Ctx): Pro
 
     const plannedEnd = stages.rows.length ? stages.rows.reduce((max, s) => (asDateStr(s.planned_end) > max ? asDateStr(s.planned_end) : max), "") : "";
     const forecastEnd = stages.rows.length ? stages.rows.reduce((max, s) => (asDateStr(s.forecast_end) > max ? asDateStr(s.forecast_end) : max), "") : "";
+    const baselineEnd = stages.rows.length ? stages.rows.reduce((max, s) => (asDateStr(s.baseline_end) > max ? asDateStr(s.baseline_end) : max), "") : "";
 
     rows.push({
       journey_id: j.id,
@@ -101,7 +102,9 @@ export async function getProjectJourneyControl(projectId: string, ctx: Ctx): Pro
       current_stage_per_stream,
       planned_handover: plannedEnd,
       forecast_handover: forecastEnd,
-      slippage_days: plannedEnd && forecastEnd ? daysBetween(forecastEnd, plannedEnd) : 0,
+      // Forecast copies the new plan on revision, so forecast − planned stays 0.
+      // Lateness is the new forecast against the stored original (baseline).
+      slippage_days: forecastEnd && baselineEnd ? daysBetween(forecastEnd, baselineEnd) : 0,
     });
   }
 

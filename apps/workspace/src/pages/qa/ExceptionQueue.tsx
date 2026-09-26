@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Inbox } from "lucide-react";
-import { Card, CardBody, EmptyState } from "@homeflow/ui";
+import { EmptyState } from "@homeflow/ui";
 import { qaApi, type QaExceptionRow } from "./api";
 
 /** 15-qa-evidence-snags.md rule 3 — exception queue as a staff row list, not a comment. */

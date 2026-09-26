@@ -7,9 +7,9 @@ import { TransitionActions } from "./TransitionActions";
 // 10-universal-action.md Screens: "Action detail drawer (reused everywhere)". Real scope cuts,
 // flagged not faked: "why it exists" renders source_module/source_entity_type/source_entity_id as
 // plain text, not a link — no per-entity permalink/routing exists anywhere in this app yet: nav.ts
-// is a fixed set of role tabs, not a URL-addressable entity viewer. Owner/backup render as raw user
-// ids — no universal name-lookup endpoint is available to every actor (same gap already flagged in
-// 11-my-day-ranking.md's Build note for Team view). No status stepper — the spec's Screens line
+// is a fixed set of role tabs, not a URL-addressable entity viewer. Owner/backup use the
+// display name joined by getAction; a missing name is "Unknown", never the raw user id.
+// No status stepper — the spec's Screens line
 // calls for one, but the transitions History section already shows the real path taken (including
 // branches a linear stepper can't represent, e.g. Waiting Internal <-> Waiting Customer), so a
 // second, ordered depiction was judged redundant rather than built to tick a box. No evidence
@@ -51,8 +51,8 @@ function DetailBody({ a, onChanged }: { a: ActionDetail; onChanged: () => void }
       <KeyValue
         items={[
           { key: "Why it exists", value: `${a.source_module} · ${a.source_entity_type} #${a.source_entity_id}` },
-          { key: "Owner", value: a.owner_user_id ?? `Unassigned (${a.owner_role} queue)` },
-          { key: "Backup owner", value: a.backup_owner_user_id ?? "—" },
+          { key: "Owner", value: a.owner_user_id ? (a.owner_name || "Unknown") : `Unassigned (${a.owner_role} queue)` },
+          { key: "Backup owner", value: a.backup_owner_user_id ? (a.backup_owner_name || "Unknown") : "—" },
           { key: "Due", value: formatAt(a.due_at) },
           { key: "Evidence requirement", value: a.evidence_requirement },
           { key: "Customer visible", value: a.customer_visible ? (a.customer_title ?? "Yes") : "No" },

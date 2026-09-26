@@ -7,15 +7,37 @@ import { mailer } from "./mailer";
 import { appendAuthEvent } from "./events";
 
 const RESET_TTL_MS = 60 * 60 * 1000; // Rule 3: 1h
+const RESET_LIMIT = 5;
+const RESET_WINDOW_MS = 60 * 60 * 1000;
+const resetHits = new Map<string, number[]>();
 
 function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }
 
-/** Rule 3: email → single-use 1h token. Always succeeds (no user enumeration). */
-export async function requestPasswordReset(input: { email: string }): Promise<void> {
+// Counted before the user lookup so a known and an unknown email share one response.
+function assertResetRate(ip: string, email: string, now: number): void {
+  const key = `${ip}\n${email}`;
+  const recent = (resetHits.get(key) ?? []).filter((at) => now - at < RESET_WINDOW_MS);
+  if (recent.length >= RESET_LIMIT) {
+    resetHits.set(key, recent);
+    throw new AppError("rate_limited", "too many reset requests — try again in an hour");
+  }
+  recent.push(now);
+  resetHits.set(key, recent);
+}
+
+/** Rule 3: email → single-use 1h token. Always succeeds (no user enumeration).
+ *  About 5 requests an hour for the same IP and email; the next is rate_limited
+ *  whether or not that email has an account. */
+export async function requestPasswordReset(
+  input: { email: string; ip?: string | null },
+  now = Date.now()
+): Promise<void> {
   const email = (input.email ?? "").trim().toLowerCase();
   if (!email) throw new AppError("validation", "email is required");
+  const ip = (input.ip ?? "").trim() || "unknown";
+  assertResetRate(ip, email, now);
 
   const rows = await query<{ id: string; status: string }>(`SELECT id, status FROM "user" WHERE lower(email) = $1`, [email]);
   const user = rows.rows[0];

@@ -7,6 +7,7 @@ import type { Ctx } from "../authz/types";
 import { projectCollections } from "../collections-view";
 import { computeBookingReadiness } from "../scores/booking-readiness";
 import { computeKpi } from "../kpis/queries";
+import { rowsInProjectScope } from "../authz/scope";
 
 export interface PortfolioRow {
   project_id: string; project_name: string;
@@ -19,8 +20,9 @@ export interface PortfolioRow {
 export async function getPortfolio(ctx: Ctx): Promise<PortfolioRow[]> {
   await authorize(ctx, "reports", "READ");
   const projects = await db.query<{ id: string; name: string }>(`SELECT id, name FROM project ORDER BY name`);
+  const visible = rowsInProjectScope(ctx.actor, projects.rows, (row) => row.id);
   const out: PortfolioRow[] = [];
-  for (const p of projects.rows) {
+  for (const p of visible) {
     const bookings = await db.query<{ id: string }>(`SELECT id FROM booking WHERE project_id = $1 AND status = 'active'`, [p.id]);
     let readinessSum = 0, readinessCount = 0;
     for (const b of bookings.rows) {

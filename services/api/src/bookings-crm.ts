@@ -93,7 +93,9 @@ export async function acceptBooking(id: string, ctx: Ctx, rmOwnerUserId?: string
     });
     await setupFunding(id, ctx, t, seed?.demand_ids);
   });
-  return { booking: await getBooking(id), customer_id: custId };
+  const booking = await getBooking(id);
+  if (!booking) throw new Error("not_found");
+  return { booking, customer_id: custId };
 }
 
 /** CRM returns an incomplete file. Emits sales_handover.returned (Appendix B).
@@ -142,5 +144,7 @@ export async function returnBooking(id: string, reason: string, ctx: Ctx) {
       ...actorFields(ctx),
     });
   });
-  return getBooking(id);
+  const returned = await getBooking(id);
+  if (!returned) throw new Error("not_found");
+  return returned;
 }

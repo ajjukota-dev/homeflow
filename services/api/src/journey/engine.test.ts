@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { deriveStatus, computeStageSchedule, deriveStageEdges, type DeriveStatusInput } from "./engine";
+import { deriveStatus, computeAtRisk, computeStageSchedule, deriveStageEdges, type DeriveStatusInput } from "./engine";
 import type { CalendarRow } from "./calendar";
 
 const MON_FRI: CalendarRow = { working_days: [1, 2, 3, 4, 5], holidays: [] };
@@ -32,6 +32,24 @@ const CASES: [string, DeriveStatusInput, ReturnType<typeof deriveStatus>][] = [
 describe("journey/engine: deriveStatus (rule 6, 12-case table)", () => {
   it.each(CASES)("%s", (_label, input, expected) => {
     expect(deriveStatus(input)).toBe(expected);
+  });
+});
+
+describe("journey/engine: computeAtRisk (only from real facts)", () => {
+  it("is false when nothing is blocked, forecast is not after plan, and no dependency is overdue", () => {
+    expect(computeAtRisk({ blocked: false, forecastEnd: "2026-03-10", plannedEnd: "2026-03-10", dependencyOverdue: false })).toBe(false);
+  });
+
+  it("is true when the subject is blocked", () => {
+    expect(computeAtRisk({ blocked: true, forecastEnd: "2026-03-10", plannedEnd: "2026-03-10", dependencyOverdue: false })).toBe(true);
+  });
+
+  it("is true when forecast is after plan", () => {
+    expect(computeAtRisk({ blocked: false, forecastEnd: "2026-03-20", plannedEnd: "2026-03-10", dependencyOverdue: false })).toBe(true);
+  });
+
+  it("is true when a dependency is overdue", () => {
+    expect(computeAtRisk({ blocked: false, forecastEnd: "2026-03-10", plannedEnd: "2026-03-10", dependencyOverdue: true })).toBe(true);
   });
 });
 

@@ -32,7 +32,6 @@ export function Passport({ onBack }: { onBack: () => void }) {
                         item.warranty_until ? `Warranty until ${formatDate(item.warranty_until)}` : item.warranty_months ? `${item.warranty_months}-month warranty` : null,
                       ].filter(Boolean).join(" · ")}
                     </p>
-                    {item.vendor_contact && <p className="text-caption text-fg-subtle">{item.vendor_contact}</p>}
                   </div>
                 ))}
               </div>

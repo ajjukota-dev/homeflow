@@ -60,7 +60,7 @@ export function registerAuthRoutes(app: Express): void {
 
   app.post("/api/auth/reset/request", async (req, res) => {
     try {
-      await requestPasswordReset(req.body ?? {});
+      await requestPasswordReset({ email: req.body?.email, ip: req.ip ?? null });
       res.json({ data: { ok: true } });
     } catch (e) {
       fail(res, e);

@@ -1,16 +1,27 @@
-import type { Express } from "express";
+import type { Express, Response } from "express";
 import type { AuthedRequest } from "./auth/middleware";
 import { failHttp } from "./authz/httpError";
+import { AppError } from "./authz/types";
 import { listTemplates, createTemplate, updateTemplate, submitTemplateForReview, approveTemplate, retireTemplate, listMergeFields, putMergeFields } from "./documents/templates";
 import { listClauses, createClause, updateClause, approveClause, listSelectionRules, putSelectionRules } from "./documents/clauses";
 import { computeReadiness } from "./documents/readiness";
 import { generateDocument } from "./documents/generate";
+import { approveDocument as approveLegacyDocument, generateDocument as generateLegacyDocument } from "./legal-docs";
 import { loadDocument, listDocuments, listBookingsForDocuments, withLabels } from "./documents/store";
 import { submitForReview, decideStage, sendForCustomerReview, approveForExecution, recordExecution, archiveDocument, listApprovals } from "./documents/workflow";
 import { listDeviations, raiseDeviation, approveDeviation, rejectDeviation } from "./documents/deviations";
 import { listChecklist, requestDocument, uploadDocument, validateDocument, acceptDocument, rejectDocument, markNotApplicable, listChecklistRules, putChecklistRules } from "./documents/checklist";
 
-// 22-document-factory.md §API.
+// Legacy legal-docs.ts errors (validation `.errors`, bare "not_found") — the factory path uses failHttp.
+function failLegacyLegal(res: Response, e: unknown) {
+  if (e instanceof AppError) return failHttp(res, e);
+  const err = e as Error & { errors?: unknown };
+  if (err.errors) return res.status(400).json({ errors: err.errors });
+  if (err.message === "not_found") return res.status(404).json({ errors: [{ code: "not_found" }] });
+  res.status(400).json({ errors: [{ code: "bad_request", message: String(err.message ?? e) }] });
+}
+
+// 22-document-factory.md §API. Also the only HTTP owner of the legacy legal-docs generate/approve URLs.
 export function registerDocumentRoutes(app: Express): void {
   const ctx = (req: AuthedRequest) => ({ actor: req.actor! });
 
@@ -77,12 +88,16 @@ export function registerDocumentRoutes(app: Express): void {
   app.get("/api/bookings/:id/documents/readiness", async (req: AuthedRequest, res) => {
     try { res.json({ data: await computeReadiness(req.params.id, req.query.family as string) }); } catch (e) { failHttp(res, e); }
   });
-  // Same URL as routes-lifecycle.ts's legacy legal-docs.ts::generateDocument (spec 22's own API
-  // list names this exact path). The two systems partition by request shape, not path: the legacy
-  // caller (api-lifecycle.ts) always sends `document_family`, never `family` — so an absent
-  // `family` falls through via next() to the legacy handler, which server.ts registers after this one.
-  app.post("/api/bookings/:id/documents/generate", async (req: AuthedRequest, res, next) => {
-    if (!req.body?.family) return next();
+  // One owner. `family` is the factory body; anything else is legal-docs.ts (document_family, default AOS).
+  app.post("/api/bookings/:id/documents/generate", async (req: AuthedRequest, res) => {
+    if (!req.body?.family) {
+      try {
+        res.json({
+          data: await generateLegacyDocument(req.params.id, req.body?.document_family ?? "AOS", ctx(req)),
+        });
+      } catch (e) { failLegacyLegal(res, e); }
+      return;
+    }
     try {
       res.json({ data: await withLabels(await generateDocument(req.params.id, req.body?.family, { template_id: req.body?.template_version_id, clause_params: req.body?.clause_params }, ctx(req))) });
     } catch (e) { failHttp(res, e); }
@@ -93,10 +108,12 @@ export function registerDocumentRoutes(app: Express): void {
   app.post("/api/documents/:id/submit-review", async (req: AuthedRequest, res) => {
     try { res.json({ data: await withLabels(await submitForReview(req.params.id, ctx(req))) }); } catch (e) { failHttp(res, e); }
   });
-  // Same collision as generate above: legacy legal-docs.ts::approveDocument also answers
-  // POST /api/documents/:id/approve, with no `stage` in its body — that's the fall-through signal.
-  app.post("/api/documents/:id/approve", async (req: AuthedRequest, res, next) => {
-    if (!req.body?.stage) return next();
+  // One owner. `stage` is the factory decision; a body without it is legal-docs.ts::approveDocument.
+  app.post("/api/documents/:id/approve", async (req: AuthedRequest, res) => {
+    if (!req.body?.stage) {
+      try { res.json({ data: await approveLegacyDocument(req.params.id, ctx(req)) }); } catch (e) { failLegacyLegal(res, e); }
+      return;
+    }
     try { res.json({ data: await withLabels(await decideStage(req.params.id, req.body?.stage, "APPROVED", req.body?.note ?? null, ctx(req))) }); } catch (e) { failHttp(res, e); }
   });
   app.post("/api/documents/:id/reject", async (req: AuthedRequest, res) => {

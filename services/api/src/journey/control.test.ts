@@ -5,6 +5,7 @@ import { createBooking, acceptBooking, type BookingInput } from "../bookings";
 import { createProject, createUnit } from "../projects";
 import { getProjectJourneyControl } from "./control";
 import { createPlanRevision } from "./plan-revision";
+import { asDateStr } from "./calendar";
 import type { Ctx } from "../authz/types";
 
 // Project Journey Control (06-timeline-sla-engine.md Screens): "table of journeys with health,
@@ -63,6 +64,12 @@ describe("getProjectJourneyControl", () => {
 
     // POST_HANDOVER is PRANAVA_STANDARD's last stage (90-day planned_duration_days, seed/journey-standard.ts)
     // — pushing it out is guaranteed to move planned_handover, unlike an earlier, non-max stage.
+    const original = await db.query<{ baseline_end: string | Date }>(
+      `SELECT baseline_end FROM stage_instance WHERE journey_id = $1 AND stage_code = 'POST_HANDOVER'`,
+      [a.journeyId]
+    );
+    const originalEnd = asDateStr(original.rows[0].baseline_end);
+
     await createPlanRevision(
       a.journeyId,
       { changes: [{ stage_code: "POST_HANDOVER", new_planned_start: "2027-01-01", new_planned_end: "2027-06-10" }], reason_code: "CUSTOMER_DELAY_TEST" },
@@ -73,7 +80,16 @@ describe("getProjectJourneyControl", () => {
     const delayed = result.journeys.find((j) => j.journey_id === a.journeyId)!;
     const untouched = result.journeys.find((j) => j.customer_name === "Untouched Customer")!;
     expect(delayed.planned_handover).toBe("2027-06-10"); // MAX(planned_end) across stages, pushed out by the revision
+    expect(delayed.forecast_handover).toBe("2027-06-10");
     expect(untouched.planned_handover).not.toBe("2027-06-10");
+    const still = await db.query<{ baseline_end: string | Date }>(
+      `SELECT baseline_end FROM stage_instance WHERE journey_id = $1 AND stage_code = 'POST_HANDOVER'`,
+      [a.journeyId]
+    );
+    expect(asDateStr(still.rows[0].baseline_end)).toBe(originalEnd);
+    expect(delayed.slippage_days).toBe(Math.round((new Date("2027-06-10").getTime() - new Date(originalEnd).getTime()) / (24 * 60 * 60 * 1000)));
+    expect(delayed.slippage_days).not.toBe(0);
+    expect(untouched.slippage_days).toBe(0);
 
     expect(result.top_delay_reasons.some((r) => r.code === "CUSTOMER_DELAY_TEST" && r.count >= 1)).toBe(true);
   });

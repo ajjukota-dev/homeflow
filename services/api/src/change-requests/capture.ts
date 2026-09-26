@@ -8,6 +8,7 @@ import { nextCode } from "../model/codes";
 import { evaluateUnit } from "../changeability/core";
 import { loadPolicy, loadCr, assertCrActor, CR_SELECT, type CrRow } from "./store";
 import { assertEntityScope } from "../authz/entity-scope";
+import { rowsInProjectScope } from "../authz/scope";
 
 // 18 rules 1-2: capture never blocked; feasibility review.
 //
@@ -138,7 +139,7 @@ export async function listChangeRequests(filter: { status?: string; project_id?:
     if (val) { params.push(val); conds.push(`${col} = $${params.length}`); }
   }
   const r = await db.query<CrRow>(`${CR_SELECT} ${conds.length ? "WHERE " + conds.join(" AND ") : ""} ORDER BY created_at DESC`, params);
-  return r.rows;
+  return rowsInProjectScope(ctx.actor, r.rows, (row) => row.project_id);
 }
 
 export async function withdrawChangeRequest(crId: string, ctx: Ctx): Promise<CrRow> {

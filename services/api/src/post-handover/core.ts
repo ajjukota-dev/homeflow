@@ -7,6 +7,7 @@ import { createAction } from "../actions/core";
 import { currentItems } from "../specification/revisions";
 import { sendCheckIn } from "../portal/core";
 import { resolveDlpPolicy } from "./dlp";
+import { rowsInProjectScope } from "../authz/scope";
 
 // 30-post-handover.md rules 1, 4, 7. Gated on the pre-existing "handovers" permission module
 // (SITE/FM WRITE, CRM/MANAGEMENT READ per the seeded matrix) — same module warranty.ts's own
@@ -136,13 +137,14 @@ export async function listPostHandoverCases(filters: { project_id?: string; stat
        ORDER BY phc.status, u.unit_number`,
     params
   )).rows;
-  if (rows.length === 0) return [];
+  const visible = rowsInProjectScope(ctx.actor, rows, (row) => row.project_id);
+  if (visible.length === 0) return [];
   const counts = await db.query<{ unit_id: string; n: string }>(
     `SELECT unit_id, count(*)::text AS n FROM warranty_case WHERE unit_id = ANY($1::text[]) AND status NOT IN ('closed', 'rejected') GROUP BY unit_id`,
-    [rows.map((r) => r.unit_id)]
+    [visible.map((r) => r.unit_id)]
   );
   const openByUnit = new Map(counts.rows.map((c) => [c.unit_id, Number(c.n)]));
-  return rows.map((r) => ({ ...r, open_warranty_cases: openByUnit.get(r.unit_id) ?? 0 }));
+  return visible.map((r) => ({ ...r, open_warranty_cases: openByUnit.get(r.unit_id) ?? 0 }));
 }
 
 export interface CheckInRow { id: string; kind: string; sent_at: string; responded_at: string | null; score: number | null; comment: string | null }

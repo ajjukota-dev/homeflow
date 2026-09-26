@@ -27,6 +27,7 @@ interface QueueAction {
   status: ActionStatus;
   priority: Priority;
   owner_user_id: string | null;
+  owner_name: string | null;
   owner_role: string;
   due_at: string | null;
   customer_visible: boolean;
@@ -235,9 +236,7 @@ export function Queues({ projectId, roles }: { projectId: string; roles: string[
                             <Badge>{a.status}</Badge>
                           </div>
                         </div>
-                        {/* Raw user id, not a display name — same known gap as ActionDrawer's Owner field
-                            (no universal name-lookup endpoint available to every actor yet). */}
-                        <p className="text-footnote text-fg-muted">{a.owner_user_id ? `Owned by ${a.owner_user_id}` : `Unassigned (${departmentLabel} queue)`}</p>
+                        <p className="text-footnote text-fg-muted">{a.owner_user_id ? `Owned by ${a.owner_name || "Unknown"}` : `Unassigned (${departmentLabel} queue)`}</p>
                       </button>
                       {!a.owner_user_id && (
                         <Button size="sm" variant="secondary" onClick={() => handleClaim(a.id)}>

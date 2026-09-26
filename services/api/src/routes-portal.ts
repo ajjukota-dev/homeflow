@@ -28,11 +28,25 @@ import {
 } from "./portal/core";
 import type { AuthedRequest } from "./auth/middleware";
 import { failHttp } from "./authz/httpError";
+import { redactDenylisted } from "./portal/denylist";
 
 // 26-customer-portal.md's API list, verbatim — all under `/portal`, session-scoped (every
 // function resolves "my booking" itself via ctx.actor, never a path param, per rule 1).
 
 export function registerPortalRoutes(app: Express) {
+  // Last line of defence: a close internal name never leaves /api/portal.
+  app.use("/api/portal", (_req, res, next) => {
+    const send = res.json.bind(res);
+    res.json = ((body?: unknown) => {
+      if (body !== null && typeof body === "object" && "data" in body) {
+        const record = body as { data: unknown };
+        return send({ ...record, data: redactDenylisted(record.data) });
+      }
+      return send(body);
+    }) as typeof res.json;
+    next();
+  });
+
   const ctx = (req: AuthedRequest) => ({ actor: req.actor! });
 
   app.get("/api/portal/me", async (req: AuthedRequest, res) => {

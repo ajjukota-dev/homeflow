@@ -2,6 +2,7 @@ import { db } from "./db";
 import { deriveGate, type ChangeGateRule, type ProgressState } from "./gates";
 import { t2Payments } from "./collections-view";
 import { t4Passport, t5Legal, t6Keys } from "./transparency";
+import { redactDenylisted } from "./portal/denylist";
 import { handoverForBooking } from "./qa";
 import { authorize } from "./authz/authorize";
 import { assertEntityScope } from "./authz/entity-scope";
@@ -131,12 +132,12 @@ export async function getCustomerHome(bookingId: string, ctx: Ctx) {
     legal,
     keys,
   };
-  if (ctx.actor.kind === "CUSTOMER") return home;
+  if (ctx.actor.kind === "CUSTOMER") return redactDenylisted(home);
   const masked = await mask(ctx, "customer_financials", {
     ...home,
     agreement_value_inr: home.agreement_value_inr,
   });
-  return { ...masked, total_consideration: masked.agreement_value_inr ?? masked.total_consideration };
+  return redactDenylisted({ ...masked, total_consideration: masked.agreement_value_inr ?? masked.total_consideration });
 }
 
 /** The active customer's booking (helper so the portal can resolve "me"). */

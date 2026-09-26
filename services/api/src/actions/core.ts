@@ -4,18 +4,18 @@ import { appendEvent, withTx, actorFields, type DbLike } from "../events";
 import { requireRole, STAFF_ROLES } from "../authz/requireRole";
 import { AppError, type Ctx } from "../authz/types";
 import { assertActionScope, assertEntityScope } from "../authz/entity-scope";
+import { rowsInProjectScope } from "../authz/scope";
 import { nextCode } from "../model/codes";
 import { stopClock } from "../journey/sla";
 import { deriveStatus, type ClockStatus } from "../journey/engine";
+import { atRiskForClock } from "../journey/at-risk";
 
 // Universal Action (10-universal-action.md). Rules 1, 3, 4, 5, 8 fully built; rule 6 (customer
 // portal "action required from you" surface) is data-model-ready (customer_visible/
 // customer_title columns) but the portal screen itself is deferred, same pattern as 05/06's
-// Studio/dashboard UIs. Rule 7 (auto-close on source-entity close via an event subscriber)
-// isn't wired — the only source built (task instances, 06) already closes its action itself
-// (journey/instances.ts's completeTaskInstance calls closeAction directly), so there is no
-// second closer for it to react to yet; revisit once a second Source (snag, warranty, ...)
-// lands with its own independent close path.
+// Studio/dashboard UIs. Rule 7 auto-close lives in actions/subscribers.ts — sources that close
+// on their own path (snag, warranty, payment received) close matching open actions with
+// close_note = "Resolved by <event>". Task instances still close via completeTaskInstance.
 //
 // Rule 2 (12 auto-creation Sources): only "task instances" is wired (journey/instances.ts).
 // The other 11 reference specs that aren't built (17, 19, 13, 15, 07, 22, 18, 12, 30) — same
@@ -441,6 +441,34 @@ export async function closeAction(actionId: string, note: string | undefined, ct
   });
 }
 
+/** Spec 10 rule 7: source-close subscriber. Skips evidence (the source closing is the
+ *  resolution), skips task-backed actions (completeTaskInstance owns those), and is
+ *  a no-op if the action is already Closed/Cancelled. */
+export async function autoCloseFromSource(actionId: string, eventType: string, maybeTx?: DbLike): Promise<void> {
+  await withTx(maybeTx, async (tx) => {
+    const a = await requireAction(actionId, tx);
+    if (a.status === "Closed" || a.status === "Cancelled") return;
+    if (await isTaskBacked(actionId, tx)) return;
+    const note = `Resolved by ${eventType}`;
+    if (a.sla_clock_id) {
+      const c = await tx.query<{ stopped_at: string | null }>(`SELECT stopped_at FROM sla_clock WHERE id = $1`, [a.sla_clock_id]);
+      if (c.rows[0] && !c.rows[0].stopped_at) await stopClock(a.sla_clock_id, tx);
+    }
+    await tx.query(`UPDATE action SET status = 'Closed', closed_at = now(), close_note = $2 WHERE id = $1`, [a.id, note]);
+    await recordTransition(a.id, a.status, "Closed", null, note, tx);
+    await appendEvent(tx, {
+      type: "action.closed",
+      entity_type: "action",
+      entity_id: a.id,
+      project_id: a.project_id,
+      booking_id: a.booking_id,
+      actor_user_id: null,
+      actor_kind: "SYSTEM",
+      payload: { close_note: note },
+    });
+  });
+}
+
 /** Rule 3: any status but Closed -> Cancelled. MANAGEMENT/SUPER_ADMIN always; the creator may
  *  cancel their own MANUAL action while still New. */
 export async function cancelAction(actionId: string, reason: string, ctx: Ctx): Promise<void> {
@@ -563,7 +591,7 @@ export async function resetActionForReopen(actionId: string, reason: string, tx:
 
 export interface ActionListItem {
   id: string; code: string; type: string; title: string; status: ActionStatus; priority: Priority;
-  owner_user_id: string | null; owner_role: string; due_at: string | null;
+  owner_user_id: string | null; owner_name: string | null; owner_role: string; due_at: string | null;
   customer_visible: boolean; project_id: string | null;
 }
 
@@ -572,25 +600,41 @@ export async function listActions(filter: { owner_user_id?: string; owner_role?:
   if (filter.project_id) await assertEntityScope(ctx, "project", filter.project_id, "read");
   const clauses: string[] = [];
   const params: unknown[] = [];
-  if (filter.owner_user_id) { params.push(filter.owner_user_id); clauses.push(`owner_user_id = $${params.length}`); }
-  if (filter.owner_role) { params.push(filter.owner_role); clauses.push(`owner_role = $${params.length}`); }
-  if (filter.status) { params.push(filter.status); clauses.push(`status = $${params.length}`); }
-  if (filter.project_id) { params.push(filter.project_id); clauses.push(`project_id = $${params.length}`); }
+  if (filter.owner_user_id) { params.push(filter.owner_user_id); clauses.push(`a.owner_user_id = $${params.length}`); }
+  if (filter.owner_role) { params.push(filter.owner_role); clauses.push(`a.owner_role = $${params.length}`); }
+  if (filter.status) { params.push(filter.status); clauses.push(`a.status = $${params.length}`); }
+  if (filter.project_id) { params.push(filter.project_id); clauses.push(`a.project_id = $${params.length}`); }
   const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
   const r = await db.query<ActionListItem>(
-    `SELECT id, code, type, title, status, priority, owner_user_id, owner_role, due_at::text AS due_at, customer_visible, project_id
-       FROM action ${where} ORDER BY due_at NULLS LAST`, // priority/SLA-weighted ranking is 11, out of scope here (rule 8)
+    `SELECT a.id, a.code, a.type, a.title, a.status, a.priority, a.owner_user_id,
+            NULLIF(TRIM(u.display_name), '') AS owner_name,
+            a.owner_role, a.due_at::text AS due_at, a.customer_visible, a.project_id
+       FROM action a
+       LEFT JOIN "user" u ON u.id = a.owner_user_id
+      ${where} ORDER BY a.due_at NULLS LAST`, // priority/SLA-weighted ranking is 11, out of scope here (rule 8)
     params
   );
-  return r.rows;
+  return rowsInProjectScope(ctx.actor, r.rows, (row) => row.project_id);
 }
 
 export interface QueueRow { owner_role: string; status: ActionStatus; count: number }
 
 export async function getQueue(role: string, ctx: Ctx): Promise<QueueRow[]> {
   requireRole(ctx, STAFF_ROLES);
-  const r = await db.query<QueueRow>(`SELECT owner_role, status, count FROM departmental_queue WHERE owner_role = $1`, [role]);
-  return r.rows;
+  const r = await db.query<{ owner_role: string; status: ActionStatus; project_id: string | null }>(
+    `SELECT owner_role, status, project_id FROM action
+      WHERE status NOT IN ('Closed', 'Cancelled') AND owner_role = $1`,
+    [role]
+  );
+  const visible = rowsInProjectScope(ctx.actor, r.rows, (row) => row.project_id);
+  const counts = new Map<string, QueueRow>();
+  for (const row of visible) {
+    const key = `${row.owner_role}\0${row.status}`;
+    const existing = counts.get(key);
+    if (existing) existing.count += 1;
+    else counts.set(key, { owner_role: row.owner_role, status: row.status, count: 1 });
+  }
+  return [...counts.values()];
 }
 
 async function slaStateFor(slaClockId: string | null): Promise<ClockStatus | null> {
@@ -601,14 +645,17 @@ async function slaStateFor(slaClockId: string | null): Promise<ClockStatus | nul
     [slaClockId]
   );
   if (!c.rows[0]) return null;
-  return deriveStatus({ now: new Date().toISOString(), dueAt: c.rows[0].due_at, stoppedAt: c.rows[0].stopped_at, outcome: c.rows[0].outcome as "ON_TIME" | "LATE" | null, dueSoonLeadDays: c.rows[0].due_soon_lead_days, atRisk: false });
+  const now = new Date().toISOString();
+  const atRisk = await atRiskForClock(slaClockId, now);
+  return deriveStatus({ now, dueAt: c.rows[0].due_at, stoppedAt: c.rows[0].stopped_at, outcome: c.rows[0].outcome as "ON_TIME" | "LATE" | null, dueSoonLeadDays: c.rows[0].due_soon_lead_days, atRisk });
 }
 
 export interface ActionDetail {
   id: string; code: string; type: string; family: ActionFamily; title: string; description: string | null;
   project_id: string | null; source_module: string; source_entity_type: string; source_entity_id: string;
   booking_id: string | null; unit_id: string | null; customer_id: string | null;
-  owner_user_id: string | null; owner_role: string; backup_owner_user_id: string | null;
+  owner_user_id: string | null; owner_name: string | null; owner_role: string;
+  backup_owner_user_id: string | null; backup_owner_name: string | null;
   due_at: string | null; priority: Priority; status: ActionStatus; sla_state: ClockStatus | null;
   blocking_reason: string | null; depends_on_action_id: string | null;
   customer_visible: boolean; customer_title: string | null;
@@ -634,14 +681,20 @@ export async function getAction(actionId: string, ctx: Ctx): Promise<ActionDetai
   requireRole(ctx, STAFF_ROLES);
   await assertActionScope(ctx, actionId, "read");
   const r = await db.query<Omit<ActionDetail, "family" | "sla_state" | "checklist" | "evidence" | "transitions"> & { sla_clock_id: string | null }>(
-    `SELECT id, code, type, title, description, project_id, source_module, source_entity_type, source_entity_id,
-            booking_id, unit_id, customer_id, owner_user_id, owner_role, backup_owner_user_id,
-            due_at::text AS due_at, priority, status, blocking_reason, depends_on_action_id,
-            customer_visible, customer_title, evidence_requirement, approver_role, verifier_role,
-            external_reference, escalation_tier, origin, created_by,
-            closed_at::text AS closed_at, closed_by, close_note, sla_clock_id,
-            (SELECT id FROM task_instance WHERE action_id = action.id) AS task_instance_id
-       FROM action WHERE id = $1`,
+    `SELECT a.id, a.code, a.type, a.title, a.description, a.project_id, a.source_module, a.source_entity_type, a.source_entity_id,
+            a.booking_id, a.unit_id, a.customer_id, a.owner_user_id,
+            NULLIF(TRIM(ou.display_name), '') AS owner_name,
+            a.owner_role, a.backup_owner_user_id,
+            NULLIF(TRIM(bu.display_name), '') AS backup_owner_name,
+            a.due_at::text AS due_at, a.priority, a.status, a.blocking_reason, a.depends_on_action_id,
+            a.customer_visible, a.customer_title, a.evidence_requirement, a.approver_role, a.verifier_role,
+            a.external_reference, a.escalation_tier, a.origin, a.created_by,
+            a.closed_at::text AS closed_at, a.closed_by, a.close_note, a.sla_clock_id,
+            (SELECT id FROM task_instance WHERE action_id = a.id) AS task_instance_id
+       FROM action a
+       LEFT JOIN "user" ou ON ou.id = a.owner_user_id
+       LEFT JOIN "user" bu ON bu.id = a.backup_owner_user_id
+      WHERE a.id = $1`,
     [actionId]
   );
   const a = r.rows[0];

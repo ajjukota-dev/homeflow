@@ -1,23 +1,17 @@
 # One container: both SPAs (static) + the API (03-platform-deploy.md).
-# Each app/service keeps its own package-lock.json (no npm workspaces), so
-# each stage installs and builds independently.
+# Frontends share the root lockfile and @homeflow/ui. The API keeps its own
+# lockfile. Per-app package-lock.json files do not exist.
 
-# ---- workspace (staff app) ----
-FROM node:20-slim AS workspace-build
-WORKDIR /repo/apps/workspace
-COPY apps/workspace/package.json apps/workspace/package-lock.json ./
+# ---- frontends (staff workspace + customer portal) ----
+FROM node:20-slim AS frontend-build
+WORKDIR /repo
+COPY package.json package-lock.json ./
+COPY packages/ui ./packages/ui
+COPY apps ./apps
 RUN npm ci
-COPY apps/workspace/ ./
-RUN npm run build
-
-# ---- my-pranava-home (customer portal) — served under /home ----
-FROM node:20-slim AS portal-build
-WORKDIR /repo/apps/my-pranava-home
-COPY apps/my-pranava-home/package.json apps/my-pranava-home/package-lock.json ./
-RUN npm ci
-COPY apps/my-pranava-home/ ./
+RUN npm --prefix apps/workspace run build
 ENV BASE_PATH=/home/
-RUN npm run build
+RUN npm --prefix apps/my-pranava-home run build
 
 # ---- api runtime deps (production only) ----
 FROM node:20-slim AS api-deps
@@ -37,6 +31,8 @@ FROM mcr.microsoft.com/playwright:v1.49.0-noble AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=8080
+ARG GIT_SHA=
+ENV GIT_SHA=$GIT_SHA
 
 COPY services/api/package.json services/api/package-lock.json ./
 COPY --from=api-deps /repo/services/api/node_modules ./node_modules
@@ -44,8 +40,8 @@ COPY --from=api-deps /repo/services/api/node_modules ./node_modules
 COPY services/api/src ./src
 COPY services/api/migrations ./migrations
 COPY services/api/tsconfig.json ./tsconfig.json
-COPY --from=workspace-build /repo/apps/workspace/dist ./public/workspace
-COPY --from=portal-build /repo/apps/my-pranava-home/dist ./public/portal
+COPY --from=frontend-build /repo/apps/workspace/dist ./public/workspace
+COPY --from=frontend-build /repo/apps/my-pranava-home/dist ./public/portal
 
 EXPOSE 8080
 CMD ["npm", "start"]

@@ -21,6 +21,7 @@ import { withTx, appendEvent, actorFields, type DbLike } from "../events";
 import { bookingForCustomerUser } from "../customer";
 import { t2Payments } from "../collections-view";
 import { t4Passport } from "../transparency";
+import { redactDenylisted } from "./denylist";
 import { currentItems } from "../specification/revisions";
 import { uploadDocument } from "../documents/checklist";
 import type { SpecItems } from "../specification/baselines";
@@ -493,11 +494,11 @@ export async function getPassport(ctx: Ctx) {
     `SELECT event_type, description, occurred_at::text AS occurred_at FROM service_history WHERE unit_id = $1 ORDER BY occurred_at DESC`,
     [b.unit_id]
   );
-  return {
+  return redactDenylisted({
     equipment,
     as_built_spec: Object.entries(asBuilt).map(([category, item]) => ({ category, spec: item.spec, brand_model: item.brand_model ?? null })),
     service_history: history.rows,
-  };
+  });
 }
 
 // --- My Home (unit, hierarchy, as-built) ---

@@ -8,6 +8,7 @@ import { startClock } from "../journey/sla";
 import type { CalendarRow } from "../journey/calendar";
 import { addServiceRecord } from "./core";
 import { resolveDlpPolicy } from "./dlp";
+import { rowsInProjectScope } from "../authz/scope";
 
 // 30-post-handover.md rules 2, 3 — the richer warranty case lifecycle
 // (triage/assign/quote/accept-quote/start/resolve/verify/close/reject), additive on the
@@ -271,7 +272,7 @@ export async function listWarrantyCases(filters: { unit_id?: string; booking_id?
   if (filters.status) { params.push(filters.status.toLowerCase()); clauses.push(`status = $${params.length}`); }
   const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
   const r = await db.query<WarrantyCaseRow>(`${SELECT} ${where} ORDER BY status, severity`, params);
-  return r.rows;
+  return rowsInProjectScope(ctx.actor, r.rows, (row) => row.project_id);
 }
 
 export async function getWarrantyCase(id: string, ctx: Ctx): Promise<WarrantyCaseRow> {

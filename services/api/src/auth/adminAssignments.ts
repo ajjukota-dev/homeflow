@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { query } from "../db";
 import { authorize } from "../authz/authorize";
+import { rowsInProjectScope } from "../authz/scope";
 import { AppError, type Ctx } from "../authz/types";
 import { appendAuthEvent } from "./events";
 
@@ -84,5 +85,5 @@ export async function listAssignments(ctx: Ctx, projectId?: string): Promise<Ass
       ORDER BY effective_from DESC`,
     projectId ? [projectId] : []
   );
-  return r.rows;
+  return rowsInProjectScope(ctx.actor, r.rows, (row) => row.project_id);
 }

@@ -20,7 +20,7 @@ export interface DemandRow {
   milestone_label: string;
   construction_trigger_event: string | null;
   sequence: number;
-  amount: number | null;
+  amount: number;
   remaining: number;
   due_date: string | null; // null until the construction trigger fires (H3)
   status: DemandStatus;

@@ -5,21 +5,14 @@ on:
     branches: [main]
   workflow_dispatch: {}
 
+# This main is not deployed from GitHub. The previous job went red when
+# cloud credentials were missing, then would have run the App Runner script.
+# Leave this workflow as a no-op so a push to main stays green.
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # Needs repo secrets AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY for the
-    # `pranava` account (975050032697, ap-south-1) — not yet added; this
-    # lane provisioned the account by hand (see infra/README.md) and left
-    # wiring CI credentials as a manual follow-up (rotate the key after).
     steps:
-      - uses: actions/checkout@v4
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ap-south-1
-      - uses: actions/setup-node@v4
-        with: { node-version: 20 }
-      - run: npm ci --prefix services/api
-      - run: bash infra/scripts/deploy.sh
+      - name: Deploy is disabled
+        run: |
+          echo "HomeFlow main is not deployed from this workflow."
+          echo "No cloud deploy. No App Runner. No cloud credentials required."

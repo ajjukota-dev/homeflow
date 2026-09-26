@@ -4,6 +4,7 @@ import { appendEvent, withTx, actorFields, type DbLike } from "../events";
 import { ValidationError } from "./derive";
 import { authorize } from "../authz/authorize";
 import { assertEntityScope } from "../authz/entity-scope";
+import { rowsInProjectScope } from "../authz/scope";
 import { mask, maskAll } from "../authz/mask";
 import type { Ctx } from "../authz/types";
 
@@ -14,9 +15,9 @@ export type Residency = "RESIDENT" | "NRI" | "OCI";
 
 export async function listCustomers(ctx: Ctx) {
   await authorize(ctx, "customer_overview", "READ");
-  const r = await db.query<CustomerListRow>(
+  const r = await db.query<CustomerListRow & { project_id: string }>(
     `SELECT c.id, c.display_name, c.primary_phone, c.kyc_status, b.code AS booking_number, u.unit_number,
-            ru.display_name AS rm_owner
+            ru.display_name AS rm_owner, b.project_id
        FROM customer c
        JOIN booking_applicant a ON a.customer_id = c.id
        JOIN booking b ON b.id = a.booking_id
@@ -24,7 +25,8 @@ export async function listCustomers(ctx: Ctx) {
        LEFT JOIN "user" ru ON ru.id = b.rm_owner_user_id
       ORDER BY c.created_at DESC`
   );
-  const aliased = r.rows.map((row) => ({ ...row, phone: row.primary_phone }));
+  const visible = rowsInProjectScope(ctx.actor, r.rows, (row) => row.project_id);
+  const aliased = visible.map(({ project_id: _projectId, ...row }) => ({ ...row, phone: row.primary_phone }));
   const masked = await maskAll(ctx, "customer_overview", aliased);
   return masked.map((row) => ({ ...row, primary_phone: (row.phone as string | null) ?? row.primary_phone }));
 }

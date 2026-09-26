@@ -42,3 +42,33 @@ export function assertProjectScope(actor: Actor, projectId: string, mode: "read"
     ? new AppError("not_found", "not_found")
     : new AppError("forbidden", "outside your assigned projects");
 }
+
+/** Drop list rows the actor cannot read. A null project id is org-wide and stays.
+ *  Management and Super Admin (`project_ids` ALL) keep every row. Each project id is
+ *  checked with assertProjectScope, the same read rule as a guessed id. */
+export function rowsInProjectScope<T>(
+  actor: Actor,
+  rows: T[],
+  projectIdOf: (row: T) => string | null | undefined
+): T[] {
+  if (actor.project_ids === "ALL") return rows;
+  return rows.filter((row) => {
+    const projectId = projectIdOf(row);
+    if (!projectId) return true;
+    try {
+      assertProjectScope(actor, projectId, "read");
+      return true;
+    } catch (err) {
+      if (err instanceof AppError && err.code === "not_found") return false;
+      throw err;
+    }
+  });
+}
+
+/** SQL twin of rowsInProjectScope for a query that pages before the rows are in memory.
+ *  Null project_id stays. ALL adds no predicate. */
+export function projectScopeSql(actor: Actor, column: string, params: unknown[]): string | null {
+  if (actor.project_ids === "ALL") return null;
+  params.push(actor.project_ids);
+  return `(${column} IS NULL OR ${column} = ANY($${params.length}::text[]))`;
+}

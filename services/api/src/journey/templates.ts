@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { db } from "../db";
 import { appendEvent, withTx, actorFields, type DbLike } from "../events";
 import { requireRole, POLICY_STUDIO_ROLES } from "../authz/requireRole";
+import { rowsInProjectScope } from "../authz/scope";
 import { AppError, type Ctx } from "../authz/types";
 import { validateConditionExpr, evaluateCondition, ConditionExprError } from "./dsl";
 import { hasCycle } from "./dependency";
@@ -84,7 +85,7 @@ export async function listTemplates(ctx: Ctx) {
       ) v ON true
      ORDER BY t.scope, t.name
   `);
-  return rows;
+  return rowsInProjectScope(ctx.actor, rows, (row) => row.project_id);
 }
 
 /** Studio's version picker + the publish dialog's "diff vs previous version" both need every

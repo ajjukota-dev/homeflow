@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { Plus } from "lucide-react";
 import { AreaScreen } from "../components/AreaScreen";
-import { portalApi, SERVICE_REQUEST_CATEGORIES, SERVICE_REQUEST_SEVERITIES, type ServiceRequestCategory, type ServiceRequestSeverity } from "../portal-api";
+import { portalApi, SERVICE_REQUEST_CATEGORIES, type ServiceRequestCategory, type ServiceRequestSeverity } from "../portal-api";
 import { useArea } from "../lib/useArea";
 import { formatINR } from "../lib/utils";
 

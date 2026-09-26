@@ -173,6 +173,21 @@ describe("26 rule 9 — Home Passport (reuses transparency.ts::t4Passport)", () 
     expect(passport).toHaveProperty("as_built_spec");
     expect(passport.service_history).toEqual([]);
   });
+
+  it("does not return vendor_contact even when the stored passport row has one", async () => {
+    const { unitId, ctx } = await freshCustomerBooking();
+    await db.query(
+      `INSERT INTO home_passport_item (id, unit_id, project_id, category, name, vendor_contact, customer_facing, approved)
+       VALUES ($1,$2,'p_eastcrest','Equipment','Borewell pump','9848012345',true,true)`,
+      ["hp_" + randomUUID().slice(0, 8), unitId]
+    );
+    const passport = await getPassport(ctx);
+    const body = JSON.stringify(passport);
+    expect(body).not.toContain("vendor_contact");
+    expect(body).not.toContain("9848012345");
+    expect(passport.equipment.some((item) => item.name === "Borewell pump")).toBe(true);
+    expect(() => assertNoDenylistedKeys(passport)).not.toThrow();
+  });
 });
 
 describe("26 rule 7 — requests: customer can raise a real change request via 18's own flow", () => {

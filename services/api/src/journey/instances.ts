@@ -8,6 +8,7 @@ import { evaluateCondition } from "./dsl";
 import { computeStageSchedule, deriveStageEdges, deriveStatus, type ClockStatus } from "./engine";
 import type { CalendarRow } from "./calendar";
 import { asDateStr } from "./calendar";
+import { atRiskForClock } from "./at-risk";
 import { startClock, type SlaPolicyRow } from "./sla";
 import { createAction, closeAction, approveAction, actionIsApprovalFamily, setActionClock, resetActionForReopen } from "../actions/core";
 import { EXECUTION_TYPE_TO_ACTION_TYPE } from "../seed/action-types";
@@ -348,7 +349,9 @@ async function refreshStageAndJourneyRollup(journeyId: string, stageInstanceId: 
       `SELECT sc.due_at, sp.due_soon_lead_days FROM sla_clock sc JOIN sla_policy sp ON sp.id = sc.policy_id WHERE sc.id = $1`,
       [t.sla_clock_id]
     );
-    const status = deriveStatus({ now: new Date().toISOString(), dueAt: clock.rows[0].due_at, stoppedAt: null, outcome: null, dueSoonLeadDays: clock.rows[0].due_soon_lead_days, atRisk: false });
+    const now = new Date().toISOString();
+    const atRisk = await atRiskForClock(t.sla_clock_id, now, tx);
+    const status = deriveStatus({ now, dueAt: clock.rows[0].due_at, stoppedAt: null, outcome: null, dueSoonLeadDays: clock.rows[0].due_soon_lead_days, atRisk });
     if (severity[status] > severity[worst]) worst = status as typeof worst;
   }
   await tx.query(`UPDATE journey_instance SET health = $2 WHERE id = $1`, [journeyId, worst]);
@@ -487,7 +490,9 @@ function daysBetween(a: string | Date, b: string | Date): number {
   return Math.round((new Date(a).getTime() - new Date(b).getTime()) / (24 * 60 * 60 * 1000));
 }
 
-/** Rule 3: variance = planned - baseline, slippage = forecast - planned, exposed per stage.
+/** Rule 3: variance = planned − baseline. Slippage is forecast − the stored
+ *  original (baseline): a plan revision copies the new planned dates onto
+ *  forecast, so forecast − planned would stay 0 and hide the move.
  *  Stage/task labels (name, customer_title, stream, execution_type, ...) come from the journey's
  *  own template_version_id via readVersionContent (05) — stage_instance/task_instance only carry
  *  the *_code, not a label, by design (the label can change on the template without rewriting
@@ -518,13 +523,18 @@ export async function getJourneyForBooking(bookingId: string, ctx: Ctx): Promise
   const result: JourneyReadModel["stages"] = [];
   for (const stage of stages.rows) {
     const stageTemplate = stageTemplateByCode.get(stage.stage_code);
-    const tasks = await db.query<{ id: string; task_code: string; status: string; sla_clock_id: string | null; action_id: string | null }>(
-      `SELECT id, task_code, status, sla_clock_id, action_id FROM task_instance WHERE stage_instance_id = $1 ORDER BY task_code`,
+    const tasks = await db.query<{ id: string; task_code: string; status: string; sla_clock_id: string | null; action_id: string | null; action_status: string | null }>(
+      `SELECT ti.id, ti.task_code, ti.status, ti.sla_clock_id, ti.action_id, a.status AS action_status
+         FROM task_instance ti LEFT JOIN action a ON a.id = ti.action_id
+        WHERE ti.stage_instance_id = $1 ORDER BY ti.task_code`,
       [stage.id]
     );
     const taskRows: JourneyReadModel["stages"][number]["tasks"] = [];
     for (const t of tasks.rows) {
       const taskTemplate = taskTemplateByCode.get(t.task_code);
+      // Action status is the live Appendix A state (start/block live on the action).
+      // A running clock is not "In Progress" unless the task or action says so.
+      const displayedStatus = t.action_status ?? t.status;
       const base = {
         task_instance_id: t.id,
         task_code: t.task_code,
@@ -533,7 +543,7 @@ export async function getJourneyForBooking(bookingId: string, ctx: Ctx): Promise
         customer_visible: taskTemplate?.customer_visible ?? false,
         execution_type: taskTemplate?.execution_type ?? "SIMPLE",
         action_id: t.action_id,
-        status: t.status,
+        status: displayedStatus,
       };
       if (!t.sla_clock_id) {
         taskRows.push({ ...base, clock_status: null, due_at: null });
@@ -544,9 +554,19 @@ export async function getJourneyForBooking(bookingId: string, ctx: Ctx): Promise
         [t.sla_clock_id]
       );
       const c = clock.rows[0];
-      const status = deriveStatus({ now: new Date().toISOString(), dueAt: c.due_at, stoppedAt: c.stopped_at, outcome: c.outcome, dueSoonLeadDays: c.due_soon_lead_days, atRisk: false });
+      const now = new Date().toISOString();
+      const atRisk = await atRiskForClock(t.sla_clock_id, now);
+      const status = deriveStatus({ now, dueAt: c.due_at, stoppedAt: c.stopped_at, outcome: c.outcome, dueSoonLeadDays: c.due_soon_lead_days, atRisk });
       taskRows.push({ ...base, clock_status: status, due_at: new Date(c.due_at).toISOString() });
     }
+    const stageStatus =
+      stage.status === "COMPLETED" || stage.status === "NOT_APPLICABLE"
+        ? stage.status
+        : taskRows.some((row) => row.status === "Blocked")
+          ? "BLOCKED"
+          : taskRows.some((row) => row.status === "In Progress")
+            ? "IN_PROGRESS"
+            : stage.status;
     result.push({
       stage_instance_id: stage.id,
       stage_code: stage.stage_code,
@@ -556,7 +576,7 @@ export async function getJourneyForBooking(bookingId: string, ctx: Ctx): Promise
       customer_visible: stageTemplate?.customer_visible ?? false,
       owner_department: stageTemplate?.owner_department ?? "",
       owner_user_id: stage.owner_user_id,
-      status: stage.status,
+      status: stageStatus,
       progress_pct: stage.progress_pct,
       baseline_start: asDateStr(stage.baseline_start),
       baseline_end: asDateStr(stage.baseline_end),
@@ -565,7 +585,7 @@ export async function getJourneyForBooking(bookingId: string, ctx: Ctx): Promise
       forecast_start: asDateStr(stage.forecast_start),
       forecast_end: asDateStr(stage.forecast_end),
       variance_days: daysBetween(stage.planned_end, stage.baseline_end),
-      slippage_days: daysBetween(stage.forecast_end, stage.planned_end),
+      slippage_days: daysBetween(stage.forecast_end, stage.baseline_end),
       tasks: taskRows,
     });
   }

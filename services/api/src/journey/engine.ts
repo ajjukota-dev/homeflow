@@ -32,6 +32,23 @@ export function deriveStatus(input: DeriveStatusInput): ClockStatus {
   return "ON_TRACK";
 }
 
+/** Spec 06 rule 6: at_risk_rule fires only from facts the data can back. */
+export interface AtRiskFacts {
+  blocked: boolean;
+  forecastEnd: string | Date | null;
+  plannedEnd: string | Date | null;
+  dependencyOverdue: boolean;
+}
+
+/** True when blocked, forecast is after plan, or a dependency is overdue. */
+export function computeAtRisk(facts: AtRiskFacts): boolean {
+  if (facts.blocked || facts.dependencyOverdue) return true;
+  if (facts.forecastEnd == null || facts.plannedEnd == null) return false;
+  const forecast = typeof facts.forecastEnd === "string" ? facts.forecastEnd.slice(0, 10) : facts.forecastEnd.toISOString().slice(0, 10);
+  const planned = typeof facts.plannedEnd === "string" ? facts.plannedEnd.slice(0, 10) : facts.plannedEnd.toISOString().slice(0, 10);
+  return forecast > planned;
+}
+
 export interface StageScheduleInput {
   code: string;
   planned_duration_days: number;

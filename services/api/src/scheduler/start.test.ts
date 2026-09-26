@@ -4,6 +4,7 @@ import { schedulerEnabled, schedulerIntervalMs, startScheduler } from "./start";
 // e31-tests: Vitest never starts setInterval. Jobs stay functions with injected asOf.
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
 });
 
@@ -33,5 +34,53 @@ describe("e31-tests — scheduler stays off in vitest", () => {
   it("HOMEFLOW_SCHEDULER_MS defaults to 60s and accepts a named override", () => {
     expect(schedulerIntervalMs({})).toBe(60_000);
     expect(schedulerIntervalMs({ HOMEFLOW_SCHEDULER_MS: "300000" })).toBe(300_000);
+  });
+});
+
+describe("scheduler overlap — skip the tick, do not queue a second runOnce", () => {
+  it("does not start a second runOnce while one is still running, and does not run it later", async () => {
+    vi.useFakeTimers();
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const run = vi.fn(() => gate);
+
+    const handle = startScheduler({ HOMEFLOW_SCHEDULER_MS: "1000" }, run);
+    expect(run).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(1000);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(run).toHaveBeenCalledTimes(1);
+
+    release();
+    await gate;
+    await Promise.resolve();
+    expect(run).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(run).toHaveBeenCalledTimes(2);
+
+    if (handle) clearInterval(handle);
+  });
+
+  it("lets a later tick run after runOnce rejects", async () => {
+    vi.useFakeTimers();
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const run = vi.fn()
+      .mockRejectedValueOnce(new Error("sweep failed"))
+      .mockResolvedValue(undefined);
+
+    const handle = startScheduler({ HOMEFLOW_SCHEDULER_MS: "1000" }, run);
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(run).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(error).toHaveBeenCalled();
+
+    if (handle) clearInterval(handle);
   });
 });

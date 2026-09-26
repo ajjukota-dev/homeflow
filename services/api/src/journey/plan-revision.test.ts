@@ -102,6 +102,66 @@ describe("createPlanRevision", () => {
     expect(presales.planned_start).toBe("2026-03-01");
   });
 
+  it("writes the new plan onto task forecasts and reports lateness from that date against the stored original", async () => {
+    const journeyId = await freshJourney();
+    const before = await db.query<{
+      baseline_end: string | Date; planned_end: string | Date;
+    }>(
+      `SELECT baseline_end, planned_end FROM stage_instance WHERE journey_id = $1 AND stage_code = 'PRESALES'`,
+      [journeyId]
+    );
+    const tasksBefore = await db.query<{ planned_end: string | Date; baseline_end: string | Date }>(
+      `SELECT ti.planned_end, ti.baseline_end
+         FROM task_instance ti
+         JOIN stage_instance si ON si.id = ti.stage_instance_id
+        WHERE si.journey_id = $1 AND si.stage_code = 'PRESALES'`,
+      [journeyId]
+    );
+    expect(tasksBefore.rows.length).toBeGreaterThan(0);
+    const originalStageEnd = asDateStr(before.rows[0].baseline_end);
+    const oldTaskPlannedEnd = asDateStr(tasksBefore.rows[0].planned_end);
+
+    const rev = await createPlanRevision(
+      journeyId,
+      { changes: [{ stage_code: "PRESALES", new_planned_start: "2026-03-01", new_planned_end: "2026-03-10" }], reason_code: "CUSTOMER_DELAY_TEST" },
+      superAdminCtx
+    );
+    expect(rev.changes[0].old_planned_end).toBe(asDateStr(before.rows[0].planned_end));
+
+    const tasksAfter = await db.query<{
+      baseline_end: string | Date; planned_end: string | Date; forecast_start: string | Date; forecast_end: string | Date;
+    }>(
+      `SELECT ti.baseline_end, ti.planned_end, ti.forecast_start, ti.forecast_end
+         FROM task_instance ti
+         JOIN stage_instance si ON si.id = ti.stage_instance_id
+        WHERE si.journey_id = $1 AND si.stage_code = 'PRESALES'`,
+      [journeyId]
+    );
+    for (const task of tasksAfter.rows) {
+      expect(asDateStr(task.forecast_start)).toBe("2026-03-01");
+      expect(asDateStr(task.forecast_end)).toBe("2026-03-10");
+      expect(asDateStr(task.forecast_end)).not.toBe(oldTaskPlannedEnd);
+      expect(asDateStr(task.planned_end)).toBe("2026-03-10");
+      expect(asDateStr(task.baseline_end)).toBe(asDateStr(tasksBefore.rows[0].baseline_end));
+    }
+
+    const stageAfter = await db.query<{ baseline_end: string | Date }>(
+      `SELECT baseline_end FROM stage_instance WHERE journey_id = $1 AND stage_code = 'PRESALES'`,
+      [journeyId]
+    );
+    expect(asDateStr(stageAfter.rows[0].baseline_end)).toBe(originalStageEnd);
+
+    const booking = await db.query<{ booking_id: string }>(`SELECT booking_id FROM journey_instance WHERE id = $1`, [journeyId]);
+    const journey = await getJourneyForBooking(booking.rows[0].booking_id, superAdminCtx);
+    const presales = journey!.stages.find((s) => s.stage_code === "PRESALES")!;
+    const untouched = journey!.stages.find((s) => s.stage_code !== "PRESALES")!;
+    expect(presales.forecast_end).toBe("2026-03-10");
+    expect(presales.baseline_end).toBe(originalStageEnd);
+    expect(presales.slippage_days).not.toBe(0);
+    expect(presales.slippage_days).toBe(presales.variance_days);
+    expect(untouched.slippage_days).toBe(0);
+  });
+
   // 02 §Appendix B / registry.test.ts coverage: plan.revised must have a real emitter test, not
   // just a mention in the registry — this is the one that satisfies it.
   it("emits a plan.revised event", async () => {

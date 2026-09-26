@@ -1,6 +1,6 @@
 import { PGlite } from "@electric-sql/pglite";
 import { mkdirSync } from "node:fs";
-import type { DbClient, QueryResult } from "./types";
+import type { DbClient, DbSession, QueryResult } from "./types";
 import { SET_SESSION_TIME_ZONE_SQL } from "./session";
 
 // In-memory (tests, one per test file/worker) or persisted to a data
@@ -12,7 +12,7 @@ import { SET_SESSION_TIME_ZONE_SQL } from "./session";
 // the same session and pass an already-settled promise.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- PGlite's own Transaction/PGlite types are structurally identical (query/exec) but not a shared interface
 function wrap(instance: { query: any; exec: any; close?: any; transaction?: any }, ready: Promise<unknown>): DbClient {
-  async function withConnection<T>(fn: Parameters<DbClient["withConnection"]>[0]): Promise<T> {
+  async function withConnection<T>(fn: (conn: DbSession) => Promise<T>): Promise<T> {
     await ready;
     return fn({
       query: async (sql, params) => {

@@ -11,7 +11,7 @@ const BASE: ActionDetail = {
   id: "a1", code: "ACT-1", type: "exec_simple", family: "TASK", title: "Collect KYC documents", description: "Chase the customer for PAN + address proof.",
   project_id: "p1", source_module: "sales", source_entity_type: "booking", source_entity_id: "bkg_1",
   booking_id: "bkg_1", unit_id: null, customer_id: "cust_1",
-  owner_user_id: null, owner_role: "CRM", backup_owner_user_id: null,
+  owner_user_id: null, owner_name: null, owner_role: "CRM", backup_owner_user_id: null, backup_owner_name: null,
   due_at: "2026-09-06T10:00:00.000Z", priority: "HIGH", status: "New", sla_state: "AT_RISK",
   blocking_reason: null, depends_on_action_id: null, customer_visible: false, customer_title: null,
   evidence_requirement: "NONE", approver_role: null, verifier_role: null, external_reference: null,
@@ -34,6 +34,19 @@ function mockFetch(detail: ActionDetail, onPost?: (url: string) => void) {
 }
 
 describe("ActionDrawer", () => {
+  it("shows the owner display name, and Unknown when that name is missing", async () => {
+    mockFetch({ ...BASE, owner_user_id: "user_48291", owner_name: "Kabir Shah" });
+    const { unmount } = render(<ActionDrawer actionId="a1" onClose={() => {}} />);
+    await waitFor(() => expect(screen.getByText("Kabir Shah")).toBeInTheDocument());
+    expect(screen.queryByText("user_48291")).not.toBeInTheDocument();
+    unmount();
+
+    mockFetch({ ...BASE, owner_user_id: "user_48291", owner_name: null });
+    render(<ActionDrawer actionId="a1" onClose={() => {}} />);
+    await waitFor(() => expect(screen.getByText("Unknown")).toBeInTheDocument());
+    expect(screen.queryByText("user_48291")).not.toBeInTheDocument();
+  });
+
   it("shows a loading state, then the real detail: status, SLA chip, why it exists", async () => {
     mockFetch(BASE);
     render(<ActionDrawer actionId="a1" onClose={() => {}} />);

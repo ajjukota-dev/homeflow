@@ -162,7 +162,6 @@ export interface PassportEquipmentItem {
   warranty_months: number | null;
   serial: string | null;
   warranty_until: string | null;
-  vendor_contact: string | null;
 }
 export interface Passport {
   equipment: PassportEquipmentItem[];

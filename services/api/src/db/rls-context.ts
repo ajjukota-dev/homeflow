@@ -61,12 +61,13 @@ export const EMPTY_GUCS: RlsGucs = {
 };
 
 export function gucsFromActor(actor: Actor): RlsGucs {
-  const all = actor.project_ids === "ALL";
+  const projectIds = actor.project_ids;
+  const all = projectIds === "ALL";
   return {
     realm: actor.kind === "CUSTOMER" ? "customer" : "staff",
     user_id: actor.user_id,
     customer_id: actor.customer_id ?? "",
-    project_ids: all ? "" : actor.project_ids.join(","),
+    project_ids: all ? "" : projectIds.join(","),
     all_projects: all ? "true" : "false",
   };
 }

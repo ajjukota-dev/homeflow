@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { db } from "../db";
 import { appendEvent, withTx, actorFields, type DbLike } from "../events";
 import { requireRole, STAFF_ROLES } from "../authz/requireRole";
+import { rowsInProjectScope } from "../authz/scope";
 import { AppError, type Ctx } from "../authz/types";
 import { todayIst } from "../authz/clock";
 import { deriveFreshness } from "../progress/freshness";
@@ -290,7 +291,7 @@ export async function listRules(filters: { project_id?: string | null; status?: 
   }
   if (filters.status) { params.push(filters.status); conds.push(`status = $${params.length}`); }
   const r = await db.query<RuleRow>(`${RULE_SELECT} ${conds.length ? "WHERE " + conds.join(" AND ") : ""} ORDER BY project_id NULLS FIRST, category_code, priority DESC, id`, params);
-  return r.rows;
+  return rowsInProjectScope(ctx.actor, r.rows, (row) => row.project_id);
 }
 
 /** PUT: the complete desired rule set for one scope (standard or one project) as the next DRAFT

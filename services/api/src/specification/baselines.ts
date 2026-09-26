@@ -3,6 +3,7 @@ import { db } from "../db";
 import { appendEvent, withTx, actorFields, type DbLike } from "../events";
 import { requireRole, SITE_SETUP_ROLES, STAFF_ROLES } from "../authz/requireRole";
 import { AppError, type Ctx } from "../authz/types";
+import { rowsInProjectScope } from "../authz/scope";
 
 // 09-specification-revisions.md: specification baselines (Policy Studio tab) and rule 1's
 // attach-at-booking-confirmation. Edit roles follow the Studio registry row (SITE + SUPER_ADMIN,
@@ -28,7 +29,7 @@ export async function loadBaseline(id: string, tx: DbLike = db): Promise<Baselin
 export async function listBaselines(projectId: string | undefined, ctx: Ctx): Promise<BaselineRow[]> {
   requireRole(ctx, STAFF_ROLES);
   const r = await db.query<BaselineRow>(`${SELECT} ${projectId ? "WHERE project_id = $1" : ""} ORDER BY project_id, product_type, unit_type NULLS FIRST, version DESC`, projectId ? [projectId] : []);
-  return r.rows;
+  return rowsInProjectScope(ctx.actor, r.rows, (row) => row.project_id);
 }
 
 function assertItems(items: unknown): SpecItems {

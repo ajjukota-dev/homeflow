@@ -3,9 +3,11 @@ import { db } from "../db";
 import { appendEvent, withTx, actorFields, type DbLike, type EventInput } from "../events";
 import { authorize } from "../authz/authorize";
 import { AppError, type Ctx } from "../authz/types";
+import { rowsInProjectScope } from "../authz/scope";
 import { requiredApprovers } from "../approvals/matrix";
 import { nextCode } from "../model/codes";
 import { deriveStatus } from "../journey/engine";
+import { atRiskForClock } from "../journey/at-risk";
 import { createClock } from "../ports/clock";
 import { createAction } from "../actions/core";
 import { computeConfidence, type ConfidenceResult, type DependencyFact, type DependencyType } from "./confidence";
@@ -352,7 +354,9 @@ async function resolveDependencyFacts(dependsOn: { type: DependencyType; id: str
           [row.sla_clock_id]
         );
         if (c.rows[0]) {
-          const status = deriveStatus({ now: new Date().toISOString(), dueAt: c.rows[0].due_at, stoppedAt: c.rows[0].stopped_at, outcome: c.rows[0].outcome as "ON_TIME" | "LATE" | null, dueSoonLeadDays: c.rows[0].due_soon_lead_days, atRisk: false });
+          const now = new Date().toISOString();
+          const atRisk = await atRiskForClock(row.sla_clock_id, now, tx);
+          const status = deriveStatus({ now, dueAt: c.rows[0].due_at, stoppedAt: c.rows[0].stopped_at, outcome: c.rows[0].outcome as "ON_TIME" | "LATE" | null, dueSoonLeadDays: c.rows[0].due_soon_lead_days, atRisk });
           overdue = status === "OVERDUE";
         }
       }
@@ -414,7 +418,7 @@ export async function listCommitments(
   if (filters.due_before) { params.push(filters.due_before); conds.push(`due_date <= $${params.length}`); }
   const where = conds.length ? `WHERE ${conds.join(" AND ")}` : "";
   const r = await db.query<CommitmentRow>(`${SELECT} ${where} ORDER BY committed_at DESC`, params);
-  return attachConfidence(r.rows, db);
+  return attachConfidence(rowsInProjectScope(ctx.actor, r.rows, (row) => row.project_id), db);
 }
 
 /** Widened over `CommitmentView` with `commitment_transition` history — a detail-only read (like
