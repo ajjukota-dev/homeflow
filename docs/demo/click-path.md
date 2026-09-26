@@ -19,8 +19,8 @@ Lists show a written empty state (e.g. “No files waiting”, “Nothing in thi
 
 ## Known gaps
 
-- Queues may show raw `user_*` owner ids.
 - Portal Home may say the timeline is not set up until customer-visible dates are published; staff **View journey** for Karthik is populated.
+- Queues show display names (`Owned by Priya Nair` / `Unknown`), not raw `user_*` ids.
 
 ## Logins
 Email/password, one seeded staff user per PDF §13 role plus one customer login, all password `Demo@2026`. Workspace app: `/login`. Portal app (My Pranava Home): `/login`.

@@ -10,9 +10,9 @@ Rewritten 2026-09-05 04:20 IST (Amarsh: "the technical specs were vibecoded; mov
 
 ## CONTINUE HERE (session handoff, 2026-09-16)
 
-**If your first message in this repo is just "continue":** Phases 1–6 are closed. **Next is workflow artifacts W01–W14** — `docs/handover/workflow-artifacts.md`; each artifact must include live UI screenshots, not diagrams only. Operator pack: `HANDOFF.md` + `docs/demo/click-path.md`. Local Postgres 16: `docs/handover/local-postgres.md`. Stop API → `npm run db:reset` in `services/api` → restart before a clean walk (Playwright books spare villas). Do not book V101/V104/V108 in seed. Ask before AWS.
+**If your first message in this repo is just "continue":** Phases 1–6 and the 23 Sep bugs are closed. **W01–W14 shots are in** `docs/handover/artifacts/` (26 Sep 2026). Operator pack: `HANDOFF.md` + `docs/handover/workflow-artifacts.md` + `docs/demo/click-path.md`. Next: walk those with the team; prove GitHub Actions on this main. Local Postgres 16: `docs/handover/local-postgres.md`. Stop API → `npm run db:reset` in `services/api` → restart before a clean walk. Do not book V101/V104/V108 in seed. Ask before AWS.
 
-**Parked (not cancelled):** P3 Google OIDC. GitHub `ci`/`deploy` workflows (pre-existing red). Full forecast engine (progress/SLA recompute) — Phase 6.6 only copies planned → forecast on plan revision. Queues raw `user_*` owner ids. `BookingWizard.tsx` is unused (SALES home is Sales Desk); old Sales tab is read-only inventory.
+**Parked (not cancelled):** P3 Google OIDC. Full forecast engine (progress/SLA recompute) — Phase 6.6 only copies planned → forecast on plan revision. `BookingWizard.tsx` is unused (SALES home is Sales Desk); old Sales tab is read-only inventory. Queues show display names, not raw `user_*` ids. `deploy.yml` is a no-op.
 
 **Phase map (share with the team):** `docs/handover/phase-work-map.md` and `docs/handover/client-readiness.md`. Cursor canvases remain local-only.
 

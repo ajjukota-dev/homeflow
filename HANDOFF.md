@@ -2,6 +2,8 @@
 
 This file is for the next engineer (or agent) picking up the repo. **Start here, then follow the spec — do not invent a second product.**
 
+**Team, 26 Sep 2026:** pull `main`. The 23 Sep bugs are closed (`58f4428`). W01–W14 live shots are in [`docs/handover/workflow-artifacts.md`](docs/handover/workflow-artifacts.md) and [`docs/handover/artifacts/`](docs/handover/artifacts/). Walk: [`docs/demo/click-path.md`](docs/demo/click-path.md). Password `Demo@2026`. What's still open is **§3**.
+
 HomeFlow is a real product we will operate, not a prototype. The local demo is intentionally seeded so you can see the UI and the domain. Production means real people, real bookings, login, and AWS — not East Crest sample customers living in memory.
 
 ---
@@ -79,7 +81,48 @@ Empty lists use an honest empty message + Retry where there is an error — not 
 
 ---
 
-## 3. Seeded data — this is not production data
+## 3. What's left (26 Sep 2026)
+
+The 23 Sep list (isolation, portal denylist, CORS, reset throttle, scheduler skip-lock, one warranty/doc HTTP owner, forecast-follows-plan, queue display names, AT_RISK from data, action auto-close subscriber, migration `0048`, CI + no-deploy) is **closed** on `58f4428`. Live walk the same day: CRM cannot see Nisha/Meadows; management can; Rohan Passport has no `vendor_contact`; queues say **Owned by Priya Nair**; reset 6th request is 429; evil Origin gets no CORS. **Do not reopen those as leftover work.**
+
+Phases 1–6 of the build queue are closed. Do not start a second OS.
+
+### Next work (do this)
+
+| What | Where | Notes |
+|---|---|---|
+| **Walk W01–W14 with the team** | [`docs/handover/workflow-artifacts.md`](docs/handover/workflow-artifacts.md) | Shots captured 26 Sep 2026 after `db:reset`. Replay: `CAPTURE_ARTIFACTS=1` Playwright specs (skipped in default CI). |
+| **Prove CI on GitHub** | `.github/workflows/ci.yml` | Root `npm ci` + no-op `deploy.yml` are on this main. Actions on the remote were not re-run from here. |
+
+### Honest leftovers (real gaps — do not fake)
+
+- **No progress/SLA forecast engine.** Plan revision copies planned → forecast and keeps the old plan on `timeline_plan_revision`. Karthik/Nisha can show plan ≠ baseline; after a revision, forecast equals the **new** plan and slippage is vs baseline. Do not invent SOP day counts or paint AT_RISK to look busy.
+- **No customer Action Required screen.** Spec 10 rule 6 portal surface is out. Do not add it.
+- **Portal Home Passport equipment** can stay empty even after a staff passport write (`t4Passport` projection). Service history may still show. That is a projection gap, not a denylist miss — do not put `vendor_contact` back to “fill” equipment.
+- **Portal home journey strip** can say “Your timeline will appear here once it's set up” until CRM publishes customer-visible dates. Staff 360 / Journey Control is populated.
+- **Portal does not label Leela as NRI** (residency is on `customer.residency`).
+- **`BookingWizard.tsx` is dead.** Sales Desk is the book path. The old **Sales** nav tab is still read-only `SalesInventory` (no book).
+- **`createBooking` is a test helper** that still `INSERT`s. HTTP book and seed use `bookFromInventory`.
+- **Studio leftovers** (matrix editor, some bespoke tabs, `importProjectConfig` stub) stay deferred. Do not invent Policy Studio screens.
+- **P1b** (thread `app.*` GUCs onto every live `db.query` so RLS is not superuser-bypass) is still parked. Isolation today is `assertProjectScope` / `rowsInProjectScope` on handlers.
+- **Local `/health` `commit` is null** unless the process is started with `GIT_SHA` / `GITHUB_SHA`. The field exists; CI/Docker set it.
+- **Chromium PDF tests** fail if Playwright browsers are missing. Unset `PLAYWRIGHT_BROWSERS_PATH` or skip; do not “fix” by stubbing PDFs.
+- Live `.data/pglite` is dirty after Playwright or a walk that claimed/revised — **stop API → `npm run db:reset` → restart** before a clean demo.
+- Workspace and portal share `localhost` cookies. Logging into the portal as Rohan **replaces** the staff session. Log out (or use a separate browser) before switching apps.
+
+### Parked — ask first (tokens / money)
+
+- **Google OIDC / customer OTP** — need a real OAuth client. Email/password is complete. Do not add `openid-client` without asking.
+- **`cdk deploy` / AWS of this `main`** — costs money. Ask first. Default run is laptop + optional [`docs/handover/local-postgres.md`](docs/handover/local-postgres.md). Ignore `https://we947t2rq2.ap-south-1.awsapprunner.com` — that is an older deploy, not this tree.
+- Chatbot, WhatsApp runtime, vendor portal — out of spec (§27).
+
+### Production (not this laptop)
+
+Real customers instead of the demo cast; their mailer instead of the file outbox; Aurora (or managed Postgres) instead of PGlite; Cognito/authorizer only if they choose that later. **Do not ship East Crest / Meadows sample people.**
+
+---
+
+## 4. Seeded data — this is not production data
 
 **Almost everything you see in the UI is fake demo data**, created on first boot of an empty DB via handlers (`bookFromInventory` → confirm → submitHandover → acceptHandover → journey), not `INSERT INTO booking` for occupants. Config (roles, SLA, templates) seeds every empty environment; demo people seed only when `NODE_ENV` is not `production` (or `SEED_DEMO=1`). Canonical book path is Sales Desk `BookUnitDialog` → `bookFromInventory`. Plan revisions also write `timeline_forecast_revision` (forecast dates copy the new planned dates; no SOP engine).
 
@@ -92,31 +135,6 @@ Full occupant roster (Karthik, Meera, Ananya, Rohan, Aditi, Harish, Nisha, Sures
 East Crest (`p_eastcrest`) and Pranava Meadows (`p_meadows`) are two projects with **different** durations in Studio/seed rows, same engines. Durations are not one in-code constant.
 
 **Production must not ship this cast.** Real customers, PAN, phones, consideration, RERA, and registration references come from Pranava’s live operations.
-
-### Known gaps (do not “fix” by inventing engines)
-
-- Plan ≠ baseline is real on BK-V110 / BK-MT201. A plan revision also writes `timeline_forecast_revision` (SYSTEM, confidence 1) and copies the new planned dates onto forecast. There is still **no** progress/SLA forecast engine — do not invent SOP day counts.
-- `BookingWizard.tsx` is unused dead code (SALES home is Sales Desk). The old **Sales** nav tab still opens read-only `SalesInventory` (no book). Portal screens do not label Leela as NRI (residency lives on `customer.residency`).
-- `createBooking` remains a test helper that still `INSERT`s directly (HTTP `POST /api/units/:id/book` is gone; seed and Sales Desk use `bookFromInventory`).
-- Queues may still show raw `user_*` owner ids.
-- Portal home journey strip can say “Your timeline will appear here once it’s set up” until CRM publishes customer-visible dates — staff 360 Journey is populated.
-- GitHub `ci` / `deploy` workflows have been red since before Phase 4; not a handover ID.
-- Live `.data/pglite` is dirty after Playwright — stop API → `npm run db:reset` in `services/api` → restart before a clean demo walk.
-
----
-
-## 4. What has to be built next (not a second OS)
-
-Email/password login, My Day, Policy Studio, files port, scheduler, and RLS are **already in this main**. Do not rebuild them.
-
-Parked until leads supply tokens / spend:
-
-- **Google OIDC** — only with a real OAuth client. Email/password is complete. Do not add `openid-client` without asking.
-- **AWS deploy** of this main — costs money. Ask first. Default path is [`docs/handover/local-postgres.md`](docs/handover/local-postgres.md).
-- Full forecast engine (recompute on progress/SLA). Phase 6.6 only copies planned → forecast on `createPlanRevision`.
-- Chatbot, WhatsApp runtime, vendor portal — out of spec (§27).
-
-Still product-shaped leftovers (not Phase 5): Cognito authorizer on a real HTTP API, Aurora instead of PGlite/local Postgres, their mailer instead of the file outbox, loading real registrations instead of demo people.
 
 ---
 
